@@ -55,7 +55,7 @@ export function Home() {
                     {t.banner_url ? (
                       <img src={t.banner_url} alt="" className="h-32 w-full rounded-t-[13px] object-cover opacity-80 group-hover:opacity-100" />
                     ) : (
-                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(255,122,26,0.35),rgba(255,77,0,0.25),rgba(255,30,45,0.35))] [mask:linear-gradient(#000,transparent)]" />
+                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(255,42,74,0.35),rgba(217,0,27,0.25),rgba(255,30,45,0.35))] [mask:linear-gradient(#000,transparent)]" />
                     )}
                     <div className="p-4">
                       <div className="font-display text-lg font-bold tracking-wide group-hover:text-ember">{t.name}</div>

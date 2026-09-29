@@ -96,7 +96,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0d0706]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
+      <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
         <Link to="/" className="font-display text-lg font-black tracking-widest">
           <span className="text-ember glow-ember">DLC</span>
           <span className="text-flame glow-flame"> ARENA</span>
@@ -144,7 +144,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           {pages.length > 1 && (
             <div className="mt-2 flex justify-center gap-2">
               {pages.map((_, i) => (
-                <span key={i} className={`h-1.5 w-8 rounded-full ${i === page % pages.length ? 'bg-ember shadow-[0_0_10px_#ff7a1a]' : 'bg-white/15'}`} />
+                <span key={i} className={`h-1.5 w-8 rounded-full ${i === page % pages.length ? 'bg-ember shadow-[0_0_10px_#ff2a4a]' : 'bg-white/15'}`} />
               ))}
             </div>
           )}
@@ -200,7 +200,7 @@ function LiveCard({
         {game?.cover_url && (
           <>
             <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#070403] via-[#070403]/75 to-[#070403]/20" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/75 to-[#050505]/20" />
           </>
         )}
         <GameBadge name={gameName} url={game?.cover_url} size={big ? 96 : compact ? 44 : 68} />
@@ -265,7 +265,7 @@ function Score({ match, game, big, compact }: { match: Match; game: Game; big: b
         {Array.from({ length: need }, (_, i) => (
           <span
             key={i}
-            className={`${compact ? 'h-1.5 w-3' : 'h-2 w-5'} -skew-x-12 ${i < won ? 'bg-ember shadow-[0_0_8px_#ff7a1a]' : 'bg-white/15'}`}
+            className={`${compact ? 'h-1.5 w-3' : 'h-2 w-5'} -skew-x-12 ${i < won ? 'bg-ember shadow-[0_0_8px_#ff2a4a]' : 'bg-white/15'}`}
           />
         ))}
       </div>
@@ -295,9 +295,9 @@ function Digit({ value }: { value: number }) {
       <motion.span
         key={value}
         className="inline-block text-ink"
-        style={{ textShadow: '0 0 18px rgba(255,122,26,0.8)' }}
+        style={{ textShadow: '0 0 18px rgba(255,42,74,0.8)' }}
         initial={{ y: -30, opacity: 0, scale: 1.6, color: '#ffc93c' }}
-        animate={{ y: 0, opacity: 1, scale: 1, color: '#fff3ec' }}
+        animate={{ y: 0, opacity: 1, scale: 1, color: '#fff0f1' }}
         exit={{ y: 30, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       >
@@ -370,7 +370,7 @@ function CardWinner({ match, data, champion, big, compact }: { match: Match; dat
 function GameBadge({ name, url, size }: { name: string; url?: string | null; size: number }) {
   const initials = name.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
   return url ? (
-    <img src={url} alt={name} className="relative shrink-0 rounded-xl border border-ember/50 object-cover shadow-[0_0_18px_rgba(255,122,26,0.35)]" style={{ width: size, height: size }} />
+    <img src={url} alt={name} className="relative shrink-0 rounded-xl border border-ember/50 object-cover shadow-[0_0_18px_rgba(255,42,74,0.35)]" style={{ width: size, height: size }} />
   ) : (
     <div
       className="font-display relative flex shrink-0 items-center justify-center rounded-xl border border-flame/60 bg-gradient-to-br from-flame/30 to-ember/20 font-black text-white shadow-[0_0_18px_rgba(255,30,45,0.35)]"
@@ -384,7 +384,7 @@ function GameBadge({ name, url, size }: { name: string; url?: string | null; siz
 function Side({ name, url, size, big, compact, dim }: { name: string; url?: string | null; size: number; big: boolean; compact: boolean; dim?: boolean }) {
   return (
     <div className={`flex min-w-0 flex-1 flex-col items-center gap-2 text-center transition ${dim ? 'opacity-30 grayscale' : ''}`}>
-      <Avatar name={name} url={url} size={size} ring="#ff7a1a55" />
+      <Avatar name={name} url={url} size={size} ring="#ff2a4a55" />
       <span className={`font-display w-full truncate font-bold ${big ? 'text-4xl' : compact ? 'text-base' : 'text-xl'}`}>{name}</span>
     </div>
   );

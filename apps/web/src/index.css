@@ -2,22 +2,22 @@
 
 /* ------------------------------------------------------------------------
    DLC Arena: cyberpunk glass.
-   Frosted neon panels over an animated synthwave scene, HUD corner
+   Frosted neon panels over a black backdrop of blurred neon doodles, HUD corner
    brackets, glitch headings and mono "terminal" labels.
    ------------------------------------------------------------------------ */
 
 @theme {
-  --color-bg: #070403;
-  --color-surface: #140b08;
-  --color-surface2: #1f120d;
-  --color-line: rgba(255, 110, 60, 0.22);
-  --color-ink: #fff3ec;
-  --color-muted: #b59a8f;
-  --color-ember: #ff7a1a;
+  --color-bg: #000000;
+  --color-surface: #0f0a0b;
+  --color-surface2: #1a0f11;
+  --color-line: rgba(255, 50, 70, 0.22);
+  --color-ink: #fff0f1;
+  --color-muted: #a8999b;
+  --color-ember: #ff2a4a;
   --color-flame: #ff1e2d;
   --color-gold: #ffc93c;
-  --color-amber: #ffb000;
-  --color-blaze: #ff4d00;
+  --color-amber: #ff6b81;
+  --color-blaze: #d9001b;
   --color-danger: #ff3b3b;
   --font-display: "Orbitron", system-ui, sans-serif;
   --font-body: "Rajdhani", system-ui, sans-serif;
@@ -52,78 +52,47 @@ body {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  background: #000;
+}
+
+/* Faint red haze so the black isn't flat. */
+.scene .glow {
+  position: absolute;
+  inset: 0;
   background:
-    radial-gradient(ellipse 80% 50% at 50% 38%, rgba(255, 30, 45, 0.28), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 15% 10%, rgba(255, 122, 26, 0.14), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 90% 15%, rgba(255, 77, 0, 0.22), transparent 70%),
-    linear-gradient(180deg, #070403 0%, #1c0c08 45%, #240c07 58%, #070403 100%);
+    radial-gradient(ellipse 60% 45% at 20% 15%, rgba(255, 30, 45, 0.1), transparent 70%),
+    radial-gradient(ellipse 55% 45% at 85% 85%, rgba(255, 42, 74, 0.08), transparent 70%);
 }
 
-/* Striped synthwave sun sinking behind the horizon. */
-.scene .sun {
+/* Neon gaming doodles, blurred and dimmed so they sit behind the content. */
+.scene .doodles {
   position: absolute;
-  left: 50%;
-  top: 58%;
-  width: min(46vw, 520px);
-  aspect-ratio: 1;
-  transform: translate(-50%, -62%);
-  border-radius: 50%;
-  background: linear-gradient(180deg, #ffd36a 0%, #ff5a2a 45%, #ff1e2d 70%, #ff4d00 100%);
-  -webkit-mask: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 18px), linear-gradient(#000 0 55%, transparent 55%);
-  -webkit-mask-composite: source-over;
-  mask: linear-gradient(180deg, #000 0 52%, transparent 52%), repeating-linear-gradient(180deg, #000 0 12px, transparent 12px 17px);
-  mask-composite: add;
-  opacity: 0.35;
-  filter: blur(0.5px) drop-shadow(0 0 60px rgba(255, 30, 45, 0.6));
-}
-
-/* Perspective grid floor that scrolls toward the viewer. */
-.scene .floor {
-  position: absolute;
-  left: -50%;
-  right: -50%;
-  top: 58%;
-  bottom: -40%;
-  transform: perspective(420px) rotateX(62deg);
-  transform-origin: top center;
-  background-image:
-    linear-gradient(rgba(255, 30, 45, 0.55) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(255, 122, 26, 0.4) 2px, transparent 2px);
-  background-size: 64px 64px;
-  animation: floor 3.2s linear infinite;
-  -webkit-mask: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
-  mask: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
-  opacity: 0.45;
-}
-.scene .horizon {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 58%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #ff1e2d, #ff7a1a, #ff1e2d, transparent);
-  box-shadow: 0 0 24px 4px rgba(255, 30, 45, 0.5);
-  opacity: 0.8;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  opacity: 0.22;
+  filter: blur(2.5px) saturate(120%);
+  animation: doodle-drift 60s ease-in-out infinite alternate;
 }
 .scene .scan {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 3px);
 }
 .scene .vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.7) 100%);
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
 }
 
-@keyframes floor {
+@keyframes doodle-drift {
   to {
-    background-position: 0 64px, 0 0;
+    transform: translate(-30px, -24px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene .floor {
+  .scene .doodles {
     animation: none;
   }
 }
@@ -133,14 +102,14 @@ body {
 .panel,
 .glass-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 60%, rgba(255, 77, 0, 0.06));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 60%, rgba(217, 0, 27, 0.06));
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 120, 70, 0.28);
+  border: 1px solid rgba(255, 60, 80, 0.28);
   border-radius: 14px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 30px rgba(255, 122, 26, 0.04),
+    inset 0 0 30px rgba(255, 42, 74, 0.04),
     0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
@@ -186,8 +155,8 @@ body {
   animation: neon-pulse 1.8s ease-in-out infinite;
 }
 .neon-gold {
-  border-color: rgba(255, 176, 0, 0.75) !important;
-  box-shadow: 0 0 22px rgba(255, 176, 0, 0.25), inset 0 0 22px rgba(255, 176, 0, 0.08);
+  border-color: rgba(255, 107, 129, 0.75) !important;
+  box-shadow: 0 0 22px rgba(255, 107, 129, 0.25), inset 0 0 22px rgba(255, 107, 129, 0.08);
 }
 .neon-win {
   border-color: rgba(255, 201, 60, 0.8) !important;
@@ -213,15 +182,15 @@ body {
 }
 
 .chrome-text {
-  background: linear-gradient(180deg, #ffffff 0%, #ffe2c8 40%, #ff7a1a 55%, #ff1e2d 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #ffe0e4 40%, #ff2a4a 55%, #ff1e2d 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 14px rgba(255, 122, 26, 0.45));
+  filter: drop-shadow(0 0 14px rgba(255, 42, 74, 0.45));
 }
 
 .glow-ember {
-  text-shadow: 0 0 12px rgba(255, 122, 26, 0.75);
+  text-shadow: 0 0 12px rgba(255, 42, 74, 0.75);
 }
 .glow-flame {
   text-shadow: 0 0 12px rgba(255, 30, 45, 0.75);
@@ -342,10 +311,10 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-ember);
-  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.15), 0 0 16px rgba(255, 122, 26, 0.25);
+  box-shadow: 0 0 0 3px rgba(255, 42, 74, 0.15), 0 0 16px rgba(255, 42, 74, 0.25);
 }
 select option {
-  background: #1c0c08;
+  background: #120709;
 }
 input[type="checkbox"] {
   accent-color: var(--color-ember);
@@ -359,9 +328,9 @@ input[type="file"]::file-selector-button {
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  background: rgba(255, 122, 26, 0.12);
+  background: rgba(255, 42, 74, 0.12);
   color: var(--color-ember);
-  border: 1px solid rgba(255, 122, 26, 0.5);
+  border: 1px solid rgba(255, 42, 74, 0.5);
   border-radius: 6px;
   padding: 0.3rem 0.7rem;
   margin-right: 0.7rem;

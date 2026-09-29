@@ -32,7 +32,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
   const game = latest ? gameOf(latest.tournament_game_id) : undefined;
   const tournament = latest ? data.tournaments.get(latest.tournament_id) : undefined;
   const total = latest ? roundsByTg.get(latest.tournament_game_id) ?? latest.round : 1;
-  const accent = champion ? '#ffb000' : '#ffc93c';
+  const accent = champion ? '#ff6b81' : '#ffc93c';
   const hasScore = latest?.score_a != null && latest?.score_b != null;
   const winnerScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_a : latest.score_b) : null;
   const loserScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_b : latest.score_a) : null;
@@ -96,7 +96,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
                 <motion.div
                   className="absolute -inset-4 rounded-full"
                   style={{
-                    background: `conic-gradient(from 0deg, ${accent}, #ff7a1a, #ff1e2d, ${accent})`,
+                    background: `conic-gradient(from 0deg, ${accent}, #ff2a4a, #ff1e2d, ${accent})`,
                     WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
                     WebkitMaskComposite: 'xor',
                     maskComposite: 'exclude',
@@ -177,7 +177,7 @@ export function Particles({ color, count, spread = 600 }: { color: string; count
       dist: spread / 3 + Math.random() * spread,
       size: 3 + Math.random() * 7,
       delay: 0.5 + Math.random() * 0.6,
-      tint: Math.random() > 0.5 ? color : Math.random() > 0.5 ? '#ff7a1a' : '#ff1e2d',
+      tint: Math.random() > 0.5 ? color : Math.random() > 0.5 ? '#ff2a4a' : '#ff1e2d',
     })),
   );
   return (

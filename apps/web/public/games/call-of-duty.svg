@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice">
 <defs>
-<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#070403"/><stop offset=".55" stop-color="#3a1206" stop-opacity=".6"/><stop offset="1" stop-color="#ff4d00" stop-opacity=".75"/></linearGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#050505"/><stop offset=".55" stop-color="#3a0810" stop-opacity=".6"/><stop offset="1" stop-color="#d9001b" stop-opacity=".75"/></linearGradient>
 <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#000" opacity=".22"/></pattern>
 </defs>
-<rect width="640" height="360" fill="#070403"/>
+<rect width="640" height="360" fill="#050505"/>
 <rect width="640" height="360" fill="url(#bg)"/>
-<g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round"> <circle cx="320" cy="170" r="110" stroke="#ff7a1a" stroke-width="4"/>
- <circle cx="320" cy="170" r="60" stroke="#ff7a1a" stroke-width="3" opacity=".6"/>
+<g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round"> <circle cx="320" cy="170" r="110" stroke="#ff2a4a" stroke-width="4"/>
+ <circle cx="320" cy="170" r="60" stroke="#ff2a4a" stroke-width="3" opacity=".6"/>
  <line x1="320" y1="30" x2="320" y2="120" stroke="#ff1e2d" stroke-width="5"/>
  <line x1="320" y1="220" x2="320" y2="310" stroke="#ff1e2d" stroke-width="5"/>
  <line x1="170" y1="170" x2="270" y2="170" stroke="#ff1e2d" stroke-width="5"/>
  <line x1="370" y1="170" x2="470" y2="170" stroke="#ff1e2d" stroke-width="5"/>
  <circle cx="320" cy="170" r="5" fill="#ffc93c" stroke="#ffc93c"/>
  <path d="M50 300 l30 -60 l30 60 M60 280 h40" stroke="#ffc93c" stroke-width="4"/>
- <path d="M520 70 h80 v24 h-80z M540 70 v24 M560 70 v24 M580 70 v24" stroke="#ff7a1a" stroke-width="3" opacity=".8"/></g>
+ <path d="M520 70 h80 v24 h-80z M540 70 v24 M560 70 v24 M580 70 v24" stroke="#ff2a4a" stroke-width="3" opacity=".8"/></g>
 <rect width="640" height="360" fill="url(#scan)"/>
 </svg>

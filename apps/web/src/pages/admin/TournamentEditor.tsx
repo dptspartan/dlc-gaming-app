@@ -451,7 +451,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               setSelected(null);
             }}
             className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur ${
-              g.id === tgId ? 'border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,122,26,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
+              g.id === tgId ? 'border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,42,74,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
             }`}
           >
             {data.games.get(g.game_id)?.name}

@@ -7,18 +7,11 @@ export const colors = theme;
 
 const mono = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
-/** Synthwave backdrop: purple gradient, glowing horizon and a neon grid floor. */
+/** Black backdrop with a faint red haze. */
 function Scene() {
-  const lines = [0, 10, 24, 44, 72, 110, 160];
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <LinearGradient colors={['#070403', '#1c0b07', '#3a0c08', '#070403']} locations={[0, 0.45, 0.62, 1]} style={StyleSheet.absoluteFill} />
-      <View style={{ position: 'absolute', left: 0, right: 0, top: '62%', bottom: 0 }}>
-        <View style={{ height: 2, backgroundColor: theme.flame, opacity: 0.8, shadowColor: theme.flame, shadowOpacity: 1, shadowRadius: 12 }} />
-        {lines.map((y) => (
-          <View key={y} style={{ position: 'absolute', left: 0, right: 0, top: y * 1.6, height: 1, backgroundColor: theme.flame, opacity: 0.25 }} />
-        ))}
-      </View>
+      <LinearGradient colors={['#000000', '#0a0304', '#170609', '#000000']} locations={[0, 0.4, 0.75, 1]} style={StyleSheet.absoluteFill} />
     </View>
   );
 }
@@ -130,7 +123,7 @@ export const styles = StyleSheet.create({
   buttonText: { fontWeight: '900', letterSpacing: 2.5, fontSize: 13 },
   pill: { borderWidth: 1, paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', borderRadius: 999 },
   pillText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, fontFamily: mono },
-  avatar: { backgroundColor: 'rgba(255,122,26,0.14)', borderColor: 'rgba(255,122,26,0.35)', borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  avatar: { backgroundColor: 'rgba(255,42,74,0.14)', borderColor: 'rgba(255,42,74,0.35)', borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   card: {
     backgroundColor: theme.glass,
     borderColor: theme.glassEdge,
