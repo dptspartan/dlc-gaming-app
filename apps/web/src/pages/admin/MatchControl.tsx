@@ -70,22 +70,26 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
       if (error) throw new Error(error.message);
     });
 
-  const side = (team: Team | undefined, id: string | null) => (
-    <button
-      type="button"
-      disabled={!canEnd || !id || scoring !== 'none'}
-      onClick={() => setWinner(id)}
-      className={`glass-card flex flex-1 flex-col items-center gap-2 p-4 transition ${winner && winner === id ? 'neon-win' : ''} ${
-        canEnd && id ? 'hover:border-ember' : ''
-      }`}
-    >
-      <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
-      <span className="font-display text-center font-bold">{team?.name ?? 'TBD'}</span>
-      {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
-      {winner && winner === id && <span className="font-display text-xs text-gold">WINNER</span>}
-      {match.status === 'completed' && match.winner_id === id && scoring !== 'none' && <span className="font-display text-xs text-gold">WINNER</span>}
-    </button>
-  );
+  const side = (team: Team | undefined, id: string | null) => {
+    // A finished match marks its result; a winner-only match marks the admin's pick.
+    const won = !!id && (match.status === 'completed' ? match.winner_id === id : scoring === 'none' && winner === id);
+    const lost = match.status === 'completed' && !!id && !won;
+    return (
+      <button
+        type="button"
+        disabled={!canEnd || !id || scoring !== 'none'}
+        onClick={() => setWinner(id)}
+        className={`glass-card flex w-full min-w-0 flex-1 flex-col items-center gap-2 p-4 transition ${won ? 'neon-win' : ''} ${
+          lost ? 'opacity-50' : ''
+        } ${canEnd && id && scoring === 'none' ? 'hover:border-ember' : ''}`}
+      >
+        <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
+        <span className="font-display w-full truncate text-center font-bold">{team?.name ?? 'TBD'}</span>
+        {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
+        {won && <span className="font-display text-xs text-gold">WINNER</span>}
+      </button>
+    );
+  };
 
   const scoreButtons = (side: 'a' | 'b', value: number) =>
     canEnd && (
@@ -132,8 +136,8 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
             {side(b, match.team_b_id)}
           </div>
         ) : (
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
-            <div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
+            <div className="flex flex-col">
               {side(a, match.team_a_id)}
               {scoreButtons('a', sa)}
             </div>
@@ -142,7 +146,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
               <span className="px-2 text-flame">:</span>
               {sb}
             </div>
-            <div>
+            <div className="flex flex-col">
               {side(b, match.team_b_id)}
               {scoreButtons('b', sb)}
             </div>

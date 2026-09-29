@@ -5,12 +5,18 @@ import { formatTime, gridFor, paginate, roundName, roundsToWin, type Game, type 
 import { Avatar, Elapsed, ErrorNote } from '../components/ui';
 import { Glitch, Particles } from '../components/WinnerOverlay';
 import { useLiveData, useLookups, type LiveData } from '../lib/useLiveData';
+import { playSfx, useSound } from '../lib/sfx';
 import { useTournamentId } from '../lib/useTournamentBySlug';
 
 const PAGE_MS = 10_000;
 /** How long a finished match stays on the board, celebrating its winner, before it pops off. */
 const CELEBRATE_MS = 7_000;
 const CHAMPION_MS = 11_000;
+/** How long the "+1" animation plays on a card after a point. */
+const BURST_MS = 1_600;
+
+/** A point just scored in a live match: which side, and when (also the animation key). */
+type Burst = { side: 'a' | 'b'; at: number };
 
 /** /live shows every running tournament; /t/:slug/live shows one. */
 export function LiveDashboard() {
@@ -27,6 +33,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [page, setPage] = useState(0);
   const celebrate = useCallback((m: Match) => {
+    playSfx(m.next_match_id ? 'win' : 'champion');
     clearTimeout(timers.current.get(m.id));
     setCelebrating((s) => new Set(s).add(m.id));
     setPage(0);
@@ -48,6 +55,8 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   }, []);
   const { data, error } = useLiveData({ tournamentId, onMatchCompleted: celebrate });
   const { roundsByTg, gameOf } = useLookups(data);
+  const bursts = usePointBursts(data);
+  const sound = useSound();
   const [clock, setClock] = useState(Date.now());
 
   useEffect(() => {
@@ -105,6 +114,14 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           {tournamentId ? tournamentNames[0] : tournamentNames.length ? tournamentNames.join(' · ') : 'No events running'}
         </div>
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => sound.setEnabled(!sound.enabled)}
+            className={`hud rounded-full border px-3 py-1 text-xs transition ${sound.enabled ? 'border-ember/50 bg-ember/10 text-ember' : 'border-line text-muted hover:text-ink'}`}
+            title={sound.enabled && !sound.unlocked ? 'Browsers play sound only after a click on the page' : undefined}
+          >
+            {!sound.enabled ? '🔇 Sound off' : sound.unlocked ? '🔊 Sound on' : '🔊 Click to enable sound'}
+          </button>
           <span className="font-display flex items-center gap-2 text-sm font-bold text-flame">
             <span className="live-dot" /> {liveCount} LIVE
           </span>
@@ -134,6 +151,8 @@ function Board({ tournamentId }: { tournamentId?: string }) {
                       totalRounds={roundsByTg.get(m.tournament_game_id) ?? m.round}
                       gameName={gameOf(m.tournament_game_id)?.name ?? ''}
                       game={gameOf(m.tournament_game_id)}
+                      burst={bursts.get(m.id)}
+                      now={clock}
                       showTournament={multi}
                     />
                   ))}
@@ -167,6 +186,8 @@ function LiveCard({
   totalRounds,
   gameName,
   game,
+  burst,
+  now,
   showTournament,
 }: {
   match: Match;
@@ -176,6 +197,8 @@ function LiveCard({
   totalRounds: number;
   gameName: string;
   game?: Game;
+  burst?: Burst;
+  now: number;
   showTournament: boolean;
 }) {
   const a = match.team_a_id ? data.teams.get(match.team_a_id) : undefined;
@@ -185,6 +208,8 @@ function LiveCard({
   const scored = !!game && game.scoring !== 'none';
   const avatar = big ? 140 : compact ? 56 : 84;
   const lost = (id: string | null) => done && !!match.winner_id && match.winner_id !== id;
+  // Only a fresh point plays, so a card paging back in doesn't replay an old one.
+  const hit = burst && !done && now - burst.at < BURST_MS ? burst : undefined;
 
   return (
     <motion.div
@@ -228,7 +253,7 @@ function LiveCard({
       </div>
 
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
-        <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_a_id)} />
+        <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_a_id)} hit={hit?.side === 'a' ? hit.at : undefined} />
         {scored ? (
           <Score match={match} game={game!} big={big} compact={compact} />
         ) : (
@@ -236,8 +261,12 @@ function LiveCard({
             VS
           </span>
         )}
-        <Side name={b?.name ?? 'TBD'} url={b?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_b_id)} />
+        <Side name={b?.name ?? 'TBD'} url={b?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_b_id)} hit={hit?.side === 'b' ? hit.at : undefined} />
       </div>
+
+      <AnimatePresence>
+        {hit && game && <PointBurst key={hit.at} side={hit.side} label={game.scoring === 'rounds' ? 'Round' : 'Goal'} big={big} compact={compact} />}
+      </AnimatePresence>
 
       <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
         <span>{done ? 'Match over' : match.started_at ? 'Playing for' : ''}</span>
@@ -381,10 +410,35 @@ function GameBadge({ name, url, size }: { name: string; url?: string | null; siz
   );
 }
 
-function Side({ name, url, size, big, compact, dim }: { name: string; url?: string | null; size: number; big: boolean; compact: boolean; dim?: boolean }) {
+/** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
+function Side({
+  name,
+  url,
+  size,
+  big,
+  compact,
+  dim,
+  hit,
+}: {
+  name: string;
+  url?: string | null;
+  size: number;
+  big: boolean;
+  compact: boolean;
+  dim?: boolean;
+  hit?: number;
+}) {
   return (
     <div className={`flex min-w-0 flex-1 flex-col items-center gap-2 text-center transition ${dim ? 'opacity-30 grayscale' : ''}`}>
-      <Avatar name={name} url={url} size={size} ring="#ff2a4a55" />
+      <motion.div
+        key={hit ?? 'idle'}
+        initial={false}
+        animate={hit ? { scale: [1, 1.28, 0.94, 1], rotate: [0, -6, 4, 0] } : { scale: 1 }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        style={{ filter: hit ? 'drop-shadow(0 0 22px #ffc93c)' : undefined }}
+      >
+        <Avatar name={name} url={url} size={size} ring={hit ? '#ffc93c' : '#ff2a4a55'} />
+      </motion.div>
       <span className={`font-display w-full truncate font-bold ${big ? 'text-4xl' : compact ? 'text-base' : 'text-xl'}`}>{name}</span>
     </div>
   );
@@ -470,5 +524,68 @@ function NothingLive({ next, data, tz, gameName }: { next?: Match; data: LiveDat
         <div className="font-display text-2xl text-ember glow-ember">No matches running right now</div>
       )}
     </div>
+  );
+}
+
+/**
+ * Remembers each match's score and reports the side that just scored, so the
+ * card can animate and the board can play the point sound. The first load and
+ * a match that ends on its deciding point (the win takes over) don't count.
+ */
+function usePointBursts(data: LiveData) {
+  const seen = useRef(new Map<string, Pick<Match, 'score_a' | 'score_b' | 'status'>>());
+  const [bursts, setBursts] = useState<Map<string, Burst>>(new Map());
+  useEffect(() => {
+    const hits: [string, Burst][] = [];
+    const at = Date.now();
+    for (const m of data.matches.values()) {
+      const before = seen.current.get(m.id);
+      seen.current.set(m.id, { score_a: m.score_a, score_b: m.score_b, status: m.status });
+      if (!before || m.status !== 'live' || (before.status !== 'live' && before.status !== 'ready')) continue;
+      if ((m.score_a ?? 0) > (before.score_a ?? 0)) hits.push([m.id, { side: 'a', at }]);
+      else if ((m.score_b ?? 0) > (before.score_b ?? 0)) hits.push([m.id, { side: 'b', at }]);
+    }
+    if (hits.length === 0) return;
+    playSfx('point');
+    setBursts((prev) => new Map([...prev, ...hits]));
+  }, [data.matches]);
+  return bursts;
+}
+
+/** "+1 GOAL" / "+1 ROUND" pop with a flash and a shockwave on the side that scored. */
+function PointBurst({ side, label, big, compact }: { side: 'a' | 'b'; label: string; big: boolean; compact: boolean }) {
+  const x = side === 'a' ? '25%' : '75%';
+  const gold = '#ffc93c';
+  return (
+    <motion.div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" exit={{ opacity: 0, transition: { duration: 0.3 } }}>
+      <motion.div
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(circle at ${x} 55%, ${gold}55, rgba(255,42,74,0.25) 30%, transparent 60%)` }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 1, 0] }}
+        transition={{ duration: 0.9, times: [0, 0.15, 1] }}
+      />
+      <div className="absolute top-[55%]" style={{ left: x }}>
+        <motion.span
+          className="absolute rounded-full border-4"
+          style={{ borderColor: gold, width: 80, height: 80, left: -40, top: -40, boxShadow: `0 0 30px ${gold}` }}
+          initial={{ scale: 0.2, opacity: 1 }}
+          animate={{ scale: big ? 5 : 3, opacity: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
+        <Particles color={gold} count={compact ? 10 : 18} spread={big ? 220 : compact ? 70 : 130} delay={0} jitter={0.15} duration={1} />
+      </div>
+      <div className="absolute top-[40%] flex w-0 justify-center" style={{ left: x }}>
+        <motion.div
+          className="font-display whitespace-nowrap font-black uppercase"
+          style={{ color: gold, textShadow: `0 0 18px ${gold}, 0 0 40px rgba(255,42,74,0.9)`, fontSize: big ? '4.5rem' : compact ? '1.3rem' : '2.4rem' }}
+          initial={{ y: 30, scale: 0.4, opacity: 0 }}
+          animate={{ y: [30, -10, -40, -70], scale: [0.4, 1.35, 1, 1], opacity: [0, 1, 1, 0] }}
+          transition={{ duration: BURST_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+        >
+          +1 {label}
+        </motion.div>
+      </div>
+    </motion.div>
   );
 }
