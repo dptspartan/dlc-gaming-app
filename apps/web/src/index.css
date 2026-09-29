@@ -538,7 +538,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-better-games {
   z-index: 3;
-  top: 5px;
+  top: -4px;
   left: 62%;
   width: 88px;
   height: 82px;
@@ -566,7 +566,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-keyboard {
   z-index: 4;
   left: 64%;
-  bottom: -6px;
+  bottom: 2px;
   width: 130px;
   height: 84px;
   transform: rotate(-8deg);
