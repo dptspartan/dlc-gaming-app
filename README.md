@@ -1,4 +1,4 @@
-# DLC Arena
+# DLC Gaming Club
 
 Live tournament tracker: public brackets, schedules and a live board for spectators, plus web and mobile admin for organizers.
 

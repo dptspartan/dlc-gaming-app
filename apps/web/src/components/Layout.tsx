@@ -10,7 +10,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <Link to="/" className="font-display text-lg font-black tracking-widest">
             <span className="text-ember glow-ember">DLC</span>
-            <span className="text-flame glow-flame"> ARENA</span>
+            <span className="text-flame glow-flame"> GAMING CLUB</span>
           </Link>
           <nav className="flex items-center gap-1 sm:gap-2">
             <NavLink to="/" end className={nav}>

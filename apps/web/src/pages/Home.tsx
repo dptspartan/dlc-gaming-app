@@ -28,7 +28,7 @@ export function Home() {
   return (
     <Layout>
       <section className="relative mb-10 overflow-hidden py-10 text-center">
-        <div className="hud mb-3 text-sm text-ember">&gt; dlc_arena.exe // live tournament feed</div>
+        <div className="hud mb-3 text-sm text-ember">&gt; dlc_gaming_club.exe // live tournament feed</div>
         <div className="font-display text-5xl font-black tracking-[0.12em] uppercase sm:text-7xl">
           <span className="glitch chrome-text" data-text="GAME ON">
             GAME ON

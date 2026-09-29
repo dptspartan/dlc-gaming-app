@@ -99,7 +99,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
       <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
         <Link to="/" className="font-display text-lg font-black tracking-widest">
           <span className="text-ember glow-ember">DLC</span>
-          <span className="text-flame glow-flame"> ARENA</span>
+          <span className="text-flame glow-flame"> GAMING CLUB</span>
         </Link>
         <div className="hud hidden truncate text-sm text-muted md:block">
           {tournamentId ? tournamentNames[0] : tournamentNames.length ? tournamentNames.join(' · ') : 'No events running'}
