@@ -88,7 +88,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
         <main className="min-h-0 flex-1">
           {live.length === 0 ? (
-            <NothingLive next={upNext[0]} data={data} tz={tz} />
+            <NothingLive next={upNext[0]} data={data} tz={tz} gameName={upNext[0] ? gameOf(upNext[0].tournament_game_id)?.name : undefined} />
           ) : (
             <LayoutGroup>
               <div
@@ -162,16 +162,32 @@ function LiveCard({
       transition={{ type: 'spring', stiffness: 220, damping: 24 }}
       className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${final ? 'neon-gold' : 'neon-live'}`}
     >
-      {game?.cover_url && <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-15" />}
-      <div className="relative flex items-center justify-between px-4 pt-3">
-        <span className="hud text-xs text-cyan glow-cyan">
-          {gameName} · {roundName(match.round, totalRounds)}
-        </span>
-        <span className="hud flex items-center gap-2 rounded-full border border-pink/60 bg-pink/10 px-2.5 py-0.5 text-xs text-pink">
+      {game?.cover_url && <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20 blur-[2px]" />}
+      <div className={`relative flex items-center gap-4 overflow-hidden border-b border-line px-4 ${big ? 'py-5' : compact ? 'py-2' : 'py-3.5'}`}>
+        {game?.cover_url && (
+          <>
+            <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#05030d] via-[#05030d]/75 to-[#05030d]/20" />
+          </>
+        )}
+        <GameBadge name={gameName} url={game?.cover_url} size={big ? 96 : compact ? 44 : 68} />
+        <div className="relative min-w-0 flex-1">
+          <div
+            className={`chrome-text font-display truncate font-black uppercase leading-none tracking-wider ${big ? 'text-6xl' : compact ? 'text-2xl' : 'text-4xl'}`}
+          >
+            {gameName}
+          </div>
+          <div className={`hud mt-1.5 truncate text-cyan glow-cyan ${big ? 'text-base' : 'text-xs'}`}>
+            {roundName(match.round, totalRounds)}
+            {game && ` · ${game.team_size === 1 ? '1v1' : `${game.team_size}v${game.team_size}`}`}
+            {match.station ? ` · Station ${match.station}` : ''}
+            {showTournament && ` · ${data.tournaments.get(match.tournament_id)?.name ?? ''}`}
+          </div>
+        </div>
+        <span className="hud relative flex shrink-0 items-center gap-2 self-start rounded-full border border-pink/60 bg-pink/10 px-2.5 py-0.5 text-xs text-pink">
           <span className="live-dot" style={{ width: 8, height: 8 }} /> {final ? 'FINAL' : 'LIVE'}
         </span>
       </div>
-      {showTournament && <div className="relative px-4 text-sm text-muted">{data.tournaments.get(match.tournament_id)?.name}</div>}
 
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} />
@@ -182,7 +198,7 @@ function LiveCard({
       </div>
 
       <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
-        <span>{match.station ? `Station ${match.station}` : ''}</span>
+        <span>{match.started_at ? 'Playing for' : ''}</span>
         {match.started_at && (
           <span className={`font-mono text-cyan glow-cyan ${big ? 'text-3xl' : 'text-xl'}`}>
             <Elapsed since={match.started_at} />
@@ -190,6 +206,21 @@ function LiveCard({
         )}
       </div>
     </motion.div>
+  );
+}
+
+/** Square game artwork, or the game's initials in a neon tile when it has none. */
+function GameBadge({ name, url, size }: { name: string; url?: string | null; size: number }) {
+  const initials = name.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
+  return url ? (
+    <img src={url} alt={name} className="relative shrink-0 rounded-xl border border-cyan/50 object-cover shadow-[0_0_18px_rgba(0,240,255,0.35)]" style={{ width: size, height: size }} />
+  ) : (
+    <div
+      className="font-display relative flex shrink-0 items-center justify-center rounded-xl border border-pink/60 bg-gradient-to-br from-pink/30 to-cyan/20 font-black text-white shadow-[0_0_18px_rgba(255,43,214,0.35)]"
+      style={{ width: size, height: size, fontSize: size * 0.32 }}
+    >
+      {initials}
+    </div>
   );
 }
 
@@ -214,7 +245,7 @@ function RailList({
   matches: Match[];
   data: LiveData;
   tz: string;
-  gameOf: (tgId: string) => { name: string } | undefined;
+  gameOf: (tgId: string) => { name: string; cover_url?: string | null } | undefined;
   kind: 'next' | 'result';
 }) {
   const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
@@ -233,7 +264,12 @@ function RailList({
             className="border-b border-line/50 py-2 last:border-0"
           >
             <div className="flex justify-between text-xs text-muted">
-              <span className="truncate">{gameOf(m.tournament_game_id)?.name}</span>
+              <span className="flex min-w-0 items-center gap-1.5 truncate">
+                {gameOf(m.tournament_game_id)?.cover_url && (
+                  <img src={gameOf(m.tournament_game_id)!.cover_url!} alt="" className="h-4 w-4 shrink-0 rounded object-cover" />
+                )}
+                {gameOf(m.tournament_game_id)?.name}
+              </span>
               <span className="font-mono text-cyan">
                 {kind === 'next' ? formatTime(m.scheduled_start, tz) : formatTime(m.ended_at, tz)}
               </span>
@@ -260,13 +296,14 @@ function RailList({
   );
 }
 
-function NothingLive({ next, data, tz }: { next?: Match; data: LiveData; tz: string }) {
+function NothingLive({ next, data, tz, gameName }: { next?: Match; data: LiveData; tz: string; gameName?: string }) {
   const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <div className="hud text-sm text-muted">// stand by</div>
       {next ? (
         <>
+          {gameName && <div className="chrome-text font-display text-xl font-black uppercase tracking-wider sm:text-3xl">{gameName}</div>}
           <div className="font-display text-2xl text-cyan glow-cyan sm:text-4xl">
             {name(next.team_a_id)} <span className="text-pink">vs</span> {name(next.team_b_id)}
           </div>
