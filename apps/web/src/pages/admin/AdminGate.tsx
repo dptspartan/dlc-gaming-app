@@ -7,10 +7,10 @@ import { supabase } from '../../lib/supabase';
 
 /** Only signed-in admins see the admin pages. */
 export function AdminGate({ children }: { children: ReactNode }) {
-  const { session, isAdmin, loading, refreshAdmin } = useAuth();
+  const { session, isAdmin, loading } = useAuth();
   if (loading) return <Layout>{null}</Layout>;
   if (!session) return <Login />;
-  if (!isAdmin) return <NotAdmin userId={session.user.id} email={session.user.email ?? ''} onClaimed={refreshAdmin} />;
+  if (!isAdmin) return <NotAdmin userId={session.user.id} email={session.user.email ?? ''} />;
 
   const nav = ({ isActive }: { isActive: boolean }) =>
     `hud rounded-full px-3 py-1 text-xs ${isActive ? 'bg-pink/10 text-pink glow-pink shadow-[inset_0_0_0_1px_rgba(255,43,214,0.5)]' : 'text-muted hover:text-ink'}`;
@@ -35,53 +35,34 @@ export function AdminGate({ children }: { children: ReactNode }) {
 }
 
 function Login() {
-  const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setNote(null);
-    const redirect = window.location.href.split('#')[0];
-    const { error, data } =
-      mode === 'in'
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setError(error.message);
-    else if (mode === 'up' && !data.session) setNote('Check your email to confirm the account, then sign in.');
   };
 
   return (
     <Layout>
       <div className="mx-auto mt-10 max-w-md">
-        <Heading sub="Organizers only">{mode === 'in' ? 'Admin sign in' : 'Create account'}</Heading>
+        <Heading sub="Organizers only">Admin sign in</Heading>
         <Panel>
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label="Email">
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
             </Field>
             <Field label="Password">
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-              />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
             </Field>
             <ErrorNote message={error} />
-            {note && <div className="text-lime">{note}</div>}
-            <Button disabled={busy}>{mode === 'in' ? 'Sign in' : 'Sign up'}</Button>
-            <button type="button" className="text-sm text-muted hover:text-cyan" onClick={() => setMode(mode === 'in' ? 'up' : 'in')}>
-              {mode === 'in' ? 'No account yet? Create one' : 'Have an account? Sign in'}
-            </button>
+            <Button disabled={busy}>Sign in</Button>
           </form>
         </Panel>
       </div>
@@ -89,29 +70,15 @@ function Login() {
   );
 }
 
-function NotAdmin({ userId, email, onClaimed }: { userId: string; email: string; onClaimed: () => void }) {
-  const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const claim = async () => {
-    setError(null);
-    const { data, error } = await supabase.rpc('claim_first_admin');
-    if (error) setError(error.message);
-    else if (data) onClaimed();
-    else setMsg('An admin already exists. Ask them to add you using the user id below.');
-  };
-
+function NotAdmin({ userId, email }: { userId: string; email: string }) {
   return (
     <Layout>
       <div className="mx-auto mt-10 max-w-lg">
-        <Heading sub={email}>Not an admin yet</Heading>
+        <Heading sub={email}>Not an admin</Heading>
         <Panel className="flex flex-col gap-4">
-          <p>The first person to sign in can claim the admin role. After that, an existing admin adds new admins.</p>
-          <Button onClick={claim}>Claim admin</Button>
-          <ErrorNote message={error} />
-          {msg && <p className="text-amber">{msg}</p>}
+          <p>This account can't manage tournaments. Ask an admin to add it using the user id below.</p>
           <div className="text-sm text-muted">
-            Your user id: <code className="text-ink select-all">{userId}</code>
+            User id: <code className="text-ink select-all">{userId}</code>
           </div>
           <Button variant="ghost" onClick={() => supabase.auth.signOut()}>
             Sign out

@@ -135,7 +135,7 @@ function Admins() {
   return (
     <Panel>
       <div className="hud mb-2 text-sm text-pink glow-pink">Admins</div>
-      <p className="mb-3 text-sm text-muted">New organizers sign up on the admin page, then share the user id it shows them.</p>
+      <p className="mb-3 text-sm text-muted">Sign-up is off. Create an organizer's account in Supabase (Authentication, Users), then add its user id here.</p>
       <ul className="mb-3 text-sm">
         {rows.map((r) => (
           <li key={r.user_id} className="truncate font-mono text-xs text-muted">

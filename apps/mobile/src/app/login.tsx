@@ -32,7 +32,7 @@ export default function Login() {
         {session && !isAdmin ? (
           <View style={{ gap: 12 }}>
             <Text style={styles.text}>
-              {session.user.email} is not an admin. Claim the admin role or ask an admin to add you on the web admin page.
+              {session.user.email} is not an admin. Ask an admin to add you on the web admin page.
             </Text>
             <Button title="Sign out" variant="ghost" onPress={() => supabase.auth.signOut()} />
           </View>
