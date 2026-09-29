@@ -29,7 +29,7 @@ export function AdminHome() {
         {list.length === 0 && <Empty>No tournaments yet. Create one to get started.</Empty>}
         <div className="flex flex-col gap-3">
           {list.map((t) => (
-            <Link key={t.id} to={`/admin/t/${t.id}`} className="panel flex items-center justify-between gap-4 hover:border-cyan">
+            <Link key={t.id} to={`/admin/t/${t.id}`} className="panel flex items-center justify-between gap-4 hover:border-ember">
               <div>
                 <div className="font-display font-bold">{t.name}</div>
                 <div className="text-sm text-muted">
@@ -77,7 +77,7 @@ function CreateTournament() {
 
   return (
     <Panel>
-      <div className="hud mb-4 text-sm text-pink glow-pink">New tournament</div>
+      <div className="hud mb-4 text-sm text-flame glow-flame">New tournament</div>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Name">
           <input required value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="DLC Tournament 1" />
@@ -134,7 +134,7 @@ function Admins() {
 
   return (
     <Panel>
-      <div className="hud mb-2 text-sm text-pink glow-pink">Admins</div>
+      <div className="hud mb-2 text-sm text-flame glow-flame">Admins</div>
       <p className="mb-3 text-sm text-muted">Sign-up is off. Create an organizer's account in Supabase (Authentication, Users), then add its user id here.</p>
       <ul className="mb-3 text-sm">
         {rows.map((r) => (

@@ -5,10 +5,10 @@ type Variant = 'primary' | 'ghost' | 'danger' | 'success';
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-[linear-gradient(90deg,#00f0ff,#8a5cff_55%,#ff2bd6)] text-white shadow-[0_0_22px_rgba(0,240,255,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] hover:shadow-[0_0_32px_rgba(255,43,214,0.55)] [text-shadow:0_1px_6px_rgba(0,0,0,0.45)]',
-  ghost: 'border border-line bg-white/5 text-ink backdrop-blur hover:border-cyan hover:text-cyan hover:shadow-[0_0_18px_rgba(0,240,255,0.3)]',
-  danger: 'border border-danger/70 bg-danger/10 text-danger backdrop-blur hover:bg-danger hover:text-bg hover:shadow-[0_0_20px_rgba(255,59,92,0.5)]',
-  success: 'bg-[linear-gradient(90deg,#b6ff00,#00f0ff)] text-bg shadow-[0_0_22px_rgba(182,255,0,0.4),inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_0_32px_rgba(182,255,0,0.6)]',
+    'bg-[linear-gradient(90deg,#ff7a1a,#ff4d00_55%,#ff1e2d)] text-white shadow-[0_0_22px_rgba(255,122,26,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] hover:shadow-[0_0_32px_rgba(255,30,45,0.55)] [text-shadow:0_1px_6px_rgba(0,0,0,0.45)]',
+  ghost: 'border border-line bg-white/5 text-ink backdrop-blur hover:border-ember hover:text-ember hover:shadow-[0_0_18px_rgba(255,122,26,0.3)]',
+  danger: 'border border-danger/70 bg-danger/10 text-danger backdrop-blur hover:bg-danger hover:text-bg hover:shadow-[0_0_20px_rgba(255,59,59,0.5)]',
+  success: 'bg-[linear-gradient(90deg,#ffc93c,#ff7a1a)] text-bg shadow-[0_0_22px_rgba(255,201,60,0.4),inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_0_32px_rgba(255,201,60,0.6)]',
 };
 
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
@@ -44,7 +44,7 @@ export function Heading({ children, sub }: { children: ReactNode; sub?: ReactNod
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="hud text-[11px] text-cyan/80">{label}</span>
+      <span className="hud text-[11px] text-ember/80">{label}</span>
       {children}
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </label>
@@ -52,7 +52,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 export function StatusPill({ status }: { status: MatchStatus | string }) {
-  const color = statusColor[status] ?? '#8a8aa8';
+  const color = statusColor[status] ?? '#a89088';
   return (
     <span
       className="hud inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] backdrop-blur"
@@ -76,8 +76,8 @@ export function Avatar({ name, url, size = 36, ring }: { name: string; url?: str
     <img src={url} alt="" className="shrink-0 rounded-lg object-cover" style={style} />
   ) : (
     <div
-      className="font-display flex shrink-0 items-center justify-center rounded-lg border border-cyan/30 bg-[linear-gradient(135deg,rgba(0,240,255,0.18),rgba(255,43,214,0.18))] font-bold text-cyan"
-      style={{ ...style, fontSize: size * 0.36, textShadow: '0 0 10px rgba(0,240,255,0.8)' }}
+      className="font-display flex shrink-0 items-center justify-center rounded-lg border border-ember/30 bg-[linear-gradient(135deg,rgba(255,122,26,0.18),rgba(255,30,45,0.18))] font-bold text-ember"
+      style={{ ...style, fontSize: size * 0.36, textShadow: '0 0 10px rgba(255,122,26,0.8)' }}
     >
       {initials || '?'}
     </div>

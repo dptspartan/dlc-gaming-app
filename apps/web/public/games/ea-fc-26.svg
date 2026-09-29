@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice">
 <defs>
-<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#05030d"/><stop offset=".55" stop-color="#0b5d3b" stop-opacity=".55"/><stop offset="1" stop-color="#00f0ff" stop-opacity=".8"/></linearGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#070403"/><stop offset=".55" stop-color="#5a1a06" stop-opacity=".6"/><stop offset="1" stop-color="#ff7a1a" stop-opacity=".75"/></linearGradient>
 <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#000" opacity=".22"/></pattern>
 </defs>
-<rect width="640" height="360" fill="#05030d"/>
+<rect width="640" height="360" fill="#070403"/>
 <rect width="640" height="360" fill="url(#bg)"/>
-<g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round"> <rect x="40" y="40" width="560" height="280" stroke="#b6ff00" stroke-width="3" opacity=".7"/>
- <line x1="320" y1="40" x2="320" y2="320" stroke="#b6ff00" stroke-width="3" opacity=".7"/>
- <circle cx="320" cy="180" r="62" stroke="#b6ff00" stroke-width="3" opacity=".7"/>
- <rect x="40" y="110" width="80" height="140" stroke="#b6ff00" stroke-width="3" opacity=".7"/>
- <rect x="520" y="110" width="80" height="140" stroke="#b6ff00" stroke-width="3" opacity=".7"/>
- <circle cx="420" cy="140" r="34" stroke="#00f0ff" stroke-width="5"/>
- <path d="M420 112 l14 10 -5 17 h-18 l-5 -17z" stroke="#00f0ff" stroke-width="4"/>
- <path d="M300 250 C 340 210, 370 170, 392 150" stroke="#ff2bd6" stroke-width="4" stroke-dasharray="10 10"/></g>
+<g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round"> <rect x="40" y="40" width="560" height="280" stroke="#ff7a1a" stroke-width="3" opacity=".75"/>
+ <line x1="320" y1="40" x2="320" y2="320" stroke="#ff7a1a" stroke-width="3" opacity=".75"/>
+ <circle cx="320" cy="180" r="62" stroke="#ff7a1a" stroke-width="3" opacity=".75"/>
+ <rect x="40" y="110" width="80" height="140" stroke="#ff7a1a" stroke-width="3" opacity=".75"/>
+ <rect x="520" y="110" width="80" height="140" stroke="#ff7a1a" stroke-width="3" opacity=".75"/>
+ <circle cx="420" cy="140" r="34" stroke="#fff3ec" stroke-width="5"/>
+ <path d="M420 112 l14 10 -5 17 h-18 l-5 -17z" stroke="#fff3ec" stroke-width="4"/>
+ <path d="M300 250 C 340 210, 370 170, 392 150" stroke="#ff1e2d" stroke-width="4" stroke-dasharray="10 10"/></g>
 <rect width="640" height="360" fill="url(#scan)"/>
 </svg>

@@ -68,8 +68,9 @@ export function previewSchedule(tournament: Tournament, tg: TournamentGame, matc
 }
 
 export const startMatch = (id: string) => rpc('start_match', { p_match_id: id });
-export const endMatch = (id: string, winnerId: string, scoreA: number | null, scoreB: number | null) =>
-  rpc('end_match', { p_match_id: id, p_winner_id: winnerId, p_score_a: scoreA, p_score_b: scoreB });
+/** Scored games pick the winner from the score, so they pass no winner. */
+export const endMatch = (id: string, winnerId: string | null = null) => rpc('end_match', { p_match_id: id, p_winner_id: winnerId });
+export const scorePoint = (id: string, side: 'a' | 'b', delta: 1 | -1) => rpc('score_point', { p_match_id: id, p_side: side, p_delta: delta });
 export const reopenMatch = (id: string) => rpc('reopen_match', { p_match_id: id });
 export const swapSlots = (a: { matchId: string; slot: Slot }, b: { matchId: string; slot: Slot }) =>
   rpc('swap_slots', { p_match_a: a.matchId, p_slot_a: a.slot, p_match_b: b.matchId, p_slot_b: b.slot });

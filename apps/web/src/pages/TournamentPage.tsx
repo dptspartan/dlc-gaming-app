@@ -60,7 +60,7 @@ function TournamentView({ id }: { id: string }) {
         </Heading>
         <Link
           to={`/t/${tournament.slug}/live`}
-          className="font-display flex items-center gap-2 rounded-xl border border-pink/70 bg-pink/10 px-4 py-2 text-xs font-bold tracking-widest text-pink uppercase shadow-[0_0_20px_rgba(255,43,214,0.35)] backdrop-blur hover:bg-pink hover:text-bg"
+          className="font-display flex items-center gap-2 rounded-xl border border-flame/70 bg-flame/10 px-4 py-2 text-xs font-bold tracking-widest text-flame uppercase shadow-[0_0_20px_rgba(255,30,45,0.35)] backdrop-blur hover:bg-flame hover:text-bg"
         >
           <span className="live-dot" style={{ width: 8, height: 8 }} /> Live board {liveCount > 0 && `(${liveCount})`}
         </Link>
@@ -74,7 +74,7 @@ function TournamentView({ id }: { id: string }) {
             key={g.id}
             onClick={() => setTab(g.id)}
             className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur transition ${
-              g.id === tab ? 'border-cyan bg-cyan/15 text-cyan shadow-[0_0_18px_rgba(0,240,255,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
+              g.id === tab ? 'border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,122,26,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
             }`}
           >
             {data.games.get(g.game_id)?.name ?? 'Game'}
@@ -109,7 +109,7 @@ function TournamentView({ id }: { id: string }) {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${view === v ? 'border-pink text-pink glow-pink' : 'border-transparent text-muted hover:text-ink'}`}
+                className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${view === v ? 'border-flame text-flame glow-flame' : 'border-transparent text-muted hover:text-ink'}`}
               >
                 {v === 'players' ? (game?.team_size === 1 ? 'Players' : 'Teams') : v}
               </button>

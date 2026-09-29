@@ -28,7 +28,7 @@ export function Home() {
   return (
     <Layout>
       <section className="relative mb-10 overflow-hidden py-10 text-center">
-        <div className="hud mb-3 text-sm text-cyan">&gt; dlc_arena.exe // live tournament feed</div>
+        <div className="hud mb-3 text-sm text-ember">&gt; dlc_arena.exe // live tournament feed</div>
         <div className="font-display text-5xl font-black tracking-[0.12em] uppercase sm:text-7xl">
           <span className="glitch chrome-text" data-text="GAME ON">
             GAME ON
@@ -37,7 +37,7 @@ export function Home() {
         <p className="mt-3 text-lg text-muted">Live brackets, schedules and results for every DLC tournament.</p>
         <Link
           to="/live"
-          className="font-display mt-8 inline-flex items-center gap-3 rounded-xl border border-pink/70 bg-pink/10 px-7 py-3 text-sm font-bold tracking-widest text-pink uppercase shadow-[0_0_24px_rgba(255,43,214,0.35)] backdrop-blur transition hover:bg-pink hover:text-bg"
+          className="font-display mt-8 inline-flex items-center gap-3 rounded-xl border border-flame/70 bg-flame/10 px-7 py-3 text-sm font-bold tracking-widest text-flame uppercase shadow-[0_0_24px_rgba(255,30,45,0.35)] backdrop-blur transition hover:bg-flame hover:text-bg"
         >
           <span className="live-dot" /> Watch live
         </Link>
@@ -55,17 +55,17 @@ export function Home() {
                     {t.banner_url ? (
                       <img src={t.banner_url} alt="" className="h-32 w-full rounded-t-[13px] object-cover opacity-80 group-hover:opacity-100" />
                     ) : (
-                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(0,240,255,0.35),rgba(138,92,255,0.25),rgba(255,43,214,0.35))] [mask:linear-gradient(#000,transparent)]" />
+                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(255,122,26,0.35),rgba(255,77,0,0.25),rgba(255,30,45,0.35))] [mask:linear-gradient(#000,transparent)]" />
                     )}
                     <div className="p-4">
-                      <div className="font-display text-lg font-bold tracking-wide group-hover:text-cyan">{t.name}</div>
+                      <div className="font-display text-lg font-bold tracking-wide group-hover:text-ember">{t.name}</div>
                       <div className="text-muted">
                         {t.start_date}
                         {t.days > 1 ? ` → ${addDays(t.start_date, t.days - 1)}` : ''} · {t.daily_start.slice(0, 5)}–{t.daily_end.slice(0, 5)}
                       </div>
                     </div>
                     {t.status === 'live' && (
-                      <span className="hud absolute top-3 right-3 flex items-center gap-2 rounded-full border border-pink/60 bg-bg/60 px-2.5 py-1 text-xs text-pink backdrop-blur">
+                      <span className="hud absolute top-3 right-3 flex items-center gap-2 rounded-full border border-flame/60 bg-bg/60 px-2.5 py-1 text-xs text-flame backdrop-blur">
                         <span className="live-dot" style={{ width: 7, height: 7 }} /> LIVE
                       </span>
                     )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { fromZonedInput, roundName, toZonedInput, type Match, type Team } from '@dlc/core';
+import { fromZonedInput, roundName, roundsToWin, scoringLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
 import { Avatar, Button, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
-import { endMatch, reopenMatch, startMatch } from '../../lib/admin';
+import { endMatch, reopenMatch, scorePoint, startMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 
 interface Props {
@@ -9,18 +9,18 @@ interface Props {
   teams: Map<string, Team>;
   totalRounds: number;
   gameName: string;
+  game?: Game;
   timeZone: string;
   matchMinutes: number;
   onClose: () => void;
 }
 
 /** Start, finish, correct and annotate one match. */
-export function MatchControl({ match, teams, totalRounds, gameName, timeZone, matchMinutes, onClose }: Props) {
+export function MatchControl({ match, teams, totalRounds, gameName, game, timeZone, matchMinutes, onClose }: Props) {
   const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
   const [winner, setWinner] = useState<string | null>(match.winner_id);
-  const [scoreA, setScoreA] = useState(match.score_a?.toString() ?? '');
-  const [scoreB, setScoreB] = useState(match.score_b?.toString() ?? '');
+  const scoring = game?.scoring ?? 'none';
   const [start, setStart] = useState(toZonedInput(match.scheduled_start, timeZone));
   const [station, setStation] = useState(match.station?.toString() ?? '');
   const [busy, setBusy] = useState(false);
@@ -41,6 +41,9 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
 
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
   const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
+  const sa = match.score_a ?? 0;
+  const sb = match.score_b ?? 0;
+  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match.id, side, delta));
   const editableTime = match.status === 'pending' || match.status === 'ready';
 
   const saveTime = () =>
@@ -70,25 +73,38 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
   const side = (team: Team | undefined, id: string | null) => (
     <button
       type="button"
-      disabled={!canEnd || !id}
+      disabled={!canEnd || !id || scoring !== 'none'}
       onClick={() => setWinner(id)}
       className={`glass-card flex flex-1 flex-col items-center gap-2 p-4 transition ${winner && winner === id ? 'neon-win' : ''} ${
-        canEnd && id ? 'hover:border-cyan' : ''
+        canEnd && id ? 'hover:border-ember' : ''
       }`}
     >
       <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
       <span className="font-display text-center font-bold">{team?.name ?? 'TBD'}</span>
       {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
-      {winner && winner === id && <span className="font-display text-xs text-lime">WINNER</span>}
+      {winner && winner === id && <span className="font-display text-xs text-gold">WINNER</span>}
+      {match.status === 'completed' && match.winner_id === id && scoring !== 'none' && <span className="font-display text-xs text-gold">WINNER</span>}
     </button>
   );
+
+  const scoreButtons = (side: 'a' | 'b', value: number) =>
+    canEnd && (
+      <div className="mt-2 flex items-center justify-center gap-2">
+        <Button variant="ghost" disabled={busy || value === 0 || match.status !== 'live'} onClick={() => point(side, -1)} aria-label="Take back a point">
+          −
+        </Button>
+        <Button disabled={busy} onClick={() => point(side, 1)}>
+          {scoring === 'rounds' ? '+ Round' : '+ Goal'}
+        </Button>
+      </div>
+    );
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="panel glass-strong max-h-[92vh] w-full max-w-xl overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="hud text-xs text-pink glow-pink">
+            <div className="hud text-xs text-flame glow-flame">
               {gameName} · {roundName(match.round, totalRounds)}
             </div>
             <div className="mt-1 flex items-center gap-3">
@@ -101,20 +117,35 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
           </button>
         </div>
 
-        <div className="flex items-stretch gap-3">
-          {side(a, match.team_a_id)}
-          <span className="font-display self-center text-xl text-pink">VS</span>
-          {side(b, match.team_b_id)}
-        </div>
+        {game && (
+          <div className="hud mb-3 text-xs text-muted">
+            {scoringLabel(game)}
+            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the match ends by itself` : ''}
+            {scoring === 'goals' ? ' · ending the match picks the higher score' : ''}
+          </div>
+        )}
 
-        {canEnd && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Field label={`Score ${a?.name ?? 'A'}`}>
-              <input type="number" value={scoreA} onChange={(e) => setScoreA(e.target.value)} placeholder="optional" />
-            </Field>
-            <Field label={`Score ${b?.name ?? 'B'}`}>
-              <input type="number" value={scoreB} onChange={(e) => setScoreB(e.target.value)} placeholder="optional" />
-            </Field>
+        {scoring === 'none' ? (
+          <div className="flex items-stretch gap-3">
+            {side(a, match.team_a_id)}
+            <span className="font-display self-center text-xl text-flame">VS</span>
+            {side(b, match.team_b_id)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+            <div>
+              {side(a, match.team_a_id)}
+              {scoreButtons('a', sa)}
+            </div>
+            <div className="font-display self-center pt-2 text-5xl font-black tabular-nums text-ember glow-ember">
+              {sa}
+              <span className="px-2 text-flame">:</span>
+              {sb}
+            </div>
+            <div>
+              {side(b, match.team_b_id)}
+              {scoreButtons('b', sb)}
+            </div>
           </div>
         )}
 
@@ -126,13 +157,14 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
               Start match
             </Button>
           )}
-          {canEnd && (
-            <Button
-              variant="success"
-              disabled={busy || !winner}
-              onClick={() => run(() => endMatch(match.id, winner!, num(scoreA), num(scoreB)), true)}
-            >
+          {canEnd && scoring === 'none' && (
+            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match.id, winner!), true)}>
               {winner ? 'End & set winner' : 'Pick a winner'}
+            </Button>
+          )}
+          {canEnd && scoring === 'goals' && (
+            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match.id), true)}>
+              {sa === sb ? 'Level, add the deciding goal' : `End match, ${sa > sb ? a?.name : b?.name} wins`}
             </Button>
           )}
           {match.status === 'completed' && !match.is_bye && (

@@ -32,7 +32,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
   const game = latest ? gameOf(latest.tournament_game_id) : undefined;
   const tournament = latest ? data.tournaments.get(latest.tournament_id) : undefined;
   const total = latest ? roundsByTg.get(latest.tournament_game_id) ?? latest.round : 1;
-  const accent = champion ? '#ffb000' : '#b6ff00';
+  const accent = champion ? '#ffb000' : '#ffc93c';
   const hasScore = latest?.score_a != null && latest?.score_b != null;
   const winnerScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_a : latest.score_b) : null;
   const loserScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_b : latest.score_a) : null;
@@ -47,7 +47,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.5 } }}
-          style={{ background: `radial-gradient(circle at center, ${accent}22, rgba(18,8,40,0.82) 45%, rgba(3,2,10,0.95))` }}
+          style={{ background: `radial-gradient(circle at center, ${accent}22, rgba(34,10,6,0.82) 45%, rgba(4,2,2,0.95))` }}
         >
           {/* Sweeping light beams */}
           <motion.div
@@ -61,7 +61,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
 
           <div className="relative flex flex-col items-center gap-5 px-6 text-center">
             <motion.div
-              className="hud text-sm text-cyan glow-cyan sm:text-base"
+              className="hud text-sm text-ember glow-ember sm:text-base"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
@@ -96,7 +96,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
                 <motion.div
                   className="absolute -inset-4 rounded-full"
                   style={{
-                    background: `conic-gradient(from 0deg, ${accent}, #00f0ff, #ff2bd6, ${accent})`,
+                    background: `conic-gradient(from 0deg, ${accent}, #ff7a1a, #ff1e2d, ${accent})`,
                     WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
                     WebkitMaskComposite: 'xor',
                     maskComposite: 'exclude',
@@ -144,13 +144,13 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
   );
 }
 
-function Glitch({ text }: { text: string }) {
+export function Glitch({ text }: { text: string }) {
   return (
     <span className="relative inline-block">
       <span className="relative z-10">{text}</span>
       <motion.span
         aria-hidden
-        className="absolute inset-0 text-cyan"
+        className="absolute inset-0 text-ember"
         style={{ mixBlendMode: 'screen' }}
         animate={{ x: [0, -6, 4, 0], opacity: [0, 0.8, 0.5, 0] }}
         transition={{ duration: 0.35, repeat: 3, delay: 0.6 }}
@@ -159,7 +159,7 @@ function Glitch({ text }: { text: string }) {
       </motion.span>
       <motion.span
         aria-hidden
-        className="absolute inset-0 text-pink"
+        className="absolute inset-0 text-flame"
         style={{ mixBlendMode: 'screen' }}
         animate={{ x: [0, 6, -4, 0], opacity: [0, 0.8, 0.5, 0] }}
         transition={{ duration: 0.35, repeat: 3, delay: 0.65 }}
@@ -170,14 +170,14 @@ function Glitch({ text }: { text: string }) {
   );
 }
 
-function Particles({ color, count }: { color: string; count: number }) {
+export function Particles({ color, count, spread = 600 }: { color: string; count: number; spread?: number }) {
   const [parts] = useState(() =>
     Array.from({ length: count }, () => ({
       angle: Math.random() * Math.PI * 2,
-      dist: 200 + Math.random() * 600,
+      dist: spread / 3 + Math.random() * spread,
       size: 3 + Math.random() * 7,
       delay: 0.5 + Math.random() * 0.6,
-      tint: Math.random() > 0.5 ? color : Math.random() > 0.5 ? '#00f0ff' : '#ff2bd6',
+      tint: Math.random() > 0.5 ? color : Math.random() > 0.5 ? '#ff7a1a' : '#ff1e2d',
     })),
   );
   return (
