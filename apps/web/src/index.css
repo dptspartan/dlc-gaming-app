@@ -578,6 +578,7 @@ input[type="file"]::file-selector-button {
   bottom: -30px;
   width: 54px;
   height: 66px;
+  transform: rotate(-2deg);
 }
 
 :root[data-theme="dlc-labs"] .bracket-round-title {
