@@ -40,11 +40,12 @@ pnpm typecheck
 
 The Supabase URL and publishable key are in `apps/web/.env.*` and `apps/mobile/.env`. They are safe to commit: row-level security only lets admins change data.
 
-## First admin
+## Admins
 
-1. Open the site, go to **Admin** and create an account, then confirm the email.
-2. Sign in and press **Claim admin**. Only the first account can do this.
-3. Other organizers sign up the same way and send you the user id shown on their screen; add it under **Admins**.
+Public sign-up is off; only accounts an admin creates can sign in.
+
+1. In the Supabase dashboard, open **Authentication > Users**, choose **Add user** and tick auto-confirm.
+2. Sign in to the web admin as an existing admin and paste the new user's id under **Admins**.
 
 ## Deployment
 
