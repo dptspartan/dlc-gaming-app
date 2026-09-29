@@ -538,7 +538,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-better-games {
   z-index: 3;
-  top: -4px;
+  top: -5px;
   left: 62%;
   width: 88px;
   height: 82px;
