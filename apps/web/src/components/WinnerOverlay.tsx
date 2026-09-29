@@ -42,12 +42,12 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
       {latest && (
         <motion.div
           key={latest.id}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden scanlines cursor-pointer"
+          className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center overflow-hidden backdrop-blur-xl scanlines"
           onClick={onDone}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.5 } }}
-          style={{ background: 'radial-gradient(circle at center, rgba(20,20,40,0.94), rgba(3,3,8,0.98))' }}
+          style={{ background: `radial-gradient(circle at center, ${accent}22, rgba(18,8,40,0.82) 45%, rgba(3,2,10,0.95))` }}
         >
           {/* Sweeping light beams */}
           <motion.div
@@ -61,7 +61,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
 
           <div className="relative flex flex-col items-center gap-5 px-6 text-center">
             <motion.div
-              className="font-display text-sm tracking-[0.5em] text-muted uppercase sm:text-base"
+              className="hud text-sm text-cyan glow-cyan sm:text-base"
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
@@ -86,12 +86,27 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
             )}
 
             <motion.div
-              className="flex items-center gap-5"
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
+              className="panel glass-strong flex items-center gap-6 px-8 py-5"
+              style={{ borderColor: `${accent}aa`, boxShadow: `0 0 40px ${accent}44, inset 0 0 30px ${accent}18` }}
+              initial={{ y: 40, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
               transition={{ delay: 1.0, type: 'spring' }}
             >
-              <Avatar name={winner?.name ?? '?'} url={winner?.logo_url} size={96} ring={accent} />
+              <div className="relative">
+                <motion.div
+                  className="absolute -inset-4 rounded-full"
+                  style={{
+                    background: `conic-gradient(from 0deg, ${accent}, #00f0ff, #ff2bd6, ${accent})`,
+                    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+                    WebkitMaskComposite: 'xor',
+                    maskComposite: 'exclude',
+                    padding: 3,
+                  }}
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                />
+                <Avatar name={winner?.name ?? '?'} url={winner?.logo_url} size={96} ring={accent} />
+              </div>
               <div className="text-left">
                 <div className="font-display text-3xl font-bold sm:text-5xl" style={{ textShadow: `0 0 18px ${accent}aa` }}>
                   {winner?.name ?? 'Winner'}

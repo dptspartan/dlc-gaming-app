@@ -49,7 +49,7 @@ export default function Tournaments() {
         ListEmptyComponent={<Text style={styles.muted}>No tournaments yet. Create one on the web admin.</Text>}
         renderItem={({ item }) => (
           <Link href={{ pathname: '/t/[id]', params: { id: item.id } }} asChild>
-            <Pressable style={[styles.card, item.status === 'live' && { borderColor: colors.magenta }]}>
+            <Pressable style={[styles.card, item.status === 'live' && styles.cardLive]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={[styles.text, { fontWeight: '800', fontSize: 18, flex: 1 }]}>{item.name}</Text>
                 <Pill status={item.status} />

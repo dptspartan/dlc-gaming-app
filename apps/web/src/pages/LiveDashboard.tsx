@@ -68,19 +68,19 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <WinnerOverlay match={overlay.current} data={data} onDone={overlay.shift} />
-      <header className="flex items-center justify-between gap-4 border-b border-line bg-bg/80 px-5 py-3">
+      <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0b0620]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,43,214,0.3)] backdrop-blur-xl">
         <Link to="/" className="font-display text-lg font-black tracking-widest">
           <span className="text-cyan glow-cyan">DLC</span>
           <span className="text-pink glow-pink"> ARENA</span>
         </Link>
-        <div className="font-display hidden truncate text-sm tracking-widest text-muted uppercase md:block">
+        <div className="hud hidden truncate text-sm text-muted md:block">
           {tournamentId ? tournamentNames[0] : tournamentNames.length ? tournamentNames.join(' · ') : 'No events running'}
         </div>
         <div className="flex items-center gap-4">
           <span className="font-display flex items-center gap-2 text-sm font-bold text-pink">
             <span className="live-dot" /> {live.length} LIVE
           </span>
-          <span className="font-display text-xl tabular-nums text-cyan glow-cyan">{formatTime(clock, tz)}</span>
+          <span className="rounded-lg border border-cyan/40 bg-cyan/10 px-3 py-1 font-mono text-xl tabular-nums text-cyan glow-cyan">{formatTime(clock, tz)}</span>
         </div>
       </header>
       <ErrorNote message={error} />
@@ -115,7 +115,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           {pages.length > 1 && (
             <div className="mt-2 flex justify-center gap-2">
               {pages.map((_, i) => (
-                <span key={i} className={`h-1.5 w-8 ${i === page % pages.length ? 'bg-cyan' : 'bg-line'}`} />
+                <span key={i} className={`h-1.5 w-8 rounded-full ${i === page % pages.length ? 'bg-cyan shadow-[0_0_10px_#00f0ff]' : 'bg-white/15'}`} />
               ))}
             </div>
           )}
@@ -160,16 +160,15 @@ function LiveCard({
       animate={{ opacity: 1, scale: 1, rotateX: 0 }}
       exit={{ opacity: 0, scale: 0.8, filter: 'blur(6px)' }}
       transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-      className="panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0"
-      style={{ borderColor: final ? '#ffb000' : '#ff2bd6', boxShadow: '0 0 30px rgba(255,43,214,0.18) inset' }}
+      className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${final ? 'neon-gold' : 'neon-live'}`}
     >
       {game?.cover_url && <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-15" />}
       <div className="relative flex items-center justify-between px-4 pt-3">
-        <span className="font-display text-xs font-bold tracking-[0.25em] text-cyan uppercase">
+        <span className="hud text-xs text-cyan glow-cyan">
           {gameName} · {roundName(match.round, totalRounds)}
         </span>
-        <span className="font-display flex items-center gap-2 text-xs font-bold text-pink">
-          <span className="live-dot" style={{ width: 8, height: 8 }} /> LIVE
+        <span className="hud flex items-center gap-2 rounded-full border border-pink/60 bg-pink/10 px-2.5 py-0.5 text-xs text-pink">
+          <span className="live-dot" style={{ width: 8, height: 8 }} /> {final ? 'FINAL' : 'LIVE'}
         </span>
       </div>
       {showTournament && <div className="relative px-4 text-sm text-muted">{data.tournaments.get(match.tournament_id)?.name}</div>}
@@ -177,15 +176,15 @@ function LiveCard({
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} />
         <div className="flex flex-col items-center">
-          <span className={`font-display font-black text-pink glow-pink ${big ? 'text-6xl' : compact ? 'text-2xl' : 'text-4xl'}`}>VS</span>
+          <span className={`glitch font-display font-black text-pink glow-pink italic ${big ? 'text-7xl' : compact ? 'text-2xl' : 'text-5xl'}`} data-text="VS">VS</span>
         </div>
         <Side name={b?.name ?? 'TBD'} url={b?.logo_url} size={avatar} big={big} compact={compact} />
       </div>
 
-      <div className="relative flex items-center justify-between border-t border-line/60 bg-bg/40 px-4 py-2 text-sm text-muted">
+      <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
         <span>{match.station ? `Station ${match.station}` : ''}</span>
         {match.started_at && (
-          <span className={`text-ink ${big ? 'text-2xl' : 'text-lg'}`}>
+          <span className={`font-mono text-cyan glow-cyan ${big ? 'text-3xl' : 'text-xl'}`}>
             <Elapsed since={match.started_at} />
           </span>
         )}
@@ -221,7 +220,7 @@ function RailList({
   const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
   return (
     <div className="panel p-4">
-      <div className="font-display mb-3 text-xs font-bold tracking-[0.3em] text-pink uppercase">{title}</div>
+      <div className="hud mb-3 text-xs text-pink glow-pink">▸ {title}</div>
       {matches.length === 0 && <div className="text-sm text-muted">Nothing yet.</div>}
       <AnimatePresence initial={false}>
         {matches.map((m) => (
@@ -235,7 +234,7 @@ function RailList({
           >
             <div className="flex justify-between text-xs text-muted">
               <span className="truncate">{gameOf(m.tournament_game_id)?.name}</span>
-              <span className="font-display text-cyan">
+              <span className="font-mono text-cyan">
                 {kind === 'next' ? formatTime(m.scheduled_start, tz) : formatTime(m.ended_at, tz)}
               </span>
             </div>
@@ -265,7 +264,7 @@ function NothingLive({ next, data, tz }: { next?: Match; data: LiveData; tz: str
   const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
-      <div className="font-display text-sm tracking-[0.5em] text-muted uppercase">Stand by</div>
+      <div className="hud text-sm text-muted">// stand by</div>
       {next ? (
         <>
           <div className="font-display text-2xl text-cyan glow-cyan sm:text-4xl">

@@ -1,4 +1,5 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
+import { Scene } from './components/Scene';
 import { Home } from './pages/Home';
 import { LiveDashboard } from './pages/LiveDashboard';
 import { TournamentPage } from './pages/TournamentPage';
@@ -11,6 +12,7 @@ import { TournamentEditor } from './pages/admin/TournamentEditor';
 export function App() {
   return (
     <HashRouter>
+      <Scene />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/live" element={<LiveDashboard />} />

@@ -71,7 +71,7 @@ export default function TournamentMatches() {
           const b = team(m.team_b_id);
           return (
             <Link href={{ pathname: '/match/[id]', params: { id: m.id, tournament: id } }} asChild>
-              <Pressable style={[styles.card, { marginBottom: 8 }, m.status === 'live' && { borderColor: colors.magenta }]}>
+              <Pressable style={[styles.card, { marginBottom: 8 }, m.status === 'live' && styles.cardLive]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text style={[styles.muted, { fontSize: 12 }]}>
                     {gameName(m.tournament_game_id)} · {roundName(m.round, rounds.get(m.tournament_game_id) ?? m.round)}

@@ -95,7 +95,7 @@ function GameForm({ game, onSaved, onCancel }: { game?: Game; onSaved: () => voi
 
   return (
     <Panel>
-      <div className="font-display mb-4 text-sm font-bold tracking-widest text-pink uppercase">{game ? 'Edit game' : 'Add game'}</div>
+      <div className="hud mb-4 text-sm text-pink glow-pink">{game ? 'Edit game' : 'Add game'}</div>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Name">
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tekken 8" />
