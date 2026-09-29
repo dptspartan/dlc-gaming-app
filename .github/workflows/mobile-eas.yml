@@ -1,0 +1,51 @@
+name: Mobile (Expo EAS)
+
+# Run by hand from the Actions tab. Needs the EXPO_TOKEN repository secret and
+# a one-time `eas init` in apps/mobile (see README).
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        default: update
+        options:
+          - update
+          - build-android
+          - build-ios
+
+jobs:
+  eas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Check token
+        working-directory: .
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Add the EXPO_TOKEN repository secret first."; exit 1; fi
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        working-directory: .
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Publish over-the-air update
+        if: inputs.action == 'update'
+        run: eas update --auto --non-interactive
+      - name: Build Android (installable APK)
+        if: inputs.action == 'build-android'
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Build iOS
+        if: inputs.action == 'build-ios'
+        run: eas build --platform ios --profile production --non-interactive --no-wait

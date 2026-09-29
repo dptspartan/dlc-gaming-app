@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #07070d;
+  --color-surface: #10101c;
+  --color-surface2: #171728;
+  --color-line: #2a2a44;
+  --color-ink: #e8e8f5;
+  --color-muted: #8a8aa8;
+  --color-cyan: #00f0ff;
+  --color-pink: #ff2bd6;
+  --color-lime: #b6ff00;
+  --color-amber: #ffb000;
+  --color-danger: #ff3b5c;
+  --font-display: "Orbitron", system-ui, sans-serif;
+  --font-body: "Rajdhani", system-ui, sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(ellipse at top, rgba(255, 43, 214, 0.12), transparent 60%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  background-attachment: fixed;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Angular "cut corner" panel used throughout. */
+.panel {
+  background: linear-gradient(160deg, var(--color-surface2), var(--color-surface));
+  border: 1px solid var(--color-line);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.glow-cyan {
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+}
+.glow-pink {
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.7);
+}
+.glow-lime {
+  text-shadow: 0 0 14px rgba(182, 255, 0, 0.8);
+}
+
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--color-pink);
+  box-shadow: 0 0 10px var(--color-pink);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+
+input,
+select,
+textarea {
+  background: var(--color-bg);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  padding: 0.45rem 0.6rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  outline: none;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-cyan);
+}
+input[type="checkbox"] {
+  accent-color: var(--color-cyan);
+  width: 1.1rem;
+  height: 1.1rem;
+}

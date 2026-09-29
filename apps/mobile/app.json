@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "DLC Arena Admin",
+    "slug": "dlc-arena-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "gg.dlc.arena.admin"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#07070d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "gg.dlc.arena.admin"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pick a photo to attach to a match.",
+          "cameraPermission": "Take a photo of the winners."
+        }
+      ]
+    ],
+    "scheme": "dlcarena",
+    "backgroundColor": "#07070d",
+    "splash": {
+      "backgroundColor": "#07070d"
+    }
+  }
+}

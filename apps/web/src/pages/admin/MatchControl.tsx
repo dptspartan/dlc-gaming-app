@@ -1,0 +1,171 @@
+import { useState } from 'react';
+import { fromZonedInput, roundName, toZonedInput, type Match, type Team } from '@dlc/core';
+import { Avatar, Button, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
+import { endMatch, reopenMatch, startMatch } from '../../lib/admin';
+import { supabase, uploadImage } from '../../lib/supabase';
+
+interface Props {
+  match: Match;
+  teams: Map<string, Team>;
+  totalRounds: number;
+  gameName: string;
+  timeZone: string;
+  matchMinutes: number;
+  onClose: () => void;
+}
+
+/** Start, finish, correct and annotate one match. */
+export function MatchControl({ match, teams, totalRounds, gameName, timeZone, matchMinutes, onClose }: Props) {
+  const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
+  const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
+  const [winner, setWinner] = useState<string | null>(match.winner_id);
+  const [scoreA, setScoreA] = useState(match.score_a?.toString() ?? '');
+  const [scoreB, setScoreB] = useState(match.score_b?.toString() ?? '');
+  const [start, setStart] = useState(toZonedInput(match.scheduled_start, timeZone));
+  const [station, setStation] = useState(match.station?.toString() ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (fn: () => Promise<unknown>, close = false) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      if (close) onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const num = (s: string) => (s.trim() === '' ? null : Number(s));
+  const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
+  const editableTime = match.status === 'pending' || match.status === 'ready';
+
+  const saveTime = () =>
+    run(async () => {
+      const startDate = fromZonedInput(start, timeZone);
+      const duration = match.scheduled_start && match.scheduled_end
+        ? new Date(match.scheduled_end).getTime() - new Date(match.scheduled_start).getTime()
+        : matchMinutes * 60_000;
+      const { error } = await supabase
+        .from('matches')
+        .update({
+          scheduled_start: startDate.toISOString(),
+          scheduled_end: new Date(startDate.getTime() + duration).toISOString(),
+          station: num(station),
+        })
+        .eq('id', match.id);
+      if (error) throw new Error(error.message);
+    });
+
+  const upload = (file: File) =>
+    run(async () => {
+      const url = await uploadImage(file, `matches/${match.id}`);
+      const { error } = await supabase.from('matches').update({ image_url: url }).eq('id', match.id);
+      if (error) throw new Error(error.message);
+    });
+
+  const side = (team: Team | undefined, id: string | null) => (
+    <button
+      type="button"
+      disabled={!canEnd || !id}
+      onClick={() => setWinner(id)}
+      className={`flex flex-1 flex-col items-center gap-2 border p-4 transition ${
+        winner && winner === id ? 'border-lime bg-lime/10 shadow-[0_0_20px_rgba(182,255,0,0.3)]' : 'border-line'
+      } ${canEnd && id ? 'hover:border-cyan' : ''}`}
+    >
+      <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
+      <span className="font-display text-center font-bold">{team?.name ?? 'TBD'}</span>
+      {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
+      {winner && winner === id && <span className="font-display text-xs text-lime">WINNER</span>}
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="panel max-h-[92vh] w-full max-w-xl overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="font-display text-xs tracking-[0.3em] text-pink uppercase">
+              {gameName} · {roundName(match.round, totalRounds)}
+            </div>
+            <div className="mt-1 flex items-center gap-3">
+              <StatusPill status={match.status} />
+              {match.status === 'live' && match.started_at && <Elapsed since={match.started_at} />}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-2xl text-muted hover:text-ink" aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        <div className="flex items-stretch gap-3">
+          {side(a, match.team_a_id)}
+          <span className="font-display self-center text-xl text-pink">VS</span>
+          {side(b, match.team_b_id)}
+        </div>
+
+        {canEnd && (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Field label={`Score ${a?.name ?? 'A'}`}>
+              <input type="number" value={scoreA} onChange={(e) => setScoreA(e.target.value)} placeholder="optional" />
+            </Field>
+            <Field label={`Score ${b?.name ?? 'B'}`}>
+              <input type="number" value={scoreB} onChange={(e) => setScoreB(e.target.value)} placeholder="optional" />
+            </Field>
+          </div>
+        )}
+
+        <ErrorNote message={error} />
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {match.status === 'ready' && (
+            <Button disabled={busy} onClick={() => run(() => startMatch(match.id))}>
+              Start match
+            </Button>
+          )}
+          {canEnd && (
+            <Button
+              variant="success"
+              disabled={busy || !winner}
+              onClick={() => run(() => endMatch(match.id, winner!, num(scoreA), num(scoreB)), true)}
+            >
+              {winner ? 'End & set winner' : 'Pick a winner'}
+            </Button>
+          )}
+          {match.status === 'completed' && !match.is_bye && (
+            <Button variant="danger" disabled={busy} onClick={() => confirm('Undo this result?') && run(() => reopenMatch(match.id))}>
+              Reopen result
+            </Button>
+          )}
+          {match.status === 'pending' && <span className="text-muted">Waiting for earlier matches to finish.</span>}
+        </div>
+
+        {!match.is_bye && (
+          <div className="mt-6 border-t border-line pt-4">
+            <Field label="Match photo">
+              <input type="file" accept="image/*" disabled={busy} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+            </Field>
+            {match.image_url && <img src={match.image_url} alt="" className="mt-3 max-h-48 border border-line object-cover" />}
+          </div>
+        )}
+
+        {editableTime && (
+          <div className="mt-6 grid grid-cols-[1fr_6rem_auto] items-end gap-3 border-t border-line pt-4">
+            <Field label={`Start time (${timeZone})`}>
+              <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+            </Field>
+            <Field label="Station">
+              <input type="number" min={1} value={station} onChange={(e) => setStation(e.target.value)} />
+            </Field>
+            <Button variant="ghost" disabled={busy || !start} onClick={saveTime}>
+              Save
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

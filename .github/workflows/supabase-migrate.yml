@@ -1,0 +1,40 @@
+name: Apply database migrations
+
+# Pushes new files in supabase/migrations to the live Supabase project.
+# Needs repository secrets SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and
+# SUPABASE_PROJECT_REF; without them the job skips itself.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - supabase/migrations/**
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check secrets
+        id: secrets
+        run: |
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ] && [ -n "$SUPABASE_PROJECT_REF" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Supabase secrets are not set; skipping migrations."
+          fi
+      - uses: actions/checkout@v5
+        if: steps.secrets.outputs.ok == 'true'
+      - uses: supabase/setup-cli@v1
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          version: latest
+      - name: Push migrations
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$SUPABASE_DB_PASSWORD"

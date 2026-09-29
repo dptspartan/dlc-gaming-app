@@ -1,0 +1,2 @@
+# Minimal Supabase CLI config so `supabase link` / `supabase db push` work.
+project_id = "dlc-gaming-app"

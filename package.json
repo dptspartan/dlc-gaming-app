@@ -1,0 +1,13 @@
+{
+  "name": "dlc-gaming-app",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "mobile": "pnpm --filter mobile start",
+    "test": "pnpm --filter @dlc/core test",
+    "typecheck": "pnpm -r typecheck",
+    "demo-seed": "npx tsx scripts/demo-seed.ts"
+  }
+}
