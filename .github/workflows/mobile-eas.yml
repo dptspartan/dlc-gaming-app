@@ -52,14 +52,11 @@ jobs:
       - name: Build Android (installable APK)
         if: inputs.action == 'build-android'
         run: |
-          eas build --platform android --profile preview --non-interactive --wait --json > build.json
-          node -e '
-            const [b] = require("./build.json");
-            const apk = b.artifacts?.buildUrl ?? "";
-            const page = `https://expo.dev/accounts/${b.project.ownerAccount.name}/projects/${b.project.slug}/builds/${b.id}`;
-            console.log("APK:", apk); console.log("Build page:", page);
-            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n**APK:** ${apk}\n\n**Build page:** ${page}\n`);
-          '
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json 2> >(tee build.log >&2)
+          apk=$(node -p 'const b = require("./build.json"); (Array.isArray(b) ? b[0] : b)?.artifacts?.buildUrl ?? ""')
+          page=$(grep -o 'https://expo.dev/accounts/[^ ]*/builds/[^ ]*' build.log | head -1)
+          echo "APK: $apk"; echo "Build page: $page"
+          printf '\n**APK:** %s\n\n**Build page (install QR code):** %s\n' "$apk" "$page" >> "$GITHUB_STEP_SUMMARY"
       - name: Build iOS
         if: inputs.action == 'build-ios'
         run: eas build --platform ios --profile production --non-interactive --no-wait
