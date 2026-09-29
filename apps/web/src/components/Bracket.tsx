@@ -28,7 +28,7 @@ export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, s
       <div className="flex min-w-max gap-6">
         {rounds.map((list, i) => (
           <div key={i} className="flex w-64 flex-col">
-            <div className="font-display mb-3 text-center text-xs font-bold tracking-[0.3em] text-pink uppercase">
+            <div className="hud mb-3 text-center text-xs text-pink glow-pink">
               {roundName(i + 1, total)}
             </div>
             <div className="flex flex-1 flex-col justify-around gap-3">
@@ -71,7 +71,7 @@ function BracketMatch({
 }) {
   const editable = onSlotClick && !match.is_bye && (match.status === 'pending' || match.status === 'ready');
   const live = match.status === 'live';
-  const border = live ? 'border-pink shadow-[0_0_16px_rgba(255,43,214,0.45)]' : isLast ? 'border-amber/60' : 'border-line';
+  const border = live ? 'neon-live' : isLast ? 'neon-gold' : '';
 
   const row = (slot: Slot) => {
     const teamId = slot === 'a' ? match.team_a_id : match.team_b_id;
@@ -82,7 +82,7 @@ function BracketMatch({
     const selected = selectedSlot?.matchId === match.id && selectedSlot.slot === slot;
     return (
       <div
-        className={`flex items-center gap-2 px-2 py-1.5 ${won ? 'bg-lime/10' : ''} ${lost ? 'opacity-45' : ''} ${
+        className={`flex items-center gap-2 px-2.5 py-1.5 ${won ? 'bg-[linear-gradient(90deg,rgba(182,255,0,0.18),transparent)]' : ''} ${lost ? 'opacity-45' : ''} ${
           selected ? 'outline outline-2 outline-cyan' : ''
         } ${editable ? 'cursor-pointer hover:bg-cyan/10' : ''}`}
         onClick={(e) => {
@@ -96,17 +96,17 @@ function BracketMatch({
           {team?.name ?? (match.is_bye ? 'Bye' : 'TBD')}
         </span>
         {score != null && <span className="font-display text-sm">{score}</span>}
-        {won && <span className="text-lime">▸</span>}
+        {won && <span className="text-lime glow-lime">◆</span>}
       </div>
     );
   };
 
   return (
     <div
-      className={`border bg-surface ${border} ${onClick ? 'cursor-pointer hover:border-cyan' : ''} ${match.is_bye ? 'opacity-50' : ''}`}
+      className={`glass-card overflow-hidden transition ${border} ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-cyan' : ''} ${match.is_bye ? 'opacity-45' : ''}`}
       onClick={() => onClick?.(match)}
     >
-      <div className="flex items-center justify-between border-b border-line/70 px-2 py-1 text-xs text-muted">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-2.5 py-1.5 font-mono text-[11px] text-muted">
         <span>
           {match.is_bye
             ? 'Bye'

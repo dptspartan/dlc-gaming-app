@@ -72,9 +72,9 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
       type="button"
       disabled={!canEnd || !id}
       onClick={() => setWinner(id)}
-      className={`flex flex-1 flex-col items-center gap-2 border p-4 transition ${
-        winner && winner === id ? 'border-lime bg-lime/10 shadow-[0_0_20px_rgba(182,255,0,0.3)]' : 'border-line'
-      } ${canEnd && id ? 'hover:border-cyan' : ''}`}
+      className={`glass-card flex flex-1 flex-col items-center gap-2 p-4 transition ${winner && winner === id ? 'neon-win' : ''} ${
+        canEnd && id ? 'hover:border-cyan' : ''
+      }`}
     >
       <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
       <span className="font-display text-center font-bold">{team?.name ?? 'TBD'}</span>
@@ -84,11 +84,11 @@ export function MatchControl({ match, teams, totalRounds, gameName, timeZone, ma
   );
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="panel max-h-[92vh] w-full max-w-xl overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="panel glass-strong max-h-[92vh] w-full max-w-xl overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="font-display text-xs tracking-[0.3em] text-pink uppercase">
+            <div className="hud text-xs text-pink glow-pink">
               {gameName} · {roundName(match.round, totalRounds)}
             </div>
             <div className="mt-1 flex items-center gap-3">

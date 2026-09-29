@@ -1,19 +1,27 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------------
+   DLC Arena: cyberpunk glass.
+   Frosted neon panels over an animated synthwave scene, HUD corner
+   brackets, glitch headings and mono "terminal" labels.
+   ------------------------------------------------------------------------ */
+
 @theme {
-  --color-bg: #07070d;
-  --color-surface: #10101c;
-  --color-surface2: #171728;
-  --color-line: #2a2a44;
-  --color-ink: #e8e8f5;
-  --color-muted: #8a8aa8;
+  --color-bg: #05030d;
+  --color-surface: #0e0a1f;
+  --color-surface2: #181233;
+  --color-line: rgba(140, 120, 255, 0.22);
+  --color-ink: #efeaff;
+  --color-muted: #9a93c4;
   --color-cyan: #00f0ff;
   --color-pink: #ff2bd6;
   --color-lime: #b6ff00;
   --color-amber: #ffb000;
+  --color-violet: #8a5cff;
   --color-danger: #ff3b5c;
   --font-display: "Orbitron", system-ui, sans-serif;
   --font-body: "Rajdhani", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", ui-monospace, monospace;
 }
 
 html,
@@ -24,34 +32,270 @@ body,
 
 body {
   margin: 0;
-  background-color: var(--color-bg);
-  background-image:
-    linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.035) 1px, transparent 1px),
-    radial-gradient(ellipse at top, rgba(255, 43, 214, 0.12), transparent 60%);
-  background-size: 40px 40px, 40px 40px, 100% 100%;
-  background-attachment: fixed;
+  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
   font-size: 17px;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Angular "cut corner" panel used throughout. */
-.panel {
-  background: linear-gradient(160deg, var(--color-surface2), var(--color-surface));
-  border: 1px solid var(--color-line);
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+::selection {
+  background: var(--color-pink);
+  color: var(--color-bg);
+}
+
+/* ---------------------------------------------------------------- Scene */
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 38%, rgba(255, 43, 214, 0.28), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 15% 10%, rgba(0, 240, 255, 0.14), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 90% 15%, rgba(138, 92, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, #05030d 0%, #120828 45%, #1a0830 58%, #05030d 100%);
+}
+
+/* Striped synthwave sun sinking behind the horizon. */
+.scene .sun {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: min(46vw, 520px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -62%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffe66d 0%, #ff7ab8 45%, #ff2bd6 70%, #8a5cff 100%);
+  -webkit-mask: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 18px), linear-gradient(#000 0 55%, transparent 55%);
+  -webkit-mask-composite: source-over;
+  mask: linear-gradient(180deg, #000 0 52%, transparent 52%), repeating-linear-gradient(180deg, #000 0 12px, transparent 12px 17px);
+  mask-composite: add;
+  opacity: 0.35;
+  filter: blur(0.5px) drop-shadow(0 0 60px rgba(255, 43, 214, 0.6));
+}
+
+/* Perspective grid floor that scrolls toward the viewer. */
+.scene .floor {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 58%;
+  bottom: -40%;
+  transform: perspective(420px) rotateX(62deg);
+  transform-origin: top center;
+  background-image:
+    linear-gradient(rgba(255, 43, 214, 0.55) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.4) 2px, transparent 2px);
+  background-size: 64px 64px;
+  animation: floor 3.2s linear infinite;
+  -webkit-mask: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
+  mask: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
+  opacity: 0.45;
+}
+.scene .horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff2bd6, #00f0ff, #ff2bd6, transparent);
+  box-shadow: 0 0 24px 4px rgba(255, 43, 214, 0.5);
+  opacity: 0.8;
+}
+.scene .scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+}
+.scene .vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.7) 100%);
+}
+
+@keyframes floor {
+  to {
+    background-position: 0 64px, 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene .floor {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Glass */
+
+.panel,
+.glass-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 60%, rgba(138, 92, 255, 0.06));
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(160, 140, 255, 0.28);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 30px rgba(0, 240, 255, 0.04),
+    0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+.glass-card {
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+}
+
+/* HUD corner brackets on big panels. */
+.panel::before,
+.panel::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  border-color: var(--color-cyan);
+  filter: drop-shadow(0 0 6px var(--color-cyan));
+}
+.panel::before {
+  top: 6px;
+  left: 6px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+.panel::after {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-color: var(--color-pink);
+  filter: drop-shadow(0 0 6px var(--color-pink));
+}
+
+.glass-strong {
+  background: linear-gradient(135deg, rgba(40, 24, 80, 0.75), rgba(10, 6, 24, 0.85));
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  backdrop-filter: blur(26px) saturate(180%);
+}
+
+.neon-live {
+  border-color: rgba(255, 43, 214, 0.8) !important;
+  animation: neon-pulse 1.8s ease-in-out infinite;
+}
+.neon-gold {
+  border-color: rgba(255, 176, 0, 0.75) !important;
+  box-shadow: 0 0 22px rgba(255, 176, 0, 0.25), inset 0 0 22px rgba(255, 176, 0, 0.08);
+}
+.neon-win {
+  border-color: rgba(182, 255, 0, 0.8) !important;
+  box-shadow: 0 0 22px rgba(182, 255, 0, 0.25), inset 0 0 18px rgba(182, 255, 0, 0.08);
+}
+
+@keyframes neon-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.35), inset 0 0 18px rgba(255, 43, 214, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 34px rgba(255, 43, 214, 0.65), inset 0 0 26px rgba(255, 43, 214, 0.16);
+  }
+}
+
+/* ---------------------------------------------------------------- Type */
+
+.hud {
+  font-family: var(--font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.chrome-text {
+  background: linear-gradient(180deg, #ffffff 0%, #bff8ff 40%, #00f0ff 55%, #ff2bd6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(0, 240, 255, 0.45));
 }
 
 .glow-cyan {
-  text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.75);
 }
 .glow-pink {
-  text-shadow: 0 0 12px rgba(255, 43, 214, 0.7);
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.75);
 }
 .glow-lime {
   text-shadow: 0 0 14px rgba(182, 255, 0, 0.8);
+}
+
+/* Glitch heading: two offset colour ghosts that twitch every few seconds. */
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-background-clip: initial;
+  background: none;
+  filter: none;
+}
+.glitch::before {
+  color: var(--color-pink);
+  animation: glitch-a 4.5s infinite steps(1);
+  clip-path: inset(0 0 60% 0);
+  mix-blend-mode: screen;
+}
+.glitch::after {
+  color: var(--color-cyan);
+  animation: glitch-b 4.5s infinite steps(1);
+  clip-path: inset(55% 0 0 0);
+  mix-blend-mode: screen;
+}
+@keyframes glitch-a {
+  0%,
+  88%,
+  100% {
+    transform: none;
+    opacity: 0;
+  }
+  90% {
+    transform: translate(-4px, -1px);
+    opacity: 0.9;
+  }
+  93% {
+    transform: translate(3px, 1px);
+    opacity: 0.9;
+  }
+  96% {
+    transform: translate(-2px, 0);
+    opacity: 0.6;
+  }
+}
+@keyframes glitch-b {
+  0%,
+  88%,
+  100% {
+    transform: none;
+    opacity: 0;
+  }
+  91% {
+    transform: translate(4px, 1px);
+    opacity: 0.9;
+  }
+  94% {
+    transform: translate(-3px, -1px);
+    opacity: 0.9;
+  }
+  97% {
+    transform: translate(2px, 0);
+    opacity: 0.6;
+  }
 }
 
 .scanlines::after {
@@ -59,6 +303,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: inherit;
   background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
 }
 
@@ -78,24 +323,53 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------- Forms */
+
 input,
 select,
 textarea {
-  background: var(--color-bg);
+  background: rgba(5, 3, 13, 0.55);
   border: 1px solid var(--color-line);
+  border-radius: 8px;
   color: var(--color-ink);
-  padding: 0.45rem 0.6rem;
+  padding: 0.5rem 0.7rem;
   font-family: var(--font-body);
   font-size: 1rem;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.15), 0 0 16px rgba(0, 240, 255, 0.25);
+}
+select option {
+  background: #120828;
 }
 input[type="checkbox"] {
   accent-color: var(--color-cyan);
   width: 1.1rem;
   height: 1.1rem;
+}
+input[type="file"] {
+  padding: 0.35rem;
+}
+input[type="file"]::file-selector-button {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--color-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  margin-right: 0.7rem;
+  cursor: pointer;
+}
+
+/* Thin neon scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 43, 214, 0.5) transparent;
 }

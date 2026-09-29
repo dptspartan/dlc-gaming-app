@@ -77,7 +77,7 @@ function CreateTournament() {
 
   return (
     <Panel>
-      <div className="font-display mb-4 text-sm font-bold tracking-widest text-pink uppercase">New tournament</div>
+      <div className="hud mb-4 text-sm text-pink glow-pink">New tournament</div>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Name">
           <input required value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="DLC Tournament 1" />
@@ -134,7 +134,7 @@ function Admins() {
 
   return (
     <Panel>
-      <div className="font-display mb-2 text-sm font-bold tracking-widest text-pink uppercase">Admins</div>
+      <div className="hud mb-2 text-sm text-pink glow-pink">Admins</div>
       <p className="mb-3 text-sm text-muted">New organizers sign up on the admin page, then share the user id it shows them.</p>
       <ul className="mb-3 text-sm">
         {rows.map((r) => (

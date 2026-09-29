@@ -13,7 +13,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
   if (!isAdmin) return <NotAdmin userId={session.user.id} email={session.user.email ?? ''} onClaimed={refreshAdmin} />;
 
   const nav = ({ isActive }: { isActive: boolean }) =>
-    `font-display text-xs font-bold tracking-widest uppercase ${isActive ? 'text-pink' : 'text-muted hover:text-ink'}`;
+    `hud rounded-full px-3 py-1 text-xs ${isActive ? 'bg-pink/10 text-pink glow-pink shadow-[inset_0_0_0_1px_rgba(255,43,214,0.5)]' : 'text-muted hover:text-ink'}`;
   return (
     <Layout wide>
       <div className="mb-6 flex flex-wrap items-center gap-5 border-b border-line pb-3">

@@ -23,10 +23,10 @@ export function TournamentEditor() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <Heading sub={<StatusPill status={tournament.status} />}>{tournament.name}</Heading>
         <div className="flex gap-2">
-          <Link to={`/t/${tournament.slug}`} className="font-display border border-line px-3 py-2 text-xs font-bold tracking-widest uppercase hover:border-cyan">
+          <Link to={`/t/${tournament.slug}`} className="font-display rounded-lg border border-line bg-white/5 px-3 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur hover:border-cyan">
             Public page
           </Link>
-          <Link to={`/t/${tournament.slug}/live`} className="font-display border border-pink px-3 py-2 text-xs font-bold tracking-widest text-pink uppercase">
+          <Link to={`/t/${tournament.slug}/live`} className="font-display rounded-lg border border-pink/70 bg-pink/10 px-3 py-2 text-xs font-bold tracking-widest text-pink uppercase shadow-[0_0_16px_rgba(255,43,214,0.35)]">
             Live board
           </Link>
         </div>
@@ -42,7 +42,7 @@ export function TournamentEditor() {
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`font-display -mb-px border-b-2 pb-2 text-xs font-bold tracking-widest uppercase ${
+            className={`hud -mb-px border-b-2 pb-2 text-xs ${
               tab === k ? 'border-cyan text-cyan' : 'border-transparent text-muted hover:text-ink'
             }`}
           >
@@ -265,7 +265,7 @@ function TournamentGameCard({ tg, data, onChange }: { tg: TournamentGame; data: 
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {teams.map((t) => (
-          <div key={t.id} className="flex items-center gap-3 border border-line bg-bg/40 px-3 py-2">
+          <div key={t.id} className="glass-card flex items-center gap-3 px-3 py-2">
             <Avatar name={t.name} url={t.logo_url} size={32} />
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold">{t.name}</div>
@@ -346,7 +346,7 @@ function AddTeam({ tg, teamSize, onAdded }: { tg: TournamentGame; teamSize: numb
   return (
     <form onSubmit={submit} className="mt-4 border-t border-line pt-4">
       <div className="mb-3 flex items-center gap-4">
-        <span className="font-display text-xs font-bold tracking-widest text-pink uppercase">Add {noun}</span>
+        <span className="hud text-xs text-pink glow-pink">Add {noun}</span>
         <button type="button" className="text-sm text-muted hover:text-cyan" onClick={() => setBulk(!bulk)}>
           {bulk ? 'Add one at a time' : 'Paste a list'}
         </button>
@@ -450,8 +450,8 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               setResult(null);
               setSelected(null);
             }}
-            className={`font-display border px-4 py-2 text-xs font-bold tracking-widest uppercase ${
-              g.id === tgId ? 'border-cyan bg-cyan/10 text-cyan' : 'border-line text-muted hover:text-ink'
+            className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur ${
+              g.id === tgId ? 'border-cyan bg-cyan/15 text-cyan shadow-[0_0_18px_rgba(0,240,255,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
             }`}
           >
             {data.games.get(g.game_id)?.name}
@@ -501,7 +501,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`font-display -mb-px border-b-2 pb-2 text-xs font-bold tracking-widest uppercase ${view === v ? 'border-pink text-pink' : 'border-transparent text-muted'}`}
+            className={`hud -mb-px border-b-2 pb-2 text-xs ${view === v ? 'border-pink text-pink' : 'border-transparent text-muted'}`}
           >
             {v}
           </button>

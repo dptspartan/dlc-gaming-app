@@ -34,8 +34,8 @@ export function ScheduleList({
     <div className="flex flex-col gap-6">
       {[...days].map(([day, ms]) => (
         <div key={day}>
-          <div className="font-display mb-2 text-sm tracking-[0.3em] text-pink uppercase">{day}</div>
-          <div className="flex flex-col divide-y divide-line/60 border border-line bg-surface">
+          <div className="hud mb-2 text-sm text-pink glow-pink">▸ {day}</div>
+          <div className="glass-card flex flex-col divide-y divide-line">
             {ms.map((m) => (
               <div
                 key={m.id}
@@ -44,7 +44,7 @@ export function ScheduleList({
                 } ${m.status === 'live' ? 'bg-pink/5' : ''}`}
                 onClick={() => onMatchClick?.(m)}
               >
-                <span className="font-display text-sm text-cyan">{formatTime(m.scheduled_start, timeZone)}</span>
+                <span className="font-mono text-sm text-cyan glow-cyan">{formatTime(m.scheduled_start, timeZone)}</span>
                 <span className="hidden truncate text-sm text-muted sm:block">
                   {label ? `${label(m)} · ` : ''}
                   {roundName(m.round, totalByTg.get(m.tournament_game_id) ?? m.round)}

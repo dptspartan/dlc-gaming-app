@@ -80,12 +80,12 @@ export default function MatchControl() {
       <Pressable
         disabled={!canEnd}
         onPress={() => setWinner(tid)}
-        style={[styles.card, { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 18 }, picked && { borderColor: colors.lime, backgroundColor: '#b6ff0012' }]}
+        style={[styles.card, { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 18 }, picked && { borderColor: colors.lime, backgroundColor: 'rgba(182,255,0,0.1)', shadowColor: colors.lime, shadowOpacity: 0.6, shadowRadius: 16, elevation: 8 }]}
       >
         <Avatar name={team?.name ?? '?'} url={team?.logo_url} size={56} />
         <Text style={[styles.text, { fontWeight: '800', textAlign: 'center' }]}>{team?.name ?? 'TBD'}</Text>
         {team && team.members.length > 0 && <Text style={[styles.muted, { fontSize: 12, textAlign: 'center' }]}>{team.members.join(', ')}</Text>}
-        {picked && <Text style={{ color: colors.lime, fontWeight: '900', letterSpacing: 2 }}>WINNER</Text>}
+        {picked && <Text style={{ color: colors.lime, fontWeight: '900', letterSpacing: 3, textShadowColor: colors.lime, textShadowRadius: 10 }}>WINNER</Text>}
       </Pressable>
     );
   };
@@ -102,7 +102,7 @@ export default function MatchControl() {
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'stretch' }}>
           {side(a, match.team_a_id)}
-          <Text style={{ color: colors.magenta, fontWeight: '900', fontSize: 20, alignSelf: 'center' }}>VS</Text>
+          <Text style={{ color: colors.magenta, fontWeight: '900', fontStyle: 'italic', fontSize: 24, alignSelf: 'center', textShadowColor: colors.magenta, textShadowRadius: 12 }}>VS</Text>
           {side(b, match.team_b_id)}
         </View>
 

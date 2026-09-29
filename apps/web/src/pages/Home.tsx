@@ -28,13 +28,16 @@ export function Home() {
   return (
     <Layout>
       <section className="relative mb-10 overflow-hidden py-10 text-center">
-        <div className="font-display text-4xl font-black tracking-[0.15em] uppercase sm:text-6xl">
-          <span className="text-cyan glow-cyan">Game</span> <span className="text-pink glow-pink">On</span>
+        <div className="hud mb-3 text-sm text-cyan">&gt; dlc_arena.exe // live tournament feed</div>
+        <div className="font-display text-5xl font-black tracking-[0.12em] uppercase sm:text-7xl">
+          <span className="glitch chrome-text" data-text="GAME ON">
+            GAME ON
+          </span>
         </div>
         <p className="mt-3 text-lg text-muted">Live brackets, schedules and results for every DLC tournament.</p>
         <Link
           to="/live"
-          className="font-display mt-6 inline-flex items-center gap-3 border border-pink px-6 py-3 text-sm font-bold tracking-widest text-pink uppercase hover:bg-pink hover:text-bg"
+          className="font-display mt-8 inline-flex items-center gap-3 rounded-xl border border-pink/70 bg-pink/10 px-7 py-3 text-sm font-bold tracking-widest text-pink uppercase shadow-[0_0_24px_rgba(255,43,214,0.35)] backdrop-blur transition hover:bg-pink hover:text-bg"
         >
           <span className="live-dot" /> Watch live
         </Link>
@@ -48,11 +51,11 @@ export function Home() {
               <Heading>{title}</Heading>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((t) => (
-                  <Link key={t.id} to={`/t/${t.slug}`} className="panel group relative block overflow-hidden p-0 transition hover:-translate-y-0.5">
+                  <Link key={t.id} to={`/t/${t.slug}`} className={`panel group relative block overflow-hidden p-0 transition hover:-translate-y-1 ${t.status === 'live' ? 'neon-live' : ''}`}>
                     {t.banner_url ? (
-                      <img src={t.banner_url} alt="" className="h-32 w-full object-cover opacity-80 group-hover:opacity-100" />
+                      <img src={t.banner_url} alt="" className="h-32 w-full rounded-t-[13px] object-cover opacity-80 group-hover:opacity-100" />
                     ) : (
-                      <div className="h-32 w-full bg-[linear-gradient(135deg,#00f0ff33,#ff2bd633)]" />
+                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(0,240,255,0.35),rgba(138,92,255,0.25),rgba(255,43,214,0.35))] [mask:linear-gradient(#000,transparent)]" />
                     )}
                     <div className="p-4">
                       <div className="font-display text-lg font-bold tracking-wide group-hover:text-cyan">{t.name}</div>
@@ -62,7 +65,7 @@ export function Home() {
                       </div>
                     </div>
                     {t.status === 'live' && (
-                      <span className="font-display absolute top-3 right-3 flex items-center gap-2 bg-bg/80 px-2 py-1 text-xs font-bold text-pink">
+                      <span className="hud absolute top-3 right-3 flex items-center gap-2 rounded-full border border-pink/60 bg-bg/60 px-2.5 py-1 text-xs text-pink backdrop-blur">
                         <span className="live-dot" style={{ width: 7, height: 7 }} /> LIVE
                       </span>
                     )}
