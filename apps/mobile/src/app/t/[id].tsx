@@ -48,9 +48,9 @@ export default function TournamentMatches() {
               <Pressable
                 key={chip.id ?? 'all'}
                 onPress={() => setGameFilter(chip.id)}
-                style={[styles.pill, { paddingHorizontal: 12, paddingVertical: 8, borderColor: gameFilter === chip.id ? colors.cyan : colors.border }]}
+                style={[styles.pill, { paddingHorizontal: 12, paddingVertical: 8, borderColor: gameFilter === chip.id ? colors.ember : colors.border }]}
               >
-                <Text style={{ color: gameFilter === chip.id ? colors.cyan : colors.muted, fontWeight: '800' }}>{chip.label}</Text>
+                <Text style={{ color: gameFilter === chip.id ? colors.ember : colors.muted, fontWeight: '800' }}>{chip.label}</Text>
               </Pressable>
             ),
           )}
@@ -59,12 +59,12 @@ export default function TournamentMatches() {
       <SectionList
         sections={sections}
         keyExtractor={(m) => m.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.cyan} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.ember} />}
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={!loading ? <Text style={[styles.muted, { padding: 12 }]}>No fixtures yet. Generate them on the web admin.</Text> : null}
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.label, { color: section.title === 'LIVE NOW' ? colors.magenta : colors.muted, marginTop: 16 }]}>{section.title}</Text>
+          <Text style={[styles.label, { color: section.title === 'LIVE NOW' ? colors.flame : colors.muted, marginTop: 16 }]}>{section.title}</Text>
         )}
         renderItem={({ item: m }) => {
           const a = team(m.team_a_id);
@@ -85,7 +85,7 @@ export default function TournamentMatches() {
                   return (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 3 }}>
                       <Avatar name={t?.name ?? '?'} url={t?.logo_url} size={26} />
-                      <Text style={[styles.text, { flex: 1, fontWeight: '700', color: won ? colors.lime : t ? colors.text : colors.muted }]}>
+                      <Text style={[styles.text, { flex: 1, fontWeight: '700', color: won ? colors.gold : t ? colors.text : colors.muted }]}>
                         {t?.name ?? 'TBD'}
                       </Text>
                       <Text style={[styles.text, { fontWeight: '800' }]}>{(i === 0 ? m.score_a : m.score_b) ?? ''}</Text>

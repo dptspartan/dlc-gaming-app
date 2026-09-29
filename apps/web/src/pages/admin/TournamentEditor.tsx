@@ -23,10 +23,10 @@ export function TournamentEditor() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <Heading sub={<StatusPill status={tournament.status} />}>{tournament.name}</Heading>
         <div className="flex gap-2">
-          <Link to={`/t/${tournament.slug}`} className="font-display rounded-lg border border-line bg-white/5 px-3 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur hover:border-cyan">
+          <Link to={`/t/${tournament.slug}`} className="font-display rounded-lg border border-line bg-white/5 px-3 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur hover:border-ember">
             Public page
           </Link>
-          <Link to={`/t/${tournament.slug}/live`} className="font-display rounded-lg border border-pink/70 bg-pink/10 px-3 py-2 text-xs font-bold tracking-widest text-pink uppercase shadow-[0_0_16px_rgba(255,43,214,0.35)]">
+          <Link to={`/t/${tournament.slug}/live`} className="font-display rounded-lg border border-flame/70 bg-flame/10 px-3 py-2 text-xs font-bold tracking-widest text-flame uppercase shadow-[0_0_16px_rgba(255,30,45,0.35)]">
             Live board
           </Link>
         </div>
@@ -43,7 +43,7 @@ export function TournamentEditor() {
             key={k}
             onClick={() => setTab(k)}
             className={`hud -mb-px border-b-2 pb-2 text-xs ${
-              tab === k ? 'border-cyan text-cyan' : 'border-transparent text-muted hover:text-ink'
+              tab === k ? 'border-ember text-ember' : 'border-transparent text-muted hover:text-ink'
             }`}
           >
             {label}
@@ -140,7 +140,7 @@ function Details({ tournament, onSaved }: { tournament: Tournament; onSaved: () 
         </div>
         <div className="flex items-center gap-3 sm:col-span-2">
           <Button>Save</Button>
-          {saved && <span className="text-lime">Saved</span>}
+          {saved && <span className="text-gold">Saved</span>}
           <span className="flex-1" />
           <Button type="button" variant="danger" onClick={remove}>
             Delete tournament
@@ -188,7 +188,7 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
             </select>
           </Field>
           <Button disabled={!gameId}>Add game</Button>
-          <Link to="/admin/games" className="text-sm text-muted hover:text-cyan">
+          <Link to="/admin/games" className="text-sm text-muted hover:text-ember">
             Manage the game catalog
           </Link>
         </form>
@@ -346,8 +346,8 @@ function AddTeam({ tg, teamSize, onAdded }: { tg: TournamentGame; teamSize: numb
   return (
     <form onSubmit={submit} className="mt-4 border-t border-line pt-4">
       <div className="mb-3 flex items-center gap-4">
-        <span className="hud text-xs text-pink glow-pink">Add {noun}</span>
-        <button type="button" className="text-sm text-muted hover:text-cyan" onClick={() => setBulk(!bulk)}>
+        <span className="hud text-xs text-flame glow-flame">Add {noun}</span>
+        <button type="button" className="text-sm text-muted hover:text-ember" onClick={() => setBulk(!bulk)}>
           {bulk ? 'Add one at a time' : 'Paste a list'}
         </button>
       </div>
@@ -451,7 +451,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               setSelected(null);
             }}
             className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur ${
-              g.id === tgId ? 'border-cyan bg-cyan/15 text-cyan shadow-[0_0_18px_rgba(0,240,255,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
+              g.id === tgId ? 'border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,42,74,0.35)]' : 'border-line bg-white/5 text-muted hover:text-ink'
             }`}
           >
             {data.games.get(g.game_id)?.name}
@@ -475,7 +475,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
                 setSwapMode(!swapMode);
                 setSelected(null);
               }}
-              className={swapMode ? 'border-cyan text-cyan' : ''}
+              className={swapMode ? 'border-ember text-ember' : ''}
             >
               {swapMode ? 'Done editing' : 'Edit matchups'}
             </Button>
@@ -484,7 +484,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               {teams.length} entrants · {tg.stations} station{tg.stations > 1 ? 's' : ''} · {tg.match_minutes}+{tg.buffer_minutes} min
             </span>
           </div>
-          {swapMode && <p className="mt-3 text-sm text-cyan">Click one player slot, then another, to swap them. Only matches that have not started can change.</p>}
+          {swapMode && <p className="mt-3 text-sm text-ember">Click one player slot, then another, to swap them. Only matches that have not started can change.</p>}
           {(result ?? fit) && <FitNote result={(result ?? fit)!} tz={tournament.timezone} />}
           {conflicts.length > 0 && (
             <div className="mt-3 text-sm text-amber">
@@ -501,7 +501,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`hud -mb-px border-b-2 pb-2 text-xs ${view === v ? 'border-pink text-pink' : 'border-transparent text-muted'}`}
+            className={`hud -mb-px border-b-2 pb-2 text-xs ${view === v ? 'border-flame text-flame' : 'border-transparent text-muted'}`}
           >
             {v}
           </button>
@@ -529,6 +529,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           teams={data.teams}
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
+          game={data.games.get(tg.game_id)}
           timeZone={tournament.timezone}
           matchMinutes={tg.match_minutes}
           onClose={() => setOpenMatch(null)}
@@ -541,7 +542,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
 function FitNote({ result, tz }: { result: ScheduleResult; tz: string }) {
   if (!result.slots.length) return null;
   return result.fits ? (
-    <div className="mt-3 text-sm text-lime">Fits in the tournament hours. Last match ends around {formatTime(result.finishesAt, tz)}.</div>
+    <div className="mt-3 text-sm text-gold">Fits in the tournament hours. Last match ends around {formatTime(result.finishesAt, tz)}.</div>
   ) : (
     <div className="mt-3 text-sm text-danger">
       Doesn't fit: the schedule runs about {result.overflowMinutes} minutes past the last day. Add stations, shorten matches, or add a day.

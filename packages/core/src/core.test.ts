@@ -3,6 +3,7 @@ import { generateBracket, roundName, seedOrder, type MatchDraft } from './bracke
 import { findTeamConflicts, scheduleMatches } from './schedule';
 import { tournamentWindows, zonedToUtc } from './time';
 import { gridFor } from './layout';
+import { roundsToWin, scoringLabel } from './scoring';
 
 const teams = (n: number) => Array.from({ length: n }, (_, i) => ({ teamId: `t${i + 1}`, seed: i + 1 }));
 let counter = 0;
@@ -134,5 +135,18 @@ describe('gridFor', () => {
     expect(gridFor(4)).toMatchObject({ cols: 2, rows: 2 });
     expect(gridFor(5)).toMatchObject({ cols: 3, rows: 2 });
     expect(gridFor(12).pageSize).toBe(9);
+  });
+});
+
+describe('scoring', () => {
+  it('needs a majority of rounds to win a best-of match', () => {
+    expect(roundsToWin(5)).toBe(3);
+    expect(roundsToWin(3)).toBe(2);
+    expect(roundsToWin(1)).toBe(1);
+  });
+  it('labels each scoring mode', () => {
+    expect(scoringLabel({ scoring: 'rounds', best_of: 5 })).toBe('Best of 5');
+    expect(scoringLabel({ scoring: 'goals', best_of: null })).toBe('Live score');
+    expect(scoringLabel({ scoring: 'none', best_of: null })).toBe('Winner only');
   });
 });

@@ -34,17 +34,17 @@ export function ScheduleList({
     <div className="flex flex-col gap-6">
       {[...days].map(([day, ms]) => (
         <div key={day}>
-          <div className="hud mb-2 text-sm text-pink glow-pink">▸ {day}</div>
+          <div className="hud mb-2 text-sm text-flame glow-flame">▸ {day}</div>
           <div className="glass-card flex flex-col divide-y divide-line">
             {ms.map((m) => (
               <div
                 key={m.id}
                 className={`grid grid-cols-[4rem_1fr_auto] items-center gap-3 px-3 py-2 sm:grid-cols-[4rem_9rem_1fr_auto] ${
-                  onMatchClick ? 'cursor-pointer hover:bg-cyan/5' : ''
-                } ${m.status === 'live' ? 'bg-pink/5' : ''}`}
+                  onMatchClick ? 'cursor-pointer hover:bg-ember/5' : ''
+                } ${m.status === 'live' ? 'bg-flame/5' : ''}`}
                 onClick={() => onMatchClick?.(m)}
               >
-                <span className="font-mono text-sm text-cyan glow-cyan">{formatTime(m.scheduled_start, timeZone)}</span>
+                <span className="font-mono text-sm text-ember glow-ember">{formatTime(m.scheduled_start, timeZone)}</span>
                 <span className="hidden truncate text-sm text-muted sm:block">
                   {label ? `${label(m)} · ` : ''}
                   {roundName(m.round, totalByTg.get(m.tournament_game_id) ?? m.round)}
@@ -52,9 +52,9 @@ export function ScheduleList({
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
                   <Avatar name={name(m.team_a_id)} url={m.team_a_id ? teams.get(m.team_a_id)?.logo_url : null} size={22} />
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-lime' : ''}`}>{name(m.team_a_id)}</span>
+                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-gold' : ''}`}>{name(m.team_a_id)}</span>
                   <span className="text-muted">vs</span>
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-lime' : ''}`}>{name(m.team_b_id)}</span>
+                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-gold' : ''}`}>{name(m.team_b_id)}</span>
                   <Avatar name={name(m.team_b_id)} url={m.team_b_id ? teams.get(m.team_b_id)?.logo_url : null} size={22} />
                 </span>
                 <StatusPill status={m.status} />

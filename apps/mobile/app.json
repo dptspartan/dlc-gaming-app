@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DLC Arena Admin",
+    "name": "DLC Gaming Club Admin",
     "slug": "dlc-arena-admin",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#07070d",
+        "backgroundColor": "#050505",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -35,9 +35,9 @@
       ]
     ],
     "scheme": "dlcarena",
-    "backgroundColor": "#07070d",
+    "backgroundColor": "#050505",
     "splash": {
-      "backgroundColor": "#07070d"
+      "backgroundColor": "#050505"
     }
   }
 }

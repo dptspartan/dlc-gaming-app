@@ -2,6 +2,7 @@ export type TournamentStatus = 'draft' | 'scheduled' | 'live' | 'finished';
 export type TournamentGameStatus = 'setup' | 'fixtures_ready' | 'live' | 'finished';
 export type MatchStatus = 'pending' | 'ready' | 'live' | 'completed';
 export type Slot = 'a' | 'b';
+export type Scoring = 'none' | 'goals' | 'rounds';
 
 export interface Game {
   id: string;
@@ -10,6 +11,10 @@ export interface Game {
   default_match_minutes: number;
   /** Players on each side: 1 = solo, 2 = duo, 5 = five-a-side, ... */
   team_size: number;
+  /** none: pick the winner; goals: tally points, higher wins; rounds: best-of-N, ends itself. */
+  scoring: Scoring;
+  /** Rounds in a best-of match (odd); only set when scoring is 'rounds'. */
+  best_of: number | null;
   created_at: string;
 }
 

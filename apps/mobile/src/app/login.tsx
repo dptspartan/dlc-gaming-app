@@ -26,7 +26,7 @@ export default function Login() {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
         <Text style={[styles.h1, { fontSize: 30, marginBottom: 4 }]}>
-          DLC <Text style={{ color: colors.magenta }}>ARENA</Text>
+          DLC <Text style={{ color: colors.flame }}>GAMING CLUB</Text>
         </Text>
         <Text style={[styles.muted, { marginBottom: 28 }]}>Organizer sign in</Text>
         {session && !isAdmin ? (

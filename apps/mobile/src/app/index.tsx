@@ -45,7 +45,7 @@ export default function Tournaments() {
         data={list}
         keyExtractor={(t) => t.id}
         contentContainerStyle={{ padding: 16, gap: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.cyan} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.ember} />}
         ListEmptyComponent={<Text style={styles.muted}>No tournaments yet. Create one on the web admin.</Text>}
         renderItem={({ item }) => (
           <Link href={{ pathname: '/t/[id]', params: { id: item.id } }} asChild>
