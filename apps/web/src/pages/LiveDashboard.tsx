@@ -88,7 +88,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
         <main className="min-h-0 flex-1">
           {live.length === 0 ? (
-            <NothingLive next={upNext[0]} data={data} tz={tz} />
+            <NothingLive next={upNext[0]} data={data} tz={tz} gameName={upNext[0] ? gameOf(upNext[0].tournament_game_id)?.name : undefined} />
           ) : (
             <LayoutGroup>
               <div
@@ -163,15 +163,24 @@ function LiveCard({
       className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${final ? 'neon-gold' : 'neon-live'}`}
     >
       {game?.cover_url && <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-15" />}
-      <div className="relative flex items-center justify-between px-4 pt-3">
-        <span className="hud text-xs text-cyan glow-cyan">
-          {gameName} · {roundName(match.round, totalRounds)}
-        </span>
-        <span className="hud flex items-center gap-2 rounded-full border border-pink/60 bg-pink/10 px-2.5 py-0.5 text-xs text-pink">
+      <div className="relative flex items-start justify-between gap-3 border-b border-line bg-black/30 px-4 py-2.5">
+        <div className="min-w-0">
+          <div
+            className={`chrome-text font-display truncate font-black uppercase tracking-wider ${big ? 'text-4xl' : compact ? 'text-lg' : 'text-2xl'}`}
+          >
+            {gameName}
+          </div>
+          <div className="hud truncate text-xs text-cyan glow-cyan">
+            {roundName(match.round, totalRounds)}
+            {game && ` · ${game.team_size === 1 ? '1v1' : `${game.team_size}v${game.team_size}`}`}
+            {match.station ? ` · Station ${match.station}` : ''}
+            {showTournament && ` · ${data.tournaments.get(match.tournament_id)?.name ?? ''}`}
+          </div>
+        </div>
+        <span className="hud flex shrink-0 items-center gap-2 rounded-full border border-pink/60 bg-pink/10 px-2.5 py-0.5 text-xs text-pink">
           <span className="live-dot" style={{ width: 8, height: 8 }} /> {final ? 'FINAL' : 'LIVE'}
         </span>
       </div>
-      {showTournament && <div className="relative px-4 text-sm text-muted">{data.tournaments.get(match.tournament_id)?.name}</div>}
 
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} />
@@ -182,7 +191,7 @@ function LiveCard({
       </div>
 
       <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
-        <span>{match.station ? `Station ${match.station}` : ''}</span>
+        <span>{match.started_at ? 'Playing for' : ''}</span>
         {match.started_at && (
           <span className={`font-mono text-cyan glow-cyan ${big ? 'text-3xl' : 'text-xl'}`}>
             <Elapsed since={match.started_at} />
@@ -260,13 +269,14 @@ function RailList({
   );
 }
 
-function NothingLive({ next, data, tz }: { next?: Match; data: LiveData; tz: string }) {
+function NothingLive({ next, data, tz, gameName }: { next?: Match; data: LiveData; tz: string; gameName?: string }) {
   const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <div className="hud text-sm text-muted">// stand by</div>
       {next ? (
         <>
+          {gameName && <div className="chrome-text font-display text-xl font-black uppercase tracking-wider sm:text-3xl">{gameName}</div>}
           <div className="font-display text-2xl text-cyan glow-cyan sm:text-4xl">
             {name(next.team_a_id)} <span className="text-pink">vs</span> {name(next.team_b_id)}
           </div>
