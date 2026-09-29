@@ -1,7 +1,8 @@
 name: Mobile (Expo EAS)
 
-# Run by hand from the Actions tab. Needs the EXPO_TOKEN repository secret and
-# a one-time `eas init` in apps/mobile (see README).
+# Run by hand from the Actions tab. Needs the EXPO_TOKEN repository secret.
+# The first run creates the Expo project; its id is printed in the job summary
+# so it can be committed to app.json.
 
 on:
   workflow_dispatch:
@@ -40,12 +41,25 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Link Expo project
+        run: |
+          eas init --non-interactive --force
+          id=$(node -p "require('./app.json').expo.extra?.eas?.projectId ?? ''")
+          echo "Expo project id: \`$id\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish over-the-air update
         if: inputs.action == 'update'
         run: eas update --auto --non-interactive
       - name: Build Android (installable APK)
         if: inputs.action == 'build-android'
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json
+          node -e '
+            const [b] = require("./build.json");
+            const apk = b.artifacts?.buildUrl ?? "";
+            const page = `https://expo.dev/accounts/${b.project.ownerAccount.name}/projects/${b.project.slug}/builds/${b.id}`;
+            console.log("APK:", apk); console.log("Build page:", page);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n**APK:** ${apk}\n\n**Build page:** ${page}\n`);
+          '
       - name: Build iOS
         if: inputs.action == 'build-ios'
         run: eas build --platform ios --profile production --non-interactive --no-wait
