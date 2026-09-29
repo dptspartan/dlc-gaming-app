@@ -55,6 +55,7 @@ export function StatusPill({ status }: { status: MatchStatus | string }) {
   const color = statusColor[status] ?? '#9c8f91';
   return (
     <span
+      data-status={status}
       className="hud inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] backdrop-blur"
       style={{ borderColor: color, color, background: `${color}14`, boxShadow: `0 0 12px ${color}33` }}
     >

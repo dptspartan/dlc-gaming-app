@@ -1,4 +1,6 @@
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { formatDay, formatTime, roundName, type Match, type Slot, type Team } from '@dlc/core';
+import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
 export interface SlotRef {
@@ -17,6 +19,62 @@ interface Props {
 }
 
 export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [flowPaths, setFlowPaths] = useState<string[]>([]);
+
+  const updateFlowPaths = useCallback(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const boardRect = board.getBoundingClientRect();
+    const cards = [...board.querySelectorAll<HTMLElement>('[data-bracket-round][data-bracket-index]')];
+    const rounds = new Map<number, HTMLElement[]>();
+    for (const card of cards) {
+      const round = Number(card.dataset.bracketRound);
+      rounds.set(round, [...(rounds.get(round) ?? []), card]);
+    }
+
+    const nextPaths: string[] = [];
+    for (let round = 0; round < Math.max(...rounds.keys()); round += 1) {
+      const sources = (rounds.get(round) ?? []).sort((a, b) => Number(a.dataset.bracketIndex) - Number(b.dataset.bracketIndex));
+      const targets = (rounds.get(round + 1) ?? []).sort((a, b) => Number(a.dataset.bracketIndex) - Number(b.dataset.bracketIndex));
+
+      sources.forEach((source, sourceIndex) => {
+        const winnerId = source.dataset.bracketWinnerId;
+        if (!winnerId || source.dataset.bracketStatus === 'pending') return;
+
+        const winningRow = [...source.querySelectorAll<HTMLElement>('[data-bracket-team-id]')]
+          .find((row) => row.dataset.bracketTeamId === winnerId);
+        const target = targets[Math.floor(sourceIndex / 2)];
+        const targetSlot = target?.querySelector<HTMLElement>(`[data-bracket-slot="${sourceIndex % 2 === 0 ? 'a' : 'b'}"]`);
+        if (!winningRow || !target || !targetSlot) return;
+
+        const sourceRect = winningRow.getBoundingClientRect();
+        const targetRect = targetSlot.getBoundingClientRect();
+        const startX = sourceRect.right - boardRect.left;
+        const startY = sourceRect.top + sourceRect.height / 2 - boardRect.top;
+        const endX = targetRect.left - boardRect.left;
+        const endY = targetRect.top + targetRect.height / 2 - boardRect.top;
+        const handle = Math.max(12, (endX - startX) * 0.55);
+        nextPaths.push(`M ${startX} ${startY} C ${startX + handle} ${startY}, ${endX - handle} ${endY}, ${endX} ${endY}`);
+      });
+    }
+
+    setFlowPaths((current) => current.join('|') === nextPaths.join('|') ? current : nextPaths);
+  }, []);
+
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    updateFlowPaths();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateFlowPaths);
+    observer.observe(board);
+    board.querySelectorAll<HTMLElement>('[data-bracket-round][data-bracket-index]').forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [matches, updateFlowPaths]);
+
   if (matches.length === 0) return null;
   const total = Math.max(...matches.map((m) => m.round));
   const rounds = Array.from({ length: total }, (_, i) =>
@@ -25,24 +83,38 @@ export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, s
 
   return (
     <div className="overflow-x-auto pb-4">
-      <div className="flex min-w-max gap-6">
+      <div className="bracket-board relative flex min-w-max gap-20" ref={boardRef}>
+        {flowPaths.length > 0 && (
+          <svg className="bracket-flow-lines" aria-hidden="true">
+            {flowPaths.map((path, index) => <path key={index} className="bracket-flow-line" d={path} />)}
+          </svg>
+        )}
         {rounds.map((list, i) => (
-          <div key={i} className="flex w-64 flex-col">
-            <div className="hud mb-3 text-center text-xs text-flame glow-flame">
+          <div key={i} className={`bracket-round-column relative flex w-64 flex-col ${i < total - 1 ? 'bracket-stage-divider' : ''}`}>
+            <div className="hud bracket-round-title mb-3 text-center text-xs text-flame glow-flame">
               {roundName(i + 1, total)}
             </div>
             <div className="flex flex-1 flex-col justify-around gap-3">
-              {list.map((m) => (
-                <BracketMatch
+              {list.map((m, matchIndex) => (
+                <div
                   key={m.id}
-                  match={m}
-                  teams={teams}
-                  timeZone={timeZone}
-                  onClick={onMatchClick}
-                  onSlotClick={onSlotClick}
-                  selectedSlot={selectedSlot}
-                  isLast={i === total - 1}
-                />
+                  className={i === total - 1 && matchIndex === 0 ? 'bracket-final-slot' : undefined}
+                  data-bracket-round={i}
+                  data-bracket-index={matchIndex}
+                  data-bracket-winner-id={m.winner_id ?? ''}
+                  data-bracket-status={m.status}
+                >
+                  <BracketMatch
+                    match={m}
+                    teams={teams}
+                    timeZone={timeZone}
+                    onClick={onMatchClick}
+                    onSlotClick={onSlotClick}
+                    selectedSlot={selectedSlot}
+                    isLast={i === total - 1}
+                  />
+                  {i === total - 1 && matchIndex === 0 && <img className="bracket-final-trophy" src={trophySticker} alt="" aria-hidden="true" />}
+                </div>
               ))}
             </div>
           </div>
@@ -90,6 +162,8 @@ function BracketMatch({
           e.stopPropagation();
           onSlotClick!({ matchId: match.id, slot });
         }}
+        data-bracket-slot={slot}
+        data-bracket-team-id={team?.id ?? ''}
       >
         <Avatar name={team?.name ?? '?'} url={team?.logo_url} size={22} />
         <span className={`flex-1 truncate font-semibold ${won ? 'text-gold' : team ? '' : 'text-muted italic'}`}>

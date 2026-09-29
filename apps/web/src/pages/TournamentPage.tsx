@@ -8,6 +8,15 @@ import { Avatar, Empty, ErrorNote, Heading, StatusPill } from '../components/ui'
 import { WinnerOverlay, useWinnerQueue } from '../components/WinnerOverlay';
 import { useLiveData } from '../lib/useLiveData';
 import { useTournamentId } from '../lib/useTournamentBySlug';
+import mascotBeanbag from '../assets/dlc/mascot-beanbag.png';
+import mascotController from '../assets/dlc/mascot-controller.png';
+import stickerBolt from '../assets/dlc/sticker-bolt.png';
+import stickerBetterGames from '../assets/dlc/sticker-better-games.png';
+import stickerController from '../assets/dlc/sticker-controller.png';
+import stickerCrown from '../assets/dlc/sticker-crown.png';
+import stickerGameOn from '../assets/dlc/sticker-game-on.png';
+import stickerHeadphones from '../assets/dlc/sticker-headphones.png';
+import stickerKeyboard from '../assets/dlc/sticker-keyboard.png';
 
 export function TournamentPage() {
   const { slug } = useParams();
@@ -52,7 +61,18 @@ function TournamentView({ id }: { id: string }) {
   return (
     <Layout wide>
       <WinnerOverlay match={overlay.current} data={data} onDone={overlay.shift} />
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="event-hero mb-3 flex flex-wrap items-end justify-between gap-4">
+        <div className="event-collage" aria-hidden="true">
+          <img className="event-sticker event-sticker-mascot" src={mascotBeanbag} alt="" />
+          <img className="event-sticker event-sticker-mascot-controller" src={mascotController} alt="" />
+          <img className="event-sticker event-sticker-crown" src={stickerCrown} alt="" />
+          <img className="event-sticker event-sticker-game-on" src={stickerGameOn} alt="" />
+          <img className="event-sticker event-sticker-better-games" src={stickerBetterGames} alt="" />
+          <img className="event-sticker event-sticker-controller" src={stickerController} alt="" />
+          <img className="event-sticker event-sticker-keyboard" src={stickerKeyboard} alt="" />
+          <img className="event-sticker event-sticker-headphones" src={stickerHeadphones} alt="" />
+          <img className="event-sticker event-sticker-bolt" src={stickerBolt} alt="" />
+        </div>
         <Heading
           sub={`${tournament.start_date}${tournament.days > 1 ? ` → ${addDays(tournament.start_date, tournament.days - 1)}` : ''} · daily ${tournament.daily_start.slice(0, 5)}–${tournament.daily_end.slice(0, 5)} (${tournament.timezone})`}
         >
