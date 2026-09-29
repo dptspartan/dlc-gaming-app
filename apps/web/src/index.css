@@ -566,7 +566,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-keyboard {
   z-index: 4;
   left: 64%;
-  bottom: -5px;
+  bottom: -6px;
   width: 130px;
   height: 84px;
   transform: rotate(-8deg);
@@ -575,10 +575,9 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-bolt {
   z-index: 5;
   left: 67%;
-  bottom: -4px;
+  bottom: -30px;
   width: 54px;
   height: 66px;
-  transform: rotate(14deg);
 }
 
 :root[data-theme="dlc-labs"] .bracket-round-title {
