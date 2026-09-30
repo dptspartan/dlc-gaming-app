@@ -1,5 +1,5 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { elapsed, statusColor, type MatchStatus } from '@dlc/core';
+import { countdown, elapsed, statusColor, statusLabel, type MatchStatus } from '@dlc/core';
 
 type Variant = 'primary' | 'ghost' | 'danger' | 'success';
 
@@ -44,7 +44,7 @@ export function Heading({ children, sub }: { children: ReactNode; sub?: ReactNod
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="hud text-[11px] text-ember/80">{label}</span>
+      <span className="field-label hud text-[11px] text-ember/80">{label}</span>
       {children}
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </label>
@@ -59,7 +59,7 @@ export function StatusPill({ status }: { status: MatchStatus | string }) {
       style={{ borderColor: color, color, background: `${color}14`, boxShadow: `0 0 12px ${color}33` }}
     >
       {status === 'live' && <span className="live-dot" style={{ width: 7, height: 7 }} />}
-      {status}
+      {statusLabel[status] ?? status}
     </span>
   );
 }
@@ -84,14 +84,50 @@ export function Avatar({ name, url, size = 36, ring }: { name: string; url?: str
   );
 }
 
-/** Ticking mm:ss since a start time. */
-export function Elapsed({ since }: { since: string }) {
+/** The current time, ticking every second. */
+export function useNow(every = 1000) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(Date.now()), every);
     return () => clearInterval(t);
-  }, []);
+  }, [every]);
+  return now;
+}
+
+/** Ticking mm:ss since a start time. */
+export function Elapsed({ since }: { since: string }) {
+  const now = useNow();
   return <span className="font-display tabular-nums">{elapsed(since, now)}</span>;
+}
+
+/** Ticking m:ss until players must be at their station; red once they are late. */
+export function CallCountdown({ calledAt, minutes, className = '' }: { calledAt: string; minutes: number; className?: string }) {
+  const now = useNow();
+  const left = Math.round((new Date(calledAt).getTime() + minutes * 60_000 - now) / 1000);
+  return (
+    <span className={`font-display tabular-nums ${left < 0 ? 'text-danger' : 'text-gold'} ${className}`}>
+      {left < 0 ? `late ${countdown(-left)}` : countdown(left)}
+    </span>
+  );
+}
+
+/** A row of tabs. */
+export function Tabs<K extends string>({ tabs, value, onChange }: { tabs: [K, ReactNode][]; value: K; onChange: (k: K) => void }) {
+  return (
+    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
+      {tabs.map(([k, label]) => (
+        <button
+          key={k}
+          onClick={() => onChange(k)}
+          className={`tab -mb-px shrink-0 border-b-2 px-3 pb-2.5 text-sm font-semibold whitespace-nowrap ${
+            value === k ? 'border-ember text-ink' : 'border-transparent text-muted hover:text-ink'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function ErrorNote({ message }: { message: string | null }) {

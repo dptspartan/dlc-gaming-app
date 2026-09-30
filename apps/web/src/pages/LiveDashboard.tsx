@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { formatTime, gridFor, isFinal, matchLabel, paginate, roundsToWin, type Game, type Match } from '@dlc/core';
+import { callSecondsLeft, countdown, formatTime, gridFor, isFinal, matchLabel, paginate, roundsToWin, stationLabel, type Game, type Match } from '@dlc/core';
 import { Avatar, Elapsed, ErrorNote } from '../components/ui';
 import { Glitch, Particles } from '../components/WinnerOverlay';
 import { useLiveData, useLookups, type LiveData } from '../lib/useLiveData';
@@ -66,10 +66,13 @@ function Board({ tournamentId }: { tournamentId?: string }) {
 
   const all = [...data.matches.values()];
   const liveCount = all.filter((m) => m.status === 'live').length;
-  // Celebrating cards go first so they are on the page being shown.
+  const calledCount = all.filter((m) => m.status === 'called').length;
+  // Celebrating cards go first so they are on the page being shown, then
+  // live matches, then matches waiting for their players.
+  const order = (m: Match) => (celebrating.has(m.id) ? 0 : m.status === 'live' ? 1 : 2);
   const live = all
-    .filter((m) => m.status === 'live' || (m.status === 'completed' && celebrating.has(m.id)))
-    .sort((a, b) => Number(celebrating.has(b.id)) - Number(celebrating.has(a.id)) || (a.started_at ?? '').localeCompare(b.started_at ?? ''));
+    .filter((m) => m.status === 'live' || m.status === 'called' || (m.status === 'completed' && celebrating.has(m.id)))
+    .sort((a, b) => order(a) - order(b) || (a.started_at ?? a.called_at ?? '').localeCompare(b.started_at ?? b.called_at ?? ''));
   const upNext = all
     .filter((m) => (m.status === 'ready' || m.status === 'pending') && !m.is_bye && m.scheduled_start)
     .sort((a, b) => a.scheduled_start!.localeCompare(b.scheduled_start!))
@@ -125,6 +128,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           <span className="font-display flex items-center gap-2 text-sm font-bold text-flame">
             <span className="live-dot" /> {liveCount} LIVE
           </span>
+          {calledCount > 0 && <span className="font-display text-sm font-bold text-amber">{calledCount} CALLED</span>}
           <span className="rounded-lg border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-xl tabular-nums text-ember glow-ember">{formatTime(clock, tz)}</span>
         </div>
       </header>
@@ -205,7 +209,10 @@ function LiveCard({
   const b = match.team_b_id ? data.teams.get(match.team_b_id) : undefined;
   const final = isFinal(match);
   const done = match.status === 'completed';
-  const scored = !!game && game.scoring !== 'none';
+  const called = match.status === 'called';
+  const scored = !!game && game.scoring !== 'none' && !called;
+  const callMinutes = data.tournaments.get(match.tournament_id)?.call_minutes ?? 5;
+  const left = called ? callSecondsLeft(match, callMinutes, now) : null;
   const avatar = big ? 140 : compact ? 56 : 84;
   const lost = (id: string | null) => done && !!match.winner_id && match.winner_id !== id;
   // Only a fresh point plays, so a card paging back in doesn't replay an old one.
@@ -218,7 +225,7 @@ function LiveCard({
       animate={{ opacity: 1, scale: 1, rotateX: 0 }}
       exit={{ opacity: 0, scale: 0.6, rotate: -4, filter: 'blur(10px)', transition: { duration: 0.45 } }}
       transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-      className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${done || final ? 'neon-gold' : 'neon-live'}`}
+      className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${called ? 'neon-called' : done || final ? 'neon-gold' : 'neon-live'}`}
     >
       {game?.cover_url && <img src={game.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20 blur-[2px]" />}
       <div className={`relative flex items-center gap-4 overflow-hidden border-b border-line px-4 ${big ? 'py-5' : compact ? 'py-2' : 'py-3.5'}`}>
@@ -239,22 +246,25 @@ function LiveCard({
             {matchLabel(match, totalRounds)}
             {game && ` · ${game.team_size === 1 ? '1v1' : `${game.team_size}v${game.team_size}`}`}
             {game?.scoring === 'rounds' && ` · Bo${game.best_of}`}
-            {match.station ? ` · Station ${match.station}` : ''}
+            {match.station ? ` · ${stationLabel(match)}` : ''}
             {showTournament && ` · ${data.tournaments.get(match.tournament_id)?.name ?? ''}`}
           </div>
         </div>
         <span
           className={`hud relative flex shrink-0 items-center gap-2 self-start rounded-full border px-2.5 py-0.5 text-xs ${
-            done ? 'border-gold/70 bg-gold/15 text-gold' : 'border-flame/60 bg-flame/10 text-flame'
+            done ? 'border-gold/70 bg-gold/15 text-gold' : called ? 'border-gold/70 bg-gold/10 text-gold' : 'border-flame/60 bg-flame/10 text-flame'
           }`}
         >
-          {!done && <span className="live-dot" style={{ width: 8, height: 8 }} />} {done ? (final ? 'CHAMPION' : 'FULL TIME') : final ? 'FINAL' : 'LIVE'}
+          {!done && !called && <span className="live-dot" style={{ width: 8, height: 8 }} />}{' '}
+          {done ? (final ? 'CHAMPION' : 'FULL TIME') : called ? 'CALLED' : final ? 'FINAL' : 'LIVE'}
         </span>
       </div>
 
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side name={a?.name ?? 'TBD'} url={a?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_a_id)} hit={hit?.side === 'a' ? hit.at : undefined} />
-        {scored ? (
+        {called ? (
+          <CallPanel station={stationLabel(match)} left={left ?? 0} big={big} compact={compact} />
+        ) : scored ? (
           <Score match={match} game={game!} big={big} compact={compact} />
         ) : (
           <span className={`glitch font-display font-black text-flame glow-flame italic ${big ? 'text-7xl' : compact ? 'text-2xl' : 'text-5xl'}`} data-text="VS">
@@ -269,8 +279,14 @@ function LiveCard({
       </AnimatePresence>
 
       <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
-        <span>{done ? 'Match over' : match.started_at ? 'Playing for' : ''}</span>
-        {match.started_at && !done && (
+        <span className="flex items-center gap-3">
+          {match.station && !done && <span className={`rounded border border-line bg-white/10 px-2 py-0.5 text-ink ${big ? 'text-base' : ''}`}>{stationLabel(match)}</span>}
+          {done ? 'Match over' : called ? 'Waiting for players' : match.started_at ? 'Playing for' : ''}
+        </span>
+        {called && left != null && (
+          <span className={`font-mono ${left < 0 ? 'text-flame glow-flame' : 'text-amber'} ${big ? 'text-3xl' : 'text-xl'}`}>{left < 0 ? `Late ${countdown(-left)}` : countdown(left)}</span>
+        )}
+        {match.started_at && !done && !called && (
           <span className={`font-mono text-ember glow-ember ${big ? 'text-3xl' : 'text-xl'}`}>
             <Elapsed since={match.started_at} />
           </span>
@@ -279,6 +295,30 @@ function LiveCard({
 
       <AnimatePresence>{done && <CardWinner match={match} data={data} champion={final} big={big} compact={compact} />}</AnimatePresence>
     </motion.div>
+  );
+}
+
+/** Called match: the players are asked to their station, with the time they have left. */
+function CallPanel({ station, left, big, compact }: { station: string; left: number; big: boolean; compact: boolean }) {
+  const late = left < 0;
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <motion.div
+        className={`font-display font-black uppercase text-amber ${big ? 'text-4xl' : compact ? 'text-sm' : 'text-xl'}`}
+        style={{ textShadow: '0 0 16px rgba(255,107,129,0.8)' }}
+        animate={{ opacity: [1, 0.45, 1] }}
+        transition={{ duration: 1.4, repeat: Infinity }}
+      >
+        Players to {station || 'your station'}
+      </motion.div>
+      <div
+        className={`font-display font-black tabular-nums ${late ? 'text-flame' : 'text-ink'} ${big ? 'text-8xl' : compact ? 'text-3xl' : 'text-6xl'}`}
+        style={{ textShadow: late ? '0 0 20px rgba(255,30,45,0.9)' : '0 0 18px rgba(255,107,129,0.6)' }}
+      >
+        {countdown(late ? -left : left)}
+      </div>
+      <div className={`hud text-muted ${compact ? 'text-[10px]' : 'text-xs'}`}>{late ? 'Late, starting soon' : 'Until the match starts'}</div>
+    </div>
   );
 }
 
@@ -481,7 +521,8 @@ function RailList({
                 )}
                 {gameOf(m.tournament_game_id)?.name}
               </span>
-              <span className="font-mono text-ember">
+              <span className="shrink-0 font-mono text-ember">
+                {kind === 'next' && m.station ? <span className="mr-2 text-amber">Stn {m.station}</span> : null}
                 {kind === 'next' ? formatTime(m.scheduled_start, tz) : formatTime(m.ended_at, tz)}
               </span>
             </div>
@@ -541,7 +582,7 @@ function usePointBursts(data: LiveData) {
     for (const m of data.matches.values()) {
       const before = seen.current.get(m.id);
       seen.current.set(m.id, { score_a: m.score_a, score_b: m.score_b, status: m.status });
-      if (!before || m.status !== 'live' || (before.status !== 'live' && before.status !== 'ready')) continue;
+      if (!before || m.status !== 'live' || (before.status !== 'live' && before.status !== 'ready' && before.status !== 'called')) continue;
       if ((m.score_a ?? 0) > (before.score_a ?? 0)) hits.push([m.id, { side: 'a', at }]);
       else if ((m.score_b ?? 0) > (before.score_b ?? 0)) hits.push([m.id, { side: 'b', at }]);
     }

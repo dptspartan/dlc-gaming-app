@@ -6,26 +6,39 @@ import {
   formatTime,
   type Format,
   type Match,
-  type ScheduleResult,
+  type StationState,
   type Team,
+  type TimetableResult,
   type Tournament,
   type TournamentGame,
 } from '@dlc/core';
 import { Bracket, type SlotRef } from '../../components/Bracket';
 import { GroupTables } from '../../components/GroupTables';
 import { ScheduleList } from '../../components/ScheduleList';
-import { Avatar, Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill } from '../../components/ui';
-import { buildKnockout, generateFixtures, groupQualifiers, previewSchedule, reflowSchedule, swapSlots } from '../../lib/admin';
+import { StationBoard, Timetable } from '../../components/StationBoard';
+import { Avatar, Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill, Tabs } from '../../components/ui';
+import {
+  buildKnockout,
+  callMatch,
+  generateFixtures,
+  groupQualifiers,
+  previewTimetable,
+  refreshTimetable,
+  startMatch,
+  swapSlots,
+  uncallMatch,
+} from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
+import { useStationMasters } from '../../lib/useStationMasters';
 import { MatchControl } from './MatchControl';
 
-type Tab = 'details' | 'games' | 'fixtures';
+type Tab = 'control' | 'games' | 'fixtures' | 'stations' | 'details';
 
 export function TournamentEditor() {
   const { id = '' } = useParams();
   const { data, error, reload } = useLiveData({ tournamentId: id });
-  const [tab, setTab] = useState<Tab>('games');
+  const [tab, setTab] = useState<Tab>('control');
   const tournament = data.tournaments.get(id);
   if (!tournament) return error ? <ErrorNote message={error} /> : null;
 
@@ -42,28 +55,249 @@ export function TournamentEditor() {
           </Link>
         </div>
       </div>
-      <div className="mb-6 flex gap-5 border-b border-line">
-        {(
-          [
-            ['games', 'Games & players'],
-            ['fixtures', 'Fixtures & matches'],
-            ['details', 'Details'],
-          ] as [Tab, string][]
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`hud -mb-px border-b-2 pb-2 text-xs ${
-              tab === k ? 'border-ember text-ember' : 'border-transparent text-muted hover:text-ink'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          ['control', 'Control room'],
+          ['games', 'Games & players'],
+          ['fixtures', 'Fixtures'],
+          ['stations', 'Stations & staff'],
+          ['details', 'Details'],
+        ]}
+      />
+      {tab === 'control' && <ControlRoom tournament={tournament} data={data} />}
+      {tab === 'stations' && <StationsPanel tournament={tournament} data={data} onSaved={reload} />}
       {tab === 'details' && <Details tournament={tournament} onSaved={reload} />}
       {tab === 'games' && <GamesPanel tournament={tournament} data={data} onChange={reload} />}
       {tab === 'fixtures' && <FixturesPanel tournament={tournament} data={data} onChange={reload} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- Control room */
+
+/** Run the venue: call players to free stations, start matches, move the queue around. */
+function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveData }) {
+  const { roundsByTg, gameOf } = useLookups(data);
+  const { byStation } = useStationMasters(tournament.id);
+  const tgames = useMemo(() => [...data.tgames.values()], [data.tgames]);
+  const matches = useMemo(() => [...data.matches.values()], [data.matches]);
+  const [openMatch, setOpenMatch] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fit = useMemo(() => (matches.length ? safePreview(tournament, tgames, matches) : null), [tournament, tgames, matches]);
+
+  const act = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!matches.length) return <Empty>Generate the fixtures first. The control room fills up once matches are planned.</Empty>;
+
+  const gameName = (m: Match) => gameOf(m.tournament_game_id)?.name ?? '';
+  const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
+  const count = (st: Match['status']) => matches.filter((m) => m.status === st && !m.is_bye).length;
+  // Any ready match this station may host, soonest planned first.
+  const callable = (station: number) =>
+    matches
+      .filter((m) => m.status === 'ready' && !m.is_bye && m.team_a_id && m.team_b_id)
+      .filter((m) => {
+        const allowed = data.tgames.get(m.tournament_game_id)?.allowed_stations;
+        return !allowed?.length || allowed.includes(station);
+      })
+      .sort((a, b) => (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9'));
+
+  const actions = (s: StationState<Match>) => {
+    const m = s.current;
+    if (m?.status === 'called')
+      return (
+        <div className="mb-2 flex flex-wrap gap-2">
+          <Button disabled={busy} onClick={() => act(() => startMatch(m))}>
+            Start match
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => act(() => uncallMatch(m, 10))} title="Back to the queue for 10 minutes; the next match takes this station">
+            Skip 10 min
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={() => act(() => uncallMatch(m, 0))}>
+            Cancel call
+          </Button>
+        </div>
+      );
+    if (m?.status === 'live')
+      return (
+        <div className="mb-2">
+          <Button variant="ghost" onClick={() => setOpenMatch(m.id)}>
+            Score & finish
+          </Button>
+        </div>
+      );
+    const options = callable(s.station);
+    const next = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id) ?? options[0];
+    return (
+      <div className="mb-2 flex flex-col gap-2">
+        {next ? (
+          <Button disabled={busy} onClick={() => act(() => callMatch(next, s.station))} className="w-full">
+            Call {name(next.team_a_id)} v {name(next.team_b_id)}
+          </Button>
+        ) : (
+          <span className="text-sm text-muted">No match ready for this station.</span>
+        )}
+        {options.length > 1 && (
+          <select
+            value=""
+            disabled={busy}
+            onChange={(e) => {
+              const pick = data.matches.get(e.target.value);
+              if (pick) void act(() => callMatch(pick, s.station));
+            }}
+          >
+            <option value="">Call a different match…</option>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {gameName(o)}: {name(o.team_a_id)} v {name(o.team_b_id)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    );
+  };
+
+  const open = openMatch ? data.matches.get(openMatch) : undefined;
+  const openTg = open ? data.tgames.get(open.tournament_game_id) : undefined;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Panel className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Stat label="Live" value={count('live')} tone="text-flame" />
+        <Stat label="Players called" value={count('called')} tone="text-gold" />
+        <Stat label="Ready to call" value={count('ready')} />
+        <Stat label="Waiting for teams" value={count('pending')} />
+        <span className="flex-1" />
+        <Button variant="ghost" disabled={busy} onClick={() => act(() => refreshTimetable(tournament.id))} title="Give every queued match a station and a time, from now">
+          Rebuild timetable
+        </Button>
+        {fit && (
+          <div className="w-full">
+            <FitNote result={fit} tz={tournament.timezone} />
+          </div>
+        )}
+      </Panel>
+      <p className="-mt-2 text-sm text-muted">
+        Calling a match puts it on the live board as "Waiting for players" with a {tournament.call_minutes} minute countdown. Start it once both sides are at the station.
+        Skipping sends it back to the queue and the next match takes the station.
+      </p>
+      <ErrorNote message={error} />
+      <StationBoard
+        matches={matches}
+        stations={tournament.stations}
+        teams={data.teams}
+        timeZone={tournament.timezone}
+        callMinutes={tournament.call_minutes}
+        gameName={gameName}
+        masters={byStation}
+        actions={actions}
+        onMatchClick={(m) => setOpenMatch(m.id)}
+      />
+      <div>
+        <h2 className="mb-3 text-lg font-bold">Timetable</h2>
+        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} />
+      </div>
+      {open && openTg && (
+        <MatchControl
+          match={open}
+          teams={data.teams}
+          totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
+          gameName={gameName(open)}
+          game={data.games.get(openTg.game_id)}
+          timeZone={tournament.timezone}
+          matchMinutes={openTg.match_minutes}
+          callMinutes={tournament.call_minutes}
+          onClose={() => setOpenMatch(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, tone = 'text-ink' }: { label: string; value: number; tone?: string }) {
+  return (
+    <div>
+      <div className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</div>
+      <div className="text-sm text-muted">{label}</div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------- Stations & staff */
+
+function StationsPanel({ tournament, data, onSaved }: { tournament: Tournament; data: LiveData; onSaved: () => void }) {
+  const { admins, masters, assign, error: loadError } = useStationMasters(tournament.id);
+  const [form, setForm] = useState({ stations: tournament.stations, call_minutes: tournament.call_minutes });
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const tgames = [...data.tgames.values()];
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const { error } = await supabase.from('tournaments').update(form).eq('id', tournament.id);
+    if (error) return setError(error.message);
+    if (data.matches.size) await refreshTimetable(tournament.id).catch((e: Error) => setError(e.message));
+    setSaved(true);
+    onSaved();
+  };
+  const setMaster = (station: number, userId: string) => assign(station, userId || null).catch((e: Error) => setError(e.message));
+  const gamesOn = (n: number) =>
+    tgames
+      .filter((tg) => !tg.allowed_stations?.length || tg.allowed_stations.includes(n))
+      .map((tg) => data.games.get(tg.game_id)?.name)
+      .filter(Boolean)
+      .join(', ');
+
+  return (
+    <div className="flex max-w-4xl flex-col gap-5">
+      <Panel>
+        <form onSubmit={save} className="flex flex-wrap items-end gap-4">
+          <Field label="Stations at the venue" hint="Numbered 1, 2, 3…">
+            <input type="number" min={1} max={64} className="w-32" value={form.stations} onChange={(e) => (setSaved(false), setForm({ ...form, stations: Number(e.target.value) }))} />
+          </Field>
+          <Field label="Minutes to reach a station" hint="The countdown after players are called">
+            <input type="number" min={1} max={60} className="w-32" value={form.call_minutes} onChange={(e) => (setSaved(false), setForm({ ...form, call_minutes: Number(e.target.value) }))} />
+          </Field>
+          <Button>Save</Button>
+          {saved && <span className="text-gold">Saved, timetable rebuilt</span>}
+        </form>
+        <ErrorNote message={error ?? loadError} />
+      </Panel>
+      <Panel>
+        <h2 className="mb-1 text-lg font-bold">Game masters</h2>
+        <p className="mb-4 text-sm text-muted">A game master runs one or more stations from the mobile app: calling players, starting matches and scoring them.</p>
+        <div className="flex flex-col divide-y divide-line">
+          {Array.from({ length: tournament.stations }, (_, i) => i + 1).map((n) => (
+            <div key={n} className="grid grid-cols-[4rem_1fr] items-center gap-3 py-2.5 sm:grid-cols-[5rem_16rem_1fr]">
+              <span className="text-xl font-bold">#{n}</span>
+              <select value={masters.find((m) => m.station === n)?.user_id ?? ''} onChange={(e) => setMaster(n, e.target.value)}>
+                <option value="">No game master</option>
+                {admins.map((a) => (
+                  <option key={a.user_id} value={a.user_id}>
+                    {a.email}
+                  </option>
+                ))}
+              </select>
+              <span className="col-span-2 text-sm text-muted sm:col-span-1">{gamesOn(n) || 'No game plays here'}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -177,7 +411,7 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
     if (!game) return;
     const { error } = await supabase
       .from('tournament_games')
-      .insert({ tournament_id: tournament.id, game_id: game.id, match_minutes: game.default_match_minutes, buffer_minutes: 5, stations: 1, ...format });
+      .insert({ tournament_id: tournament.id, game_id: game.id, match_minutes: game.default_match_minutes, buffer_minutes: 5, stations_required: 1, ...format });
     if (error) setError(error.message);
     else {
       setGameId('');
@@ -210,7 +444,7 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
       </Panel>
       {tgames.length === 0 && <Empty>No games yet. Add one above.</Empty>}
       {tgames.map((tg) => (
-        <TournamentGameCard key={tg.id} tg={tg} data={data} onChange={onChange} />
+        <TournamentGameCard key={tg.id} tg={tg} stations={tournament.stations} data={data} onChange={onChange} />
       ))}
     </div>
   );
@@ -254,20 +488,33 @@ function FormatFields({ value, onChange }: { value: FormatSettings; onChange: (v
   );
 }
 
-function TournamentGameCard({ tg, data, onChange }: { tg: TournamentGame; data: LiveData; onChange: () => void }) {
+function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGame; stations: number; data: LiveData; onChange: () => void }) {
   const game = data.games.get(tg.game_id);
   const teamSize = game?.team_size ?? 1;
   const teams = [...data.teams.values()].filter((t) => t.tournament_game_id === tg.id).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const hasFixtures = [...data.matches.values()].some((m) => m.tournament_game_id === tg.id);
-  const [settings, setSettings] = useState({ match_minutes: tg.match_minutes, buffer_minutes: tg.buffer_minutes, stations: tg.stations });
+  const [settings, setSettings] = useState({
+    match_minutes: tg.match_minutes,
+    buffer_minutes: tg.buffer_minutes,
+    stations_required: tg.stations_required,
+    allowed_stations: tg.allowed_stations ?? [],
+  });
+  const toggleStation = (n: number) =>
+    setSettings((s) => ({
+      ...s,
+      allowed_stations: s.allowed_stations.includes(n) ? s.allowed_stations.filter((x) => x !== n) : [...s.allowed_stations, n].sort((a, b) => a - b),
+    }));
   const [format, setFormat] = useState<FormatSettings>(formatOf(tg));
   const formatChanged = JSON.stringify(format) !== JSON.stringify(formatOf(tg));
   const [error, setError] = useState<string | null>(null);
 
   const saveSettings = async () => {
-    const { error } = await supabase.from('tournament_games').update({ ...settings, ...format }).eq('id', tg.id);
-    if (error) setError(error.message);
-    else onChange();
+    const allowed_stations = settings.allowed_stations.length ? settings.allowed_stations : null;
+    const { error } = await supabase.from('tournament_games').update({ ...settings, allowed_stations, ...format }).eq('id', tg.id);
+    if (error) return setError(error.message);
+    // Times and stations follow the new settings.
+    if (hasFixtures) await refreshTimetable(tg.tournament_id).catch((e: Error) => setError(e.message));
+    onChange();
   };
   const remove = async () => {
     if (!confirm(`Remove ${game?.name} and all its players and matches from this tournament?`)) return;
@@ -309,13 +556,42 @@ function TournamentGameCard({ tg, data, onChange }: { tg: TournamentGame; data: 
         <Field label="Break between">
           <input type="number" min={0} className="w-28" value={settings.buffer_minutes} onChange={(e) => setSettings({ ...settings, buffer_minutes: Number(e.target.value) })} />
         </Field>
-        <Field label="Stations">
-          <input type="number" min={1} max={64} className="w-24" value={settings.stations} onChange={(e) => setSettings({ ...settings, stations: Number(e.target.value) })} />
+        <Field label="Stations per match">
+          <input
+            type="number"
+            min={1}
+            max={16}
+            className="w-28"
+            value={settings.stations_required}
+            onChange={(e) => setSettings({ ...settings, stations_required: Number(e.target.value) })}
+          />
         </Field>
         <FormatFields value={format} onChange={setFormat} />
         <Button variant="ghost" onClick={saveSettings}>
           Save settings
         </Button>
+      </div>
+      <div className="-mt-2 mb-5">
+        <div className="field-label hud mb-1.5 text-[11px] text-ember/80">Plays on stations</div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
+            const on = settings.allowed_stations.includes(n);
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => toggleStation(n)}
+                className={`h-9 min-w-9 rounded-lg border px-2 text-sm font-semibold ${on ? 'border-ember bg-ember/20 text-ink' : 'border-line bg-white/5 text-muted hover:text-ink'}`}
+              >
+                {n}
+              </button>
+            );
+          })}
+          <span className="ml-2 text-sm text-muted">
+            {settings.allowed_stations.length ? `Only ${settings.allowed_stations.join(', ')}` : 'Any free station'}
+            {settings.stations_required > 1 ? ` · takes ${settings.stations_required} at once` : ''}
+          </span>
+        </div>
       </div>
       {format.format === 'groups' && (
         <p className="-mt-3 mb-5 text-sm text-muted">{describeGroupSetup(teams.length, format.group_count, format.advance_per_group, format.wildcards)}</p>
@@ -448,7 +724,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const [swapMode, setSwapMode] = useState(false);
   const [selected, setSelected] = useState<SlotRef | null>(null);
   const [openMatch, setOpenMatch] = useState<string | null>(null);
-  const [result, setResult] = useState<ScheduleResult | null>(null);
+  const [result, setResult] = useState<TimetableResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -468,11 +744,12 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const through = tg && hasGroups ? groupQualifiers(tg, teams, matches) : [];
   const shown = view === 'groups' && !hasGroups ? 'bracket' : view ?? (hasGroups && !knockout.length ? 'groups' : 'bracket');
   const conflicts = useMemo(() => findTeamConflicts([...data.matches.values()]), [data.matches]);
-  const fit = useMemo(() => (tg && matches.length ? previewSchedule(tournament, tg, matches.filter((m) => m.status !== 'live' && m.status !== 'completed')) : null), [tournament, tg, matches]);
+  const all = useMemo(() => [...data.matches.values()], [data.matches]);
+  const fit = useMemo(() => (all.length ? safePreview(tournament, tgames, all) : null), [tournament, tgames, all]);
 
   if (tgames.length === 0) return <Empty>Add a game first.</Empty>;
 
-  const act = async (fn: () => Promise<ScheduleResult | void>) => {
+  const act = async (fn: () => Promise<TimetableResult | void>) => {
     setBusy(true);
     setError(null);
     try {
@@ -490,14 +767,14 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
     if (!tg) return;
     if (teams.length < 2) return setError('Add at least two players or teams first.');
     if (matches.length && !confirm('Replace the current fixtures? Any edits to them will be lost.')) return;
-    void act(() => generateFixtures(tournament, tg, teams));
+    void act(() => generateFixtures(tournament, tgames, tg, teams, all));
   };
 
   const startKnockout = () => {
     if (!tg) return;
     if (knockout.length && !confirm('Rebuild the knockout from the current group tables?')) return;
     void act(async () => {
-      const r = await buildKnockout(tournament, tg, teams, matches);
+      const r = await buildKnockout(tournament, tgames, tg, teams, all);
       setView('bracket');
       return r;
     });
@@ -541,8 +818,8 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
             <Button disabled={busy || started} onClick={generate} title={started ? 'Matches have started' : undefined}>
               {matches.length ? 'Regenerate fixtures' : 'Generate fixtures'}
             </Button>
-            <Button variant="ghost" disabled={busy || !matches.length} onClick={() => act(() => reflowSchedule(tournament, tg, matches))}>
-              Reflow times from now
+            <Button variant="ghost" disabled={busy || !all.length} onClick={() => act(() => refreshTimetable(tournament.id))} title="Give every queued match a station and a time, from now">
+              Rebuild timetable
             </Button>
             <Button
               variant="ghost"
@@ -557,7 +834,8 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
             </Button>
             <span className="flex-1" />
             <span className="text-sm text-muted">
-              {teams.length} entrants · {tg.stations} station{tg.stations > 1 ? 's' : ''} · {tg.match_minutes}+{tg.buffer_minutes} min
+              {teams.length} entrants · {tg.stations_required > 1 ? `${tg.stations_required} stations per match · ` : ''}
+              {tg.match_minutes}+{tg.buffer_minutes} min
             </span>
           </div>
           {hasGroups && (
@@ -629,6 +907,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           game={data.games.get(tg.game_id)}
           timeZone={tournament.timezone}
           matchMinutes={tg.match_minutes}
+          callMinutes={tournament.call_minutes}
           onClose={() => setOpenMatch(null)}
         />
       )}
@@ -636,7 +915,17 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   );
 }
 
-function FitNote({ result, tz }: { result: ScheduleResult; tz: string }) {
+function safePreview(tournament: Tournament, tgames: TournamentGame[], matches: Match[]) {
+  try {
+    return previewTimetable(tournament, tgames, matches);
+  } catch {
+    return null;
+  }
+}
+
+function FitNote({ result, tz }: { result: TimetableResult; tz: string }) {
+  if (result.unplaced.length)
+    return <div className="mt-3 text-sm text-danger">{result.unplaced.length} matches can't be placed: a game needs more stations than it is allowed. Check the games' stations.</div>;
   if (!result.slots.length) return null;
   return result.fits ? (
     <div className="mt-3 text-sm text-gold">Fits in the tournament hours. Last match ends around {formatTime(result.finishesAt, tz)}.</div>

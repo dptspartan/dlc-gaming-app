@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addDays } from '@dlc/core';
 import { Bracket } from '../components/Bracket';
 import { GroupTables } from '../components/GroupTables';
 import { Layout } from '../components/Layout';
 import { ScheduleList } from '../components/ScheduleList';
+import { StationBoard, Timetable } from '../components/StationBoard';
 import { Avatar, Empty, ErrorNote, Heading, StatusPill } from '../components/ui';
 import { WinnerOverlay, useWinnerQueue } from '../components/WinnerOverlay';
 import { useLiveData } from '../lib/useLiveData';
 import { useTournamentId } from '../lib/useTournamentBySlug';
 
-export function TournamentPage() {
+export function TournamentPage({ timetable = false }: { timetable?: boolean }) {
   const { slug } = useParams();
   const { id, notFound } = useTournamentId(slug);
   if (notFound) {
@@ -21,10 +22,11 @@ export function TournamentPage() {
     );
   }
   if (!id) return <Layout>{null}</Layout>;
-  return <TournamentView id={id} />;
+  return <TournamentView id={id} timetable={timetable} />;
 }
 
-function TournamentView({ id }: { id: string }) {
+function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
+  const navigate = useNavigate();
   const overlay = useWinnerQueue();
   const { data, error } = useLiveData({ tournamentId: id, onMatchCompleted: overlay.push });
   const tournament = data.tournaments.get(id);
@@ -72,6 +74,27 @@ function TournamentView({ id }: { id: string }) {
         </Link>
       </div>
 
+      <div className="mb-5 flex gap-1 rounded-xl border border-line bg-white/5 p-1 backdrop-blur sm:inline-flex">
+        {(
+          [
+            [false, 'Games & brackets'],
+            [true, 'Stations & timetable'],
+          ] as const
+        ).map(([on, label]) => (
+          <button
+            key={label}
+            onClick={() => navigate(on ? `/t/${tournament.slug}/timetable` : `/t/${tournament.slug}`)}
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${timetable === on ? 'bg-ember/20 text-ink shadow-[inset_0_0_0_1px_rgba(255,42,74,0.6)]' : 'text-muted hover:text-ink'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {timetable ? (
+        <PublicTimetable data={data} tournamentId={id} />
+      ) : (
+        <>
       {tgames.length === 0 && <Empty>Games will appear here once they are added.</Empty>}
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -95,7 +118,8 @@ function TournamentView({ id }: { id: string }) {
             <StatusPill status={tg.status.replace('_', ' ')} />
             <span>{game?.team_size === 1 ? 'Solo' : `${game?.team_size}v${game?.team_size}`}</span>
             <span>~{tg.match_minutes} min per match</span>
-            <span>{tg.stations} station{tg.stations > 1 ? 's' : ''}</span>
+            {tg.stations_required > 1 && <span>{tg.stations_required} stations per match</span>}
+            {!!tg.allowed_stations?.length && <span>Stations {tg.allowed_stations.join(', ')}</span>}
             <span>{teams.length} {game?.team_size === 1 ? 'players' : 'teams'}</span>
           </div>
 
@@ -148,6 +172,37 @@ function TournamentView({ id }: { id: string }) {
           )}
         </>
       )}
+        </>
+      )}
     </Layout>
   );
 }
+
+function PublicTimetable({ data, tournamentId }: { data: ReturnType<typeof useLiveData>['data']; tournamentId: string }) {
+  const tournament = data.tournaments.get(tournamentId)!;
+  const matches = [...data.matches.values()];
+  const gameName = (m: { tournament_game_id: string }) => data.games.get(data.tgames.get(m.tournament_game_id)?.game_id ?? '')?.name ?? '';
+  if (!matches.length) return <Empty>The timetable is out once the fixtures are drawn.</Empty>;
+  return (
+    <div className="flex flex-col gap-8">
+      <section>
+        <h2 className="hud mb-3 text-sm text-flame glow-flame">▸ Stations now</h2>
+        <StationBoard
+          matches={matches}
+          stations={tournament.stations}
+          teams={data.teams}
+          timeZone={tournament.timezone}
+          callMinutes={tournament.call_minutes}
+          gameName={gameName}
+          upNext={2}
+        />
+      </section>
+      <section>
+        <h2 className="hud mb-3 text-sm text-flame glow-flame">▸ Timetable</h2>
+        <p className="mb-3 text-sm text-muted">Times move as matches finish early or late. Be at your station when your match is called.</p>
+        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} />
+      </section>
+    </div>
+  );
+}
+

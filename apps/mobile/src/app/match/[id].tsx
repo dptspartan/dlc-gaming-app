@@ -1,10 +1,11 @@
-import { knockoutRounds, matchLabel, roundsToWin, scoringLabel } from '@dlc/core';
+import { knockoutRounds, matchLabel, roundsToWin, scoringLabel, stationLabel } from '@dlc/core';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Avatar, Button, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
-import { rpc, supabase, uploadLocalImage } from '../../lib/supabase';
+import { Avatar, Button, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
+import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/actions';
+import { supabase, uploadLocalImage } from '../../lib/supabase';
 import { useTournament } from '../../lib/useTournament';
 
 export default function MatchControl() {
@@ -26,7 +27,7 @@ export default function MatchControl() {
   const total = knockoutRounds(data.matches).get(match.tournament_game_id) ?? match.round;
   const a = match.team_a_id ? data.teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? data.teams.get(match.team_b_id) : undefined;
-  const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
+  const canEnd = (match.status === 'live' || match.status === 'ready' || match.status === 'called') && a && b;
   const scoring = game?.scoring ?? 'none';
   const sa = match.score_a ?? 0;
   const sb = match.score_b ?? 0;
@@ -62,7 +63,7 @@ export default function MatchControl() {
   };
 
   const point = (side: 'a' | 'b', delta: 1 | -1) =>
-    run(`point-${side}${delta}`, () => rpc('score_point', { p_match_id: match.id, p_side: side, p_delta: delta }));
+    run(`point-${side}${delta}`, () => scorePoint(match, side, delta));
 
   const confirmEnd = () => {
     const w = scoring === 'none' ? (winner === match.team_a_id ? a : b) : sa > sb ? a : b;
@@ -72,7 +73,7 @@ export default function MatchControl() {
       {
         text: 'End match',
         onPress: () =>
-          run('end', () => rpc('end_match', { p_match_id: match.id, p_winner_id: scoring === 'none' ? winner : null }), () => router.back()),
+          run('end', () => endMatch(match, scoring === 'none' ? winner : null), () => router.back()),
       },
     ]);
   };
@@ -80,7 +81,7 @@ export default function MatchControl() {
   const confirmReopen = () =>
     Alert.alert('Undo this result?', 'The winner is removed from the next match.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reopen', style: 'destructive', onPress: () => run('reopen', () => rpc('reopen_match', { p_match_id: match.id })) },
+      { text: 'Reopen', style: 'destructive', onPress: () => run('reopen', () => reopenMatch(match)) },
     ]);
 
   const side = (team: typeof a, tid: string | null) => {
@@ -106,7 +107,8 @@ export default function MatchControl() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pill status={match.status} />
           {match.status === 'live' && match.started_at && <Elapsed since={match.started_at} />}
-          {match.station ? <Text style={styles.muted}>Station {match.station}</Text> : null}
+          {match.status === 'called' && match.called_at && data.tournament ? <CallCountdown calledAt={match.called_at} minutes={data.tournament.call_minutes} /> : null}
+          {match.station ? <Text style={[styles.text, { fontWeight: '800' }]}>{stationLabel(match)}</Text> : null}
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'stretch' }}>
@@ -117,9 +119,9 @@ export default function MatchControl() {
 
         {game && (
           <Text style={[styles.label, { marginBottom: 0 }]}>
-            {scoringLabel(game).toUpperCase()}
-            {need ? ` · FIRST TO ${need} · ENDS BY ITSELF` : ''}
-            {scoring === 'goals' ? ' · HIGHER SCORE WINS' : ''}
+            {scoringLabel(game)}
+            {need ? ` · first to ${need}, ends by itself` : ''}
+            {scoring === 'goals' ? ' · higher score wins' : ''}
           </Text>
         )}
 
@@ -153,9 +155,19 @@ export default function MatchControl() {
 
         <ErrorText message={error} />
 
-        {match.status === 'ready' && (
-          <Button title="Start match" busy={busy === 'start'} onPress={() => run('start', () => rpc('start_match', { p_match_id: match.id }))} />
+        {match.status === 'ready' && match.station && a && b && (
+          <Button title={`Call players to station ${match.station}`} busy={busy === 'call'} disabled={!!busy} onPress={() => run('call', () => callMatch(match, match.station!))} />
         )}
+        {(match.status === 'ready' || match.status === 'called') && (
+          <Button title="Start match" variant={match.status === 'called' ? 'primary' : 'ghost'} busy={busy === 'start'} disabled={!!busy} onPress={() => run('start', () => startMatch(match))} />
+        )}
+        {match.status === 'called' && (
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title="Skip 10 min" variant="ghost" style={{ flex: 1 }} busy={busy === 'skip'} disabled={!!busy} onPress={() => run('skip', () => uncallMatch(match, 10), () => router.back())} />
+            <Button title="Cancel call" variant="ghost" style={{ flex: 1 }} busy={busy === 'uncall'} disabled={!!busy} onPress={() => run('uncall', () => uncallMatch(match, 0), () => router.back())} />
+          </View>
+        )}
+        {match.status === 'called' && scoring === 'none' && <Text style={styles.muted}>A side didn't turn up? Tap the side that did, then end the match.</Text>}
         {canEnd && scoring === 'none' && (
           <Button title={winner ? 'End & set winner' : 'Tap the winner above'} variant="success" disabled={!winner} busy={busy === 'end'} onPress={confirmEnd} />
         )}
@@ -166,7 +178,7 @@ export default function MatchControl() {
         {match.status === 'pending' && <Text style={styles.muted}>Waiting for the earlier matches to finish.</Text>}
 
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16, gap: 10 }}>
-          <Text style={styles.label}>MATCH PHOTO</Text>
+          <Text style={styles.label}>Match photo</Text>
           {match.image_url && <Image source={{ uri: match.image_url }} style={{ width: '100%', height: 200, borderRadius: 4 }} resizeMode="cover" />}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Button title="Camera" variant="ghost" style={{ flex: 1 }} busy={busy === 'photo'} onPress={() => pickPhoto(true)} />

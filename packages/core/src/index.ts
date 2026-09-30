@@ -6,3 +6,4 @@ export * from './layout';
 export * from './theme';
 export * from './scoring';
 export * from './groups';
+export * from './timetable';
