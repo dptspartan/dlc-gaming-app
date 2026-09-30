@@ -56,6 +56,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
                 </div>
                 <div className="mb-1 truncate text-sm text-muted">
                   {label(m)}
+                  {m.best_of > 1 ? ` · Bo${m.best_of} (${m.series_a}–${m.series_b})` : ''}
                   {(m.stations?.length ?? 0) > 1 ? ` · ${stationLabel(m)}` : ''}
                 </div>
                 <Versus a={name(m.team_a_id)} b={name(m.team_b_id)} aLogo={teams.get(m.team_a_id ?? '')?.logo_url} bLogo={teams.get(m.team_b_id ?? '')?.logo_url} score={m.status === 'live' && m.score_a != null ? `${m.score_a ?? 0} : ${m.score_b ?? 0}` : null} />
@@ -131,7 +132,11 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
               <td className="px-3 py-2 font-mono text-ember">{m.status === 'live' ? 'now' : formatTime(m.scheduled_start, timeZone)}</td>
               <td className="px-3 py-2 font-semibold whitespace-nowrap">{stationLabel(m) || '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap">
-                {gameName(m)} <span className="text-sm text-muted">· {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}</span>
+                {gameName(m)}{' '}
+                <span className="text-sm text-muted">
+                  · {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
+                  {m.best_of > 1 ? ` · best of ${m.best_of}` : ''}
+                </span>
               </td>
               <td className="px-3 py-2">
                 {name(m.team_a_id)} <span className="text-muted">vs</span> {name(m.team_b_id)}

@@ -81,6 +81,8 @@ export interface TournamentGame {
   advance_per_group: number;
   /** Extra knockout places for the best of the rest across all groups. */
   wildcards: number;
+  /** Best-of series per stage, and the games a final is played on. */
+  plan: StagePlan;
   champion_team_id: string | null;
   status: TournamentGameStatus;
   created_at: string;
@@ -118,5 +120,37 @@ export interface Match {
   started_at: string | null;
   ended_at: string | null;
   image_url: string | null;
+  /** Legs in the series (1 = a single game); the first side to win most of them goes through. */
+  best_of: number;
+  /** Game of each leg; a missing entry means the tournament game's own game. */
+  leg_games: (string | null)[] | null;
+  /** Finished legs, in order. score_a / score_b hold the leg being played. */
+  legs: Leg[];
+  /** Legs won by each side. */
+  series_a: number;
+  series_b: number;
   updated_at: string;
+}
+
+export interface Leg {
+  game_id: string;
+  winner_id: string;
+  score_a: number | null;
+  score_b: number | null;
+}
+
+/** A best-of series; a final can play each leg on a different game. */
+export interface SeriesRule {
+  best_of: number;
+  /** Game per leg (final only); missing entries use the tournament game's own game. */
+  games?: (string | null)[];
+}
+
+/** How each stage of a game is played. Missing stages are a single game. */
+export interface StagePlan {
+  group?: SeriesRule;
+  /** Knockout rounds before the semi-finals. */
+  knockout?: SeriesRule;
+  semi?: SeriesRule;
+  final?: SeriesRule;
 }

@@ -1,7 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { callSecondsLeft, countdown, formatTime, gridFor, isFinal, matchLabel, paginate, roundsToWin, stationLabel, type Game, type Match } from '@dlc/core';
+import {
+  callSecondsLeft,
+  countdown,
+  currentLeg,
+  formatTime,
+  gridFor,
+  isFinal,
+  isSeries,
+  legGameId,
+  legsToWin,
+  matchLabel,
+  paginate,
+  roundsToWin,
+  stationLabel,
+  type Game,
+  type Match,
+} from '@dlc/core';
 import { Avatar, Elapsed, ErrorNote } from '../components/ui';
 import { Glitch, Particles } from '../components/WinnerOverlay';
 import { useLiveData, useLookups, type LiveData } from '../lib/useLiveData';
@@ -16,7 +32,8 @@ const CHAMPION_MS = 11_000;
 const BURST_MS = 1_600;
 
 /** A point just scored in a live match: which side, and when (also the animation key). */
-type Burst = { side: 'a' | 'b'; at: number };
+/** `leg`: the point won a leg of a series. */
+type Burst = { side: 'a' | 'b'; at: number; leg?: boolean };
 
 /** /live shows every running tournament; /t/:slug/live shows one. */
 export function LiveDashboard() {
@@ -210,7 +227,10 @@ function LiveCard({
   const final = isFinal(match);
   const done = match.status === 'completed';
   const called = match.status === 'called';
-  const scored = !!game && game.scoring !== 'none' && !called;
+  const series = isSeries(match);
+  // A series can play each leg on a different game, scored its own way.
+  const legGame = game ? data.games.get(legGameId(match, currentLeg(match), game.id)) ?? game : undefined;
+  const scored = !!legGame && legGame.scoring !== 'none' && !called && !(series && done);
   const callMinutes = data.tournaments.get(match.tournament_id)?.call_minutes ?? 5;
   const left = called ? callSecondsLeft(match, callMinutes, now) : null;
   const avatar = big ? 140 : compact ? 56 : 84;
@@ -265,17 +285,33 @@ function LiveCard({
         {called ? (
           <CallPanel station={stationLabel(match)} left={left ?? 0} big={big} compact={compact} />
         ) : scored ? (
-          <Score match={match} game={game!} big={big} compact={compact} />
+          <div className="flex flex-col items-center gap-2">
+            <Score match={match} game={legGame!} big={big} compact={compact} />
+            {series && <SeriesBar match={match} legName={legGame?.name ?? ''} compact={compact} />}
+          </div>
         ) : (
-          <span className={`glitch font-display font-black text-flame glow-flame italic ${big ? 'text-7xl' : compact ? 'text-2xl' : 'text-5xl'}`} data-text="VS">
-            VS
-          </span>
+          <div className="flex flex-col items-center gap-2">
+            {series && done ? (
+              <span className={`font-display font-black text-ink tabular-nums ${big ? 'text-8xl' : compact ? 'text-3xl' : 'text-6xl'}`}>
+                {match.series_a}
+                <span className="px-2 text-flame">:</span>
+                {match.series_b}
+              </span>
+            ) : (
+              <span className={`glitch font-display font-black text-flame glow-flame italic ${big ? 'text-7xl' : compact ? 'text-2xl' : 'text-5xl'}`} data-text="VS">
+                VS
+              </span>
+            )}
+            {series && !called && <SeriesBar match={match} legName={legGame?.name ?? ''} compact={compact} />}
+          </div>
         )}
         <Side name={b?.name ?? 'TBD'} url={b?.logo_url} size={avatar} big={big} compact={compact} dim={lost(match.team_b_id)} hit={hit?.side === 'b' ? hit.at : undefined} />
       </div>
 
       <AnimatePresence>
-        {hit && game && <PointBurst key={hit.at} side={hit.side} label={game.scoring === 'rounds' ? 'Round' : 'Goal'} big={big} compact={compact} />}
+        {hit && legGame && (
+          <PointBurst key={hit.at} side={hit.side} label={hit.leg ? 'Leg' : legGame.scoring === 'rounds' ? 'Round' : 'Goal'} big={big} compact={compact} />
+        )}
       </AnimatePresence>
 
       <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
@@ -352,6 +388,33 @@ function Score({ match, game, big, compact }: { match: Match; game: Game; big: b
           <span className="hud text-[10px] text-muted">FIRST TO {need}</span>
           {pips(sb)}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Legs won in a best-of series, and the game the current leg is played on. */
+function SeriesBar({ match, legName, compact }: { match: Match; legName: string; compact: boolean }) {
+  const need = legsToWin(match.best_of);
+  const pips = (won: number) => (
+    <div className="flex gap-1">
+      {Array.from({ length: need }, (_, i) => (
+        <span key={i} className={`${compact ? 'h-2 w-2' : 'h-3 w-3'} rotate-45 ${i < won ? 'bg-gold shadow-[0_0_8px_#ffc93c]' : 'bg-white/15'}`} />
+      ))}
+    </div>
+  );
+  const done = match.status === 'completed';
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex items-center gap-3">
+        {pips(match.series_a)}
+        <span className="hud text-[10px] text-gold">BO{match.best_of}</span>
+        {pips(match.series_b)}
+      </div>
+      {!done && (
+        <span className={`hud text-muted ${compact ? 'text-[9px]' : 'text-[11px]'}`}>
+          LEG {currentLeg(match) + 1} · {legName}
+        </span>
       )}
     </div>
   );
@@ -574,16 +637,19 @@ function NothingLive({ next, data, tz, gameName }: { next?: Match; data: LiveDat
  * a match that ends on its deciding point (the win takes over) don't count.
  */
 function usePointBursts(data: LiveData) {
-  const seen = useRef(new Map<string, Pick<Match, 'score_a' | 'score_b' | 'status'>>());
+  const seen = useRef(new Map<string, Pick<Match, 'score_a' | 'score_b' | 'status' | 'series_a' | 'series_b'>>());
   const [bursts, setBursts] = useState<Map<string, Burst>>(new Map());
   useEffect(() => {
     const hits: [string, Burst][] = [];
     const at = Date.now();
     for (const m of data.matches.values()) {
       const before = seen.current.get(m.id);
-      seen.current.set(m.id, { score_a: m.score_a, score_b: m.score_b, status: m.status });
+      seen.current.set(m.id, { score_a: m.score_a, score_b: m.score_b, status: m.status, series_a: m.series_a, series_b: m.series_b });
       if (!before || m.status !== 'live' || (before.status !== 'live' && before.status !== 'ready' && before.status !== 'called')) continue;
-      if ((m.score_a ?? 0) > (before.score_a ?? 0)) hits.push([m.id, { side: 'a', at }]);
+      // A leg won resets the leg score, so check the series first.
+      if ((m.series_a ?? 0) > (before.series_a ?? 0)) hits.push([m.id, { side: 'a', at, leg: true }]);
+      else if ((m.series_b ?? 0) > (before.series_b ?? 0)) hits.push([m.id, { side: 'b', at, leg: true }]);
+      else if ((m.score_a ?? 0) > (before.score_a ?? 0)) hits.push([m.id, { side: 'a', at }]);
       else if ((m.score_b ?? 0) > (before.score_b ?? 0)) hits.push([m.id, { side: 'b', at }]);
     }
     if (hits.length === 0) return;

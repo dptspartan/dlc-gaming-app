@@ -7,3 +7,4 @@ export * from './theme';
 export * from './scoring';
 export * from './groups';
 export * from './timetable';
+export * from './plan';

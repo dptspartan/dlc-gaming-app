@@ -15,11 +15,16 @@ import {
   groupStandings,
   knockoutFromQualifiers,
   qualifiers,
+  legGameId,
+  legsToWin,
   scheduleTournament,
+  seriesFor,
+  seriesMinutes,
   timetableGames,
   tournamentWindows,
   type Match,
   type StageMatchDraft,
+  type StagePlan,
   type TournamentGame,
 } from '../packages/core/src/index';
 
@@ -70,13 +75,34 @@ interface GameSpec {
   group_count: number;
   advance_per_group: number;
   wildcards: number;
+  /** Best-of per stage; final legs name the game each is played on. */
+  plan: { group?: number; knockout?: number; semi?: number; final?: number; finalGames?: string[] };
   players: string[];
   /** Plays the game up to the moment the demo shows. */
   play: (g: Sim) => void;
 }
 
 type SimMatch = StageMatchDraft &
-  Pick<Match, 'score_a' | 'score_b'> & { started_at: number | null; ended_at: number | null; called_at: number | null; stations: number[] | null };
+  Pick<Match, 'score_a' | 'score_b' | 'best_of' | 'leg_games' | 'legs' | 'series_a' | 'series_b'> & {
+    started_at: number | null;
+    ended_at: number | null;
+    called_at: number | null;
+    stations: number[] | null;
+  };
+
+const gameId = new Map<string, string>();
+const specOf = (id: string) => games.find((g) => gameId.get(g.name) === id)!;
+/** The plan in the app's shape, with game ids for the final legs. */
+const planOf = (spec: GameSpec): StagePlan => {
+  const p = spec.plan;
+  const rule = (n?: number) => (n ? { best_of: n } : undefined);
+  return {
+    group: rule(p.group),
+    knockout: rule(p.knockout),
+    semi: rule(p.semi),
+    final: p.final ? { best_of: p.final, games: p.finalGames?.map((n) => (n === spec.name ? null : gameId.get(n)!)) } : undefined,
+  };
+};
 
 /** A game being played: its teams, matches and a clock of results. */
 class Sim {
@@ -92,7 +118,26 @@ class Sim {
     teams.forEach((t, i) => this.strength.set(t.id, teams.length - i + random() * 3));
   }
   add(drafts: StageMatchDraft[]) {
-    this.matches.push(...drafts.map((d) => ({ ...d, score_a: null, score_b: null, started_at: null, ended_at: null, called_at: null, stations: null })));
+    const rounds = Math.max(0, ...drafts.filter((d) => d.stage !== 'group').map((d) => d.round));
+    this.matches.push(
+      ...drafts.map((d) => ({
+        ...d,
+        ...seriesFor(planOf(this.spec), d, rounds),
+        legs: [],
+        series_a: 0,
+        series_b: 0,
+        score_a: null,
+        score_b: null,
+        started_at: null,
+        ended_at: null,
+        called_at: null,
+        stations: null,
+      })),
+    );
+  }
+  /** The game a leg of this match is played on. */
+  legSpec(m: SimMatch, leg: number) {
+    return specOf(legGameId(m, leg, gameId.get(this.spec.name)!));
   }
   get = (id: string) => this.matches.find((m) => m.id === id)!;
   /** Matches that can be played now, in schedule order. */
@@ -101,8 +146,8 @@ class Sim {
       .filter((m) => !m.is_bye && m.status === 'ready' && (!stage || m.stage === stage))
       .sort((a, b) => a.round - b.round || a.position - b.position);
   }
-  private score(winnerIsA: boolean): [number | null, number | null] {
-    const { scoring, best_of } = this.spec;
+  private score(winnerIsA: boolean, spec = this.spec): [number | null, number | null] {
+    const { scoring, best_of } = spec;
     if (scoring === 'none') return [null, null];
     let w: number, l: number;
     if (scoring === 'rounds') {
@@ -119,7 +164,20 @@ class Sim {
     const a = this.strength.get(m.team_a_id!)! + random() * 4;
     const b = this.strength.get(m.team_b_id!)! + random() * 4;
     const winner = a >= b ? m.team_a_id! : m.team_b_id!;
-    [m.score_a, m.score_b] = this.score(winner === m.team_a_id);
+    const loser = winner === m.team_a_id ? m.team_b_id! : m.team_a_id!;
+    // A series: the winner takes most legs, the loser some, in a shuffled order.
+    const need = legsToWin(m.best_of);
+    const order = [...Array(need).fill(winner), ...Array(Math.floor(random() * need)).fill(loser)];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    // The deciding leg is always the winner's.
+    const last = order.lastIndexOf(winner);
+    [order[last], order[order.length - 1]] = [order[order.length - 1], order[last]];
+    for (const w of order.slice(0, order.length)) this.playLeg(m, w);
+    if (m.best_of === 1) [m.score_a, m.score_b] = [m.legs[0].score_a, m.legs[0].score_b];
+    else [m.score_a, m.score_b] = [m.series_a, m.series_b];
     m.status = 'completed';
     m.winner_id = winner;
     m.stations = this.lane(this.played % this.lanes);
@@ -132,6 +190,14 @@ class Sim {
     } else if (m.stage === 'knockout') {
       this.champion = winner;
     }
+  }
+  /** One finished leg, won by `w`, scored the way its game is. */
+  playLeg(m: SimMatch, w: string) {
+    const spec = this.legSpec(m, m.legs.length);
+    const [sa, sb] = this.score(w === m.team_a_id, spec);
+    m.legs.push({ game_id: gameId.get(spec.name)!, winner_id: w, score_a: sa, score_b: sb });
+    if (w === m.team_a_id) m.series_a++;
+    else m.series_b++;
   }
   /** Stations one match can take at once, side by side. */
   get lanes() {
@@ -152,7 +218,10 @@ class Sim {
     m.status = 'live';
     m.stations = this.lane(lane);
     m.started_at = now - (3 + Math.floor(random() * 6)) * MIN;
-    const { scoring, best_of } = this.spec;
+    // A series is part-way through: side A has taken the first leg.
+    if (m.best_of > 1) this.playLeg(m, m.team_a_id!);
+    const { scoring, best_of } = this.legSpec(m, m.legs.length);
+    [m.score_a, m.score_b] = [null, null];
     if (scoring === 'goals') [m.score_a, m.score_b] = [Math.floor(random() * 3), Math.floor(random() * 3)];
     if (scoring === 'rounds') {
       const need = Math.ceil((best_of ?? 3) / 2);
@@ -184,6 +253,8 @@ const games: GameSpec[] = [
     group_count: 3,
     advance_per_group: 1,
     wildcards: 1,
+    // The final is a three-game series across different games.
+    plan: { semi: 3, final: 3, finalGames: ['EA FC 26', 'Tekken 8', 'Street Fighter 6'] },
     players: ['Ace', 'Blaze', 'Cypher', 'Drift', 'Echo', 'Fury', 'Ghost', 'Havoc', 'Ion', 'Jinx', 'Kilo'],
     play: (g) => {
       // Matchdays 1 and 2 done, two matchday 3 games live, one called, the rest waiting.
@@ -205,6 +276,7 @@ const games: GameSpec[] = [
     group_count: 2,
     advance_per_group: 2,
     wildcards: 0,
+    plan: { semi: 3, final: 5 },
     players: ['Kaz', 'Jin', 'Nina', 'Law', 'King', 'Hwo'],
     play: (g) => {
       // One played, one live, the next called and running late.
@@ -227,6 +299,7 @@ const games: GameSpec[] = [
     group_count: 2,
     advance_per_group: 2,
     wildcards: 0,
+    plan: { final: 3 },
     players: [
       'Night Owls: Hawk, Shade, Talon, Mist',
       'Glitch: Byte, Pixel, Static, Lag',
@@ -255,6 +328,8 @@ const games: GameSpec[] = [
     group_count: 2,
     advance_per_group: 2,
     wildcards: 0,
+    // Finished: a winner-only final played across two games.
+    plan: { final: 3, finalGames: ['Street Fighter 6', 'Tekken 8', 'Street Fighter 6'] },
     players: ['Ryu', 'Chun-Li', 'Luke', 'Juri', 'Ken', 'Cammy', 'Guile', 'Zangief'],
     play: (g) => {
       g.playable('group').forEach((m) => g.finish(m));
@@ -282,8 +357,10 @@ out.push(
   ])};`,
 );
 
+for (const spec of games) gameId.set(spec.name, randomUUID());
+const catalog = new Map(games.map((g) => [gameId.get(g.name)!, { default_match_minutes: g.minutes }]));
+
 const played = games.map((spec, order) => {
-  const gameId = randomUUID();
   const tgId = randomUUID();
   const teams = spec.players.map((line) => {
     const [name, rest] = line.split(':');
@@ -308,17 +385,18 @@ const played = games.map((spec, order) => {
   done.forEach((m, i) => {
     const slot = Math.floor(i / g.lanes);
     m.started_at = now - (perLane - slot) * step - 10 * MIN;
-    m.ended_at = m.started_at + spec.minutes * MIN;
+    m.ended_at = m.started_at + spec.minutes * Math.max(1, m.legs.length) * MIN;
   });
   const tg = {
     id: tgId,
+    game_id: gameId.get(spec.name)!,
     match_minutes: spec.minutes,
     buffer_minutes: 5,
     stations_required: spec.stationsRequired,
     allowed_stations: spec.allowed,
     created_at: new Date(now + order * 1000).toISOString(),
   };
-  return { spec, gameId, tg, teams, g };
+  return { spec, tg, teams, g };
 });
 
 // One timetable for the whole venue: every queued match gets a station and a time.
@@ -340,6 +418,10 @@ const timetable = scheduleTournament(
     callMinutes: tournament.call_minutes,
     games: timetableGames(played.map((p) => p.tg as unknown as TournamentGame)),
     now,
+    minutes: (m) => {
+      const tg = played.find((p) => p.tg.id === m.tournament_game_id)!.tg;
+      return (m.best_of ?? 1) > 1 ? seriesMinutes({ best_of: m.best_of ?? 1, leg_games: m.leg_games ?? null }, tg, catalog) : undefined;
+    },
   },
 );
 const slot = new Map(timetable.slots.map((s) => [s.id, s]));
@@ -347,29 +429,34 @@ if (timetable.unplaced.length) throw new Error(`${timetable.unplaced.length} mat
 
 const intArr = (xs: number[] | null | undefined) => (xs?.length ? `array[${xs.join(',')}]::int[]` : 'null');
 
-for (const { spec, gameId, tg, teams, g } of played) {
+const uuidArr = (xs: (string | null)[] | null | undefined) => (xs?.length ? `array[${xs.map(q).join(',')}]::uuid[]` : 'null');
+const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`;
+
+for (const { spec, tg, teams, g } of played) {
+  const gid = gameId.get(spec.name)!;
   const status = g.champion ? 'finished' : 'live';
   out.push(
     `insert into public.games (id, name, team_size, default_match_minutes, scoring, best_of, cover_url) values\n${values([
-      [gameId, spec.name, spec.team_size, spec.minutes, spec.scoring, spec.best_of, `${SITE}/games/${spec.cover}`],
+      [gid, spec.name, spec.team_size, spec.minutes, spec.scoring, spec.best_of, `${SITE}/games/${spec.cover}`],
     ])};`,
-    `insert into public.tournament_games (id, tournament_id, game_id, match_minutes, buffer_minutes, stations_required, allowed_stations, status, format, group_count, advance_per_group, wildcards, created_at) values\n(${[
-      tg.id, tournament.id, gameId, spec.minutes, 5, spec.stationsRequired,
-    ].map(q).join(', ')}, ${intArr(spec.allowed)}, ${[status, spec.format, spec.group_count, spec.advance_per_group, spec.wildcards, tg.created_at].map(q).join(', ')});`,
+    `insert into public.tournament_games (id, tournament_id, game_id, match_minutes, buffer_minutes, stations_required, allowed_stations, status, format, group_count, advance_per_group, wildcards, created_at, plan) values\n(${[
+      tg.id, tournament.id, gid, spec.minutes, 5, spec.stationsRequired,
+    ].map(q).join(', ')}, ${intArr(spec.allowed)}, ${[status, spec.format, spec.group_count, spec.advance_per_group, spec.wildcards, tg.created_at].map(q).join(', ')}, ${json(JSON.parse(JSON.stringify(planOf(spec))))});`,
     `insert into public.teams (id, tournament_id, tournament_game_id, name, members, group_no) values\n${teams
       .map((t) => `(${[t.id, tournament.id, tg.id].map(q).join(', ')}, ${q(t.name)}, ${arr(t.members)}, ${q(g.groups.get(t.id) ?? null)})`)
       .join(',\n')};`,
-    `insert into public.matches (id, tournament_id, tournament_game_id, stage, group_no, round, position, team_a_id, team_b_id, next_match_id, next_slot, status, is_bye, winner_id, score_a, score_b, station, stations, called_at, scheduled_start, scheduled_end, started_at, ended_at) values\n${g.matches
+    `insert into public.matches (id, tournament_id, tournament_game_id, stage, group_no, round, position, team_a_id, team_b_id, next_match_id, next_slot, status, is_bye, winner_id, score_a, score_b, station, stations, called_at, scheduled_start, scheduled_end, started_at, ended_at, best_of, leg_games, legs, series_a, series_b) values\n${g.matches
       .map((m) => {
         const s = slot.get(m.id);
         const stations = s?.stations ?? m.stations;
         const begin = m.status === 'called' ? m.called_at! + tournament.call_minutes * MIN : m.started_at;
         const start = s?.start ?? begin;
-        const end = s?.end ?? (begin != null ? begin + spec.minutes * MIN : null);
+        const end = s?.end ?? (begin != null ? begin + spec.minutes * Math.max(1, m.best_of) * MIN : null);
         const head = [m.id, tournament.id, tg.id, m.stage, m.group_no, m.round, m.position, m.team_a_id, m.team_b_id, m.next_match_id, m.next_slot, m.status, m.is_bye];
         const tail = [m.winner_id, m.score_a, m.score_b, stations?.[0] ?? null];
         const times = [iso(m.called_at), iso(start), iso(end), iso(m.started_at), iso(m.is_bye ? now - 60 * MIN : m.ended_at)];
-        return `(${[...head, ...tail].map(q).join(', ')}, ${intArr(m.is_bye ? null : stations)}, ${times.map(q).join(', ')})`;
+        const series = `${m.best_of}, ${uuidArr(m.leg_games)}, ${json(m.legs)}, ${m.series_a}, ${m.series_b}`;
+        return `(${[...head, ...tail].map(q).join(', ')}, ${intArr(m.is_bye ? null : stations)}, ${times.map(q).join(', ')}, ${series})`;
       })
       .join(',\n')};`,
   );
