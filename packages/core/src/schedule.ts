@@ -1,5 +1,5 @@
 import { MINUTE, type DayWindow } from './time';
-import type { MatchStatus } from './types';
+import type { MatchStatus, Stage } from './types';
 
 export interface SchedulableMatch {
   id: string;
@@ -10,7 +10,7 @@ export interface SchedulableMatch {
   is_bye: boolean;
   station?: number | null;
   /** Group matches all come before the knockout. */
-  stage?: 'group' | 'knockout';
+  stage?: Stage;
   /** Known players/teams; a team is never booked into two overlapping matches. */
   team_a_id?: string | null;
   team_b_id?: string | null;

@@ -1,7 +1,7 @@
 import {
-  generateBracket,
   generateGroupStage,
   groupStandings,
+  knockoutFor,
   knockoutFromQualifiers,
   qualifiers,
   scheduleTournament,
@@ -29,9 +29,11 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 /** New matches, in the shape the timetable needs, each with its series from the game's plan. */
 function queued(tg: TournamentGame, drafts: StageMatchDraft[]) {
-  const rounds = Math.max(0, ...drafts.filter((d) => d.stage !== 'group').map((d) => d.round));
+  const rounds = knockoutRoundsOf(drafts);
   return drafts.map((d) => ({
     ...d,
+    loser_next_match_id: d.loser_next_match_id ?? null,
+    loser_next_slot: d.loser_next_slot ?? null,
     ...seriesFor(tg.plan, d, rounds),
     tournament_game_id: tg.id,
     station: null,
@@ -43,9 +45,9 @@ function queued(tg: TournamentGame, drafts: StageMatchDraft[]) {
   }));
 }
 
-/** Knockout rounds a game will play, counting ones not drawn yet. */
+/** Knockout rounds a game will play, the final included (the loser bracket doesn't count). */
 function knockoutRoundsOf(matches: Pick<Match, 'stage' | 'round'>[]) {
-  return Math.max(0, ...matches.filter((m) => m.stage !== 'group').map((m) => m.round));
+  return Math.max(0, ...matches.filter((m) => m.stage === 'knockout').map((m) => m.round));
 }
 
 /** Re-apply a game's plan to its matches that have not started, then rebuild the timetable. */
@@ -98,7 +100,7 @@ export async function generateFixtures(
     drafts = stage.matches;
     groups = [...stage.groups].map(([team_id, group_no]) => ({ team_id, group_no }));
   } else {
-    drafts = generateBracket(entrants).map((d) => ({ ...d, stage: 'knockout' as const, group_no: null }));
+    drafts = knockoutFor(entrants, { double: tg.plan?.double_elim });
   }
   const rows = queued(tg, drafts);
   const result = scheduleTournament([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
@@ -125,7 +127,7 @@ export async function buildKnockout(
   const own = allMatches.filter((m) => m.tournament_game_id === tg.id);
   const through = groupQualifiers(tg, teams, own);
   if (through.length < 2) throw new Error('At least two teams need to go through to play a knockout');
-  const rows = queued(tg, knockoutFromQualifiers(through));
+  const rows = queued(tg, knockoutFromQualifiers(through, { double: tg.plan?.double_elim }));
   const keep = allMatches.filter((m) => m.tournament_game_id !== tg.id || m.stage === 'group');
   const result = scheduleTournament([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_stage: 'knockout' });

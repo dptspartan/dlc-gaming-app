@@ -7,6 +7,7 @@ import {
   type Format,
   type Game,
   type Match,
+  type PlanStage,
   type SeriesRule,
   type StagePlan,
   type StationState,
@@ -511,7 +512,7 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
     }));
   const [format, setFormat] = useState<FormatSettings>(formatOf(tg));
   const [plan, setPlan] = useState<StagePlan>(tg.plan ?? {});
-  const formatChanged = JSON.stringify(format) !== JSON.stringify(formatOf(tg));
+  const formatChanged = JSON.stringify(format) !== JSON.stringify(formatOf(tg)) || !!plan.double_elim !== !!tg.plan?.double_elim;
   const [error, setError] = useState<string | null>(null);
 
   const saveSettings = async () => {
@@ -603,7 +604,11 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
       {format.format === 'groups' && (
         <p className="-mt-3 mb-5 text-sm text-muted">{describeGroupSetup(teams.length, format.group_count, format.advance_per_group, format.wildcards)}</p>
       )}
-      {formatChanged && hasFixtures && <p className="-mt-3 mb-5 text-sm text-amber">Save, then regenerate the fixtures for a new format to take effect.</p>}
+      {formatChanged && hasFixtures && (
+        <p className="-mt-3 mb-5 text-sm text-amber">
+          Save, then regenerate the fixtures{format.format === 'groups' ? ' (or rebuild the knockout)' : ''} for the new format to take effect.
+        </p>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {teams.map((t) => (
@@ -659,11 +664,13 @@ function PlanEditor({
   const own = games.find((g) => g.id === ownGame);
   // Legs of a final can be any game with the same players per side.
   const legOptions = games.filter((g) => g.team_size === own?.team_size).sort((a, b) => a.name.localeCompare(b.name));
-  const set = (stage: keyof StagePlan, rule: SeriesRule) => onChange({ ...plan, [stage]: rule });
-  const stages: [keyof StagePlan, string][] = [
-    ...(groups ? [['group', 'Group matches'] as [keyof StagePlan, string]] : []),
-    ['knockout', groups ? 'Knockout rounds' : 'Early rounds'],
-    ['semi', 'Semi-finals'],
+  const set = (stage: PlanStage, rule: SeriesRule) => onChange({ ...plan, [stage]: rule });
+  const double = !!plan.double_elim;
+  const stages: [PlanStage, string][] = [
+    ...(groups ? [['group', 'Group matches'] as [PlanStage, string]] : []),
+    ['knockout', double ? 'Upper rounds' : groups ? 'Knockout rounds' : 'Early rounds'],
+    ['semi', double ? 'Upper final' : 'Semi-finals'],
+    ...(double ? [['losers', 'Loser bracket'] as [PlanStage, string]] : []),
     ['final', 'Final'],
   ];
   const final = plan.final ?? { best_of: 1 };
@@ -673,8 +680,14 @@ function PlanEditor({
     <div className="mb-5 rounded-xl border border-line bg-black/20 p-3">
       <div className="field-label hud mb-2 text-[11px] text-ember/80">Game plan</div>
       <div className="flex flex-wrap items-end gap-3">
+        <Field label="Knockout">
+          <select value={double ? 'double' : 'single'} onChange={(e) => onChange({ ...plan, double_elim: e.target.value === 'double' })}>
+            <option value="single">Single elimination</option>
+            <option value="double">With loser bracket</option>
+          </select>
+        </Field>
         {stages.map(([stage, label]) => {
-          const rule = plan[stage] ?? (stage === 'semi' ? plan.knockout : undefined) ?? { best_of: 1 };
+          const rule = plan[stage] ?? (stage === 'semi' || stage === 'losers' ? plan.knockout : undefined) ?? { best_of: 1 };
           return (
             <Field key={stage} label={label}>
               <select
@@ -694,6 +707,12 @@ function PlanEditor({
           );
         })}
       </div>
+      {double && (
+        <div className="mt-2 text-sm text-muted">
+          A first knockout loss drops a player into the loser bracket; a second loss knocks them out. The loser bracket winner meets the upper bracket winner in
+          the final.
+        </div>
+      )}
       {final.best_of > 1 && (
         <div className="mt-3">
           <div className="mb-1.5 text-sm text-muted">Final legs: each can be a different game, scored its own way.</div>

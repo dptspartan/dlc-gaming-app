@@ -1,4 +1,5 @@
 import { generateBracket, orderEntrants, nextPowerOfTwo, roundName, type BracketEntrant, type GenerateOptions, type MatchDraft } from './bracket';
+import { generateDoubleElim, loserRounds } from './double';
 import type { Match, Stage, Team } from './types';
 
 /** A generated match tagged with the stage (and group) it belongs to. */
@@ -14,16 +15,26 @@ export const isGroupMatch = (m: Pick<Match, 'stage'>) => m.stage === 'group';
 /** The knockout final: the only match whose winner is crowned champion. */
 export const isFinal = (m: Pick<Match, 'stage' | 'next_match_id'>) => m.stage !== 'group' && !m.next_match_id;
 
-/** "Group B · Matchday 2" in the group stage, "Semi-final" etc. in the knockout. */
-export function matchLabel(m: Pick<Match, 'stage' | 'group_no' | 'round'>, knockoutRounds: number): string {
-  return m.stage === 'group' ? `Group ${groupLetter(m.group_no ?? 1)} · Matchday ${m.round}` : roundName(m.round, knockoutRounds);
+/**
+ * "Group B · Matchday 2" in the group stage, "Semi-final" etc. in the knockout.
+ * A double-elimination knockout has upper rounds (their losers drop down),
+ * lower rounds, and the final.
+ */
+export function matchLabel(m: Pick<Match, 'stage' | 'group_no' | 'round'> & Partial<Pick<Match, 'loser_next_match_id'>>, knockoutRounds: number): string {
+  if (m.stage === 'group') return `Group ${groupLetter(m.group_no ?? 1)} · Matchday ${m.round}`;
+  if (m.stage === 'losers') return m.round >= loserRounds(knockoutRounds) ? 'Lower final' : `Lower round ${m.round}`;
+  if (m.loser_next_match_id) {
+    const name = roundName(m.round, knockoutRounds - 1);
+    return `Upper ${name.charAt(0).toLowerCase()}${name.slice(1)}`;
+  }
+  return roundName(m.round, knockoutRounds);
 }
 
-/** Number of knockout rounds per tournament game (group matchdays don't count). */
+/** Number of knockout rounds per tournament game, the final included (group matchdays and the loser bracket don't count). */
 export function knockoutRounds(matches: Iterable<Pick<Match, 'tournament_game_id' | 'stage' | 'round'>>): Map<string, number> {
   const out = new Map<string, number>();
   for (const m of matches) {
-    if (m.stage === 'group') continue;
+    if (m.stage !== 'knockout') continue;
     out.set(m.tournament_game_id, Math.max(out.get(m.tournament_game_id) ?? 0, m.round));
   }
   return out;
@@ -204,11 +215,15 @@ export function qualifiers(
 }
 
 /** Knockout bracket for the qualifiers, seeded in qualifying order (group winners meet the lowest qualifiers first). */
-export function knockoutFromQualifiers(teamIds: string[], options: GenerateOptions = {}): StageMatchDraft[] {
-  return generateBracket(
-    teamIds.map((teamId, i) => ({ teamId, seed: i + 1 })),
-    options,
-  ).map((m) => ({ ...m, stage: 'knockout' as const, group_no: null }));
+export function knockoutFromQualifiers(teamIds: string[], options: GenerateOptions & { double?: boolean } = {}): StageMatchDraft[] {
+  const entrants = teamIds.map((teamId, i) => ({ teamId, seed: i + 1 }));
+  return knockoutFor(entrants, options);
+}
+
+/** A single-elimination knockout, or a double-elimination one with a loser bracket. */
+export function knockoutFor(entrants: BracketEntrant[], options: GenerateOptions & { double?: boolean } = {}): StageMatchDraft[] {
+  if (options.double) return generateDoubleElim(entrants, options);
+  return generateBracket(entrants, options).map((m) => ({ ...m, stage: 'knockout' as const, group_no: null }));
 }
 
 /** Plain-language summary of a group setup, e.g. for the admin form. */
