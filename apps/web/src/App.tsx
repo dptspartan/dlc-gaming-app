@@ -18,6 +18,7 @@ export function App() {
         <Route path="/live" element={<LiveDashboard />} />
         <Route path="/t/:slug" element={<TournamentPage />} />
         <Route path="/t/:slug/live" element={<LiveDashboard />} />
+        <Route path="/t/:slug/timetable" element={<TournamentPage timetable />} />
         <Route path="/admin" element={<AdminGate><AdminHome /></AdminGate>} />
         <Route path="/admin/games" element={<AdminGate><AdminGames /></AdminGate>} />
         <Route path="/admin/t/:id" element={<AdminGate><TournamentEditor /></AdminGate>} />

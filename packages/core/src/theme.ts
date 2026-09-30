@@ -20,6 +20,16 @@ export const theme = {
 export const statusColor: Record<string, string> = {
   pending: '#a8999b',
   ready: theme.ember,
+  called: theme.amber,
   live: theme.flame,
   completed: theme.gold,
+};
+
+/** Plain words for a match status. */
+export const statusLabel: Record<string, string> = {
+  pending: 'Waiting for teams',
+  ready: 'In the queue',
+  called: 'Waiting for players',
+  live: 'Live',
+  completed: 'Done',
 };

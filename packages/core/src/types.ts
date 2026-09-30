@@ -1,6 +1,7 @@
 export type TournamentStatus = 'draft' | 'scheduled' | 'live' | 'finished';
 export type TournamentGameStatus = 'setup' | 'fixtures_ready' | 'live' | 'finished';
-export type MatchStatus = 'pending' | 'ready' | 'live' | 'completed';
+/** called: sent to a station, waiting for the players to show up. */
+export type MatchStatus = 'pending' | 'ready' | 'called' | 'live' | 'completed';
 export type Slot = 'a' | 'b';
 export type Scoring = 'none' | 'goals' | 'rounds';
 /** knockout: straight single elimination; groups: round-robin groups, then a knockout for the qualifiers. */
@@ -34,7 +35,18 @@ export interface Tournament {
   timezone: string;
   status: TournamentStatus;
   banner_url: string | null;
+  /** Stations (consoles/PCs) at the venue, shared by every game. */
+  stations: number;
+  /** How long called players have to show up at their station. */
+  call_minutes: number;
   created_at: string;
+}
+
+/** The admin who runs one station during a tournament. */
+export interface StationMaster {
+  tournament_id: string;
+  station: number;
+  user_id: string;
 }
 
 /** A player (solo games) or team entered in one game of a tournament. */
@@ -58,7 +70,10 @@ export interface TournamentGame {
   game_id: string;
   match_minutes: number;
   buffer_minutes: number;
-  stations: number;
+  /** Stations one match of this game takes at the same time. */
+  stations_required: number;
+  /** Stations this game can be played on; null = any. */
+  allowed_stations: number[] | null;
   format: Format;
   /** Group-stage settings, used when format is 'groups'. */
   group_count: number;
@@ -90,7 +105,14 @@ export interface Match {
   winner_id: string | null;
   score_a: number | null;
   score_b: number | null;
+  /** Main station (where the game master calls the players). */
   station: number | null;
+  /** Every station the match takes, when a game needs more than one. */
+  stations: number[] | null;
+  /** When the players were called to the station. */
+  called_at: string | null;
+  /** Held back in the queue until this time (skipped or delayed). */
+  not_before: string | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
   started_at: string | null;

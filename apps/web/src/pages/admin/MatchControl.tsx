@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { fromZonedInput, matchLabel, roundsToWin, scoringLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
-import { Avatar, Button, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
-import { endMatch, reopenMatch, scorePoint, startMatch } from '../../lib/admin';
+import { fromZonedInput, matchLabel, roundsToWin, scoringLabel, stationLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
+import { Avatar, Button, CallCountdown, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
+import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 
 interface Props {
@@ -12,11 +12,13 @@ interface Props {
   game?: Game;
   timeZone: string;
   matchMinutes: number;
+  /** Minutes called players have to reach their station. */
+  callMinutes: number;
   onClose: () => void;
 }
 
 /** Start, finish, correct and annotate one match. */
-export function MatchControl({ match, teams, totalRounds, gameName, game, timeZone, matchMinutes, onClose }: Props) {
+export function MatchControl({ match, teams, totalRounds, gameName, game, timeZone, matchMinutes, callMinutes, onClose }: Props) {
   const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
   const [winner, setWinner] = useState<string | null>(match.winner_id);
@@ -40,10 +42,10 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
   };
 
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
-  const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
+  const canEnd = (match.status === 'live' || match.status === 'ready' || match.status === 'called') && a && b;
   const sa = match.score_a ?? 0;
   const sb = match.score_b ?? 0;
-  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match.id, side, delta));
+  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match, side, delta));
   const editableTime = match.status === 'pending' || match.status === 'ready';
 
   const saveTime = () =>
@@ -58,6 +60,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
           scheduled_start: startDate.toISOString(),
           scheduled_end: new Date(startDate.getTime() + duration).toISOString(),
           station: num(station),
+          stations: num(station) ? [num(station)] : null,
         })
         .eq('id', match.id);
       if (error) throw new Error(error.message);
@@ -114,6 +117,8 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
             <div className="mt-1 flex items-center gap-3">
               <StatusPill status={match.status} />
               {match.status === 'live' && match.started_at && <Elapsed since={match.started_at} />}
+              {match.status === 'called' && match.called_at && <CallCountdown calledAt={match.called_at} minutes={callMinutes} />}
+              {match.station && <span className="font-semibold">{stationLabel(match)}</span>}
             </div>
           </div>
           <button onClick={onClose} className="text-2xl text-muted hover:text-ink" aria-label="Close">
@@ -156,23 +161,38 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
         <ErrorNote message={error} />
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {match.status === 'ready' && (
-            <Button disabled={busy} onClick={() => run(() => startMatch(match.id))}>
+          {match.status === 'ready' && match.station && a && b && (
+            <Button disabled={busy} onClick={() => run(() => callMatch(match, match.station!))}>
+              Call players to station {match.station}
+            </Button>
+          )}
+          {(match.status === 'ready' || match.status === 'called') && (
+            <Button variant={match.status === 'called' ? 'primary' : 'ghost'} disabled={busy} onClick={() => run(() => startMatch(match))}>
               Start match
             </Button>
           )}
+          {match.status === 'called' && (
+            <>
+              <Button variant="ghost" disabled={busy} onClick={() => run(() => uncallMatch(match, 10), true)}>
+                Skip 10 min
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => run(() => uncallMatch(match, 0), true)}>
+                Cancel call
+              </Button>
+            </>
+          )}
           {canEnd && scoring === 'none' && (
-            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match.id, winner!), true)}>
+            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match, winner!), true)}>
               {winner ? 'End & set winner' : 'Pick a winner'}
             </Button>
           )}
           {canEnd && scoring === 'goals' && (
-            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match.id), true)}>
+            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match), true)}>
               {sa === sb ? 'Level, add the deciding goal' : `End match, ${sa > sb ? a?.name : b?.name} wins`}
             </Button>
           )}
           {match.status === 'completed' && !match.is_bye && (
-            <Button variant="danger" disabled={busy} onClick={() => confirm('Undo this result?') && run(() => reopenMatch(match.id))}>
+            <Button variant="danger" disabled={busy} onClick={() => confirm('Undo this result?') && run(() => reopenMatch(match))}>
               Reopen result
             </Button>
           )}

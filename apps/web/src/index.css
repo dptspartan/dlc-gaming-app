@@ -158,6 +158,19 @@ body {
   border-color: rgba(255, 107, 129, 0.75) !important;
   box-shadow: 0 0 22px rgba(255, 107, 129, 0.25), inset 0 0 22px rgba(255, 107, 129, 0.08);
 }
+.neon-called {
+  border-color: rgba(255, 184, 0, 0.85) !important;
+  animation: called-pulse 1.4s ease-in-out infinite;
+}
+@keyframes called-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(255, 184, 0, 0.25), inset 0 0 14px rgba(255, 184, 0, 0.06);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 184, 0, 0.55), inset 0 0 22px rgba(255, 184, 0, 0.14);
+  }
+}
 .neon-win {
   border-color: rgba(255, 201, 60, 0.8) !important;
   box-shadow: 0 0 22px rgba(255, 201, 60, 0.25), inset 0 0 18px rgba(255, 201, 60, 0.08);
@@ -290,6 +303,48 @@ body {
     opacity: 0.35;
     transform: scale(0.8);
   }
+}
+
+/* ---------------------------------------------------------------- Admin */
+
+/* The admin side is for working, not for show: plain readable type and brighter secondary text. */
+.admin {
+  --color-muted: #c9bcbe;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.admin .hud {
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.admin button.font-display,
+.admin a.font-display {
+  font-family: "Inter", system-ui, sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.55rem 1rem;
+}
+.admin .field-label {
+  color: var(--color-ink);
+  opacity: 0.85;
+  font-size: 0.8125rem;
+}
+.admin input,
+.admin select,
+.admin textarea {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  background: rgba(20, 12, 13, 0.85);
+}
+.admin .glitch::before,
+.admin .glitch::after {
+  display: none;
 }
 
 /* ---------------------------------------------------------------- Forms */
