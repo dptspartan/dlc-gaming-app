@@ -6,7 +6,8 @@ export type Slot = 'a' | 'b';
 export type Scoring = 'none' | 'goals' | 'rounds';
 /** knockout: straight single elimination; groups: round-robin groups, then a knockout for the qualifiers. */
 export type Format = 'knockout' | 'groups';
-export type Stage = 'group' | 'knockout';
+/** losers: the loser bracket of a double-elimination knockout. */
+export type Stage = 'group' | 'knockout' | 'losers';
 
 export interface Game {
   id: string;
@@ -102,7 +103,11 @@ export interface Match {
   team_b_id: string | null;
   next_match_id: string | null;
   next_slot: Slot | null;
+  /** Double elimination: where the loser drops to in the loser bracket. */
+  loser_next_match_id: string | null;
+  loser_next_slot: Slot | null;
   status: MatchStatus;
+  /** A bye: completed when drawn, or (in the loser bracket) waiting for the one team that can reach it. */
   is_bye: boolean;
   winner_id: string | null;
   score_a: number | null;
@@ -153,4 +158,8 @@ export interface StagePlan {
   knockout?: SeriesRule;
   semi?: SeriesRule;
   final?: SeriesRule;
+  /** Loser bracket matches (double elimination); falls back to the knockout rule. */
+  losers?: SeriesRule;
+  /** Double elimination: first-time losers drop to a loser bracket whose winner meets the upper bracket winner in the final. */
+  double_elim?: boolean;
 }

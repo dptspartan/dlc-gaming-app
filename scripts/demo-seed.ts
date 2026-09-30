@@ -10,7 +10,7 @@
 // Usage: npx tsx scripts/demo-seed.ts > /tmp/seed.sql, then run it in the Supabase SQL editor.
 import { randomUUID } from 'node:crypto';
 import {
-  generateBracket,
+  knockoutFor,
   generateGroupStage,
   groupStandings,
   knockoutFromQualifiers,
@@ -76,7 +76,7 @@ interface GameSpec {
   advance_per_group: number;
   wildcards: number;
   /** Best-of per stage; final legs name the game each is played on. */
-  plan: { group?: number; knockout?: number; semi?: number; final?: number; finalGames?: string[] };
+  plan: { group?: number; knockout?: number; semi?: number; final?: number; finalGames?: string[]; double?: boolean };
   players: string[];
   /** Plays the game up to the moment the demo shows. */
   play: (g: Sim) => void;
@@ -101,6 +101,7 @@ const planOf = (spec: GameSpec): StagePlan => {
     knockout: rule(p.knockout),
     semi: rule(p.semi),
     final: p.final ? { best_of: p.final, games: p.finalGames?.map((n) => (n === spec.name ? null : gameId.get(n)!)) } : undefined,
+    double_elim: p.double || undefined,
   };
 };
 
@@ -118,10 +119,12 @@ class Sim {
     teams.forEach((t, i) => this.strength.set(t.id, teams.length - i + random() * 3));
   }
   add(drafts: StageMatchDraft[]) {
-    const rounds = Math.max(0, ...drafts.filter((d) => d.stage !== 'group').map((d) => d.round));
+    const rounds = Math.max(0, ...drafts.filter((d) => d.stage === 'knockout').map((d) => d.round));
     this.matches.push(
       ...drafts.map((d) => ({
         ...d,
+        loser_next_match_id: d.loser_next_match_id ?? null,
+        loser_next_slot: d.loser_next_slot ?? null,
         ...seriesFor(planOf(this.spec), d, rounds),
         legs: [],
         series_a: 0,
@@ -141,7 +144,7 @@ class Sim {
   }
   get = (id: string) => this.matches.find((m) => m.id === id)!;
   /** Matches that can be played now, in schedule order. */
-  playable(stage?: 'group' | 'knockout') {
+  playable(stage?: Match['stage']) {
     return this.matches
       .filter((m) => !m.is_bye && m.status === 'ready' && (!stage || m.stage === stage))
       .sort((a, b) => a.round - b.round || a.position - b.position);
@@ -182,14 +185,20 @@ class Sim {
     m.winner_id = winner;
     m.stations = this.lane(this.played % this.lanes);
     this.played++;
-    if (m.next_match_id) {
-      const n = this.get(m.next_match_id);
-      if (m.next_slot === 'a') n.team_a_id = winner;
-      else n.team_b_id = winner;
-      if (n.team_a_id && n.team_b_id && n.status === 'pending') n.status = 'ready';
-    } else if (m.stage === 'knockout') {
-      this.champion = winner;
-    }
+    if (m.loser_next_match_id) this.place(m.loser_next_match_id, m.loser_next_slot!, loser);
+    if (m.next_match_id) this.place(m.next_match_id, m.next_slot!, winner);
+    else if (m.stage === 'knockout') this.champion = winner;
+  }
+  /** A team moves on; a loser-bracket bye passes it straight through, as the database does. */
+  place(id: string, slot: 'a' | 'b', team: string) {
+    const n = this.get(id);
+    if (slot === 'a') n.team_a_id = team;
+    else n.team_b_id = team;
+    if (n.is_bye && n.status === 'pending') {
+      n.status = 'completed';
+      n.winner_id = team;
+      if (n.next_match_id) this.place(n.next_match_id, n.next_slot!, team);
+    } else if (n.team_a_id && n.team_b_id && n.status === 'pending') n.status = 'ready';
   }
   /** One finished leg, won by `w`, scored the way its game is. */
   playLeg(m: SimMatch, w: string) {
@@ -235,7 +244,7 @@ class Sim {
   buildKnockout() {
     const name = new Map(this.teams.map((t) => [t.id, t.name]));
     const through = qualifiers(this.standings(), this.spec.advance_per_group, this.spec.wildcards, (id) => name.get(id) ?? '');
-    this.add(knockoutFromQualifiers(through, { newId: randomUUID }));
+    this.add(knockoutFromQualifiers(through, { newId: randomUUID, double: this.spec.plan.double }));
   }
 }
 
@@ -276,14 +285,15 @@ const games: GameSpec[] = [
     group_count: 2,
     advance_per_group: 2,
     wildcards: 0,
-    plan: { semi: 3, final: 5 },
+    // Double elimination: first-round losers drop into the loser bracket.
+    plan: { semi: 3, final: 5, double: true },
     players: ['Kaz', 'Jin', 'Nina', 'Law', 'King', 'Hwo'],
     play: (g) => {
-      // One played, one live, the next called and running late.
-      g.finish(g.playable()[0]);
-      const [live, next] = g.playable();
-      g.start(live, 0);
-      if (next) g.call(next, 1, 6);
+      // Upper round 1 and one upper semi played; a loser bracket match live, the other upper semi called and running late.
+      g.playable('knockout').forEach((m) => g.finish(m));
+      g.finish(g.playable('knockout')[0]);
+      g.start(g.playable('losers')[0], 0);
+      g.call(g.playable('knockout')[0], 1, 6);
     },
   },
   {
@@ -374,7 +384,7 @@ const played = games.map((spec, order) => {
     g.groups = stage.groups;
     g.add(stage.matches);
   } else {
-    g.add(generateBracket(entrants, { newId: randomUUID, random }).map((d) => ({ ...d, stage: 'knockout' as const, group_no: null })));
+    g.add(knockoutFor(entrants, { newId: randomUUID, random, double: spec.plan.double }));
   }
   spec.play(g);
 
@@ -445,16 +455,16 @@ for (const { spec, tg, teams, g } of played) {
     `insert into public.teams (id, tournament_id, tournament_game_id, name, members, group_no) values\n${teams
       .map((t) => `(${[t.id, tournament.id, tg.id].map(q).join(', ')}, ${q(t.name)}, ${arr(t.members)}, ${q(g.groups.get(t.id) ?? null)})`)
       .join(',\n')};`,
-    `insert into public.matches (id, tournament_id, tournament_game_id, stage, group_no, round, position, team_a_id, team_b_id, next_match_id, next_slot, status, is_bye, winner_id, score_a, score_b, station, stations, called_at, scheduled_start, scheduled_end, started_at, ended_at, best_of, leg_games, legs, series_a, series_b) values\n${g.matches
+    `insert into public.matches (id, tournament_id, tournament_game_id, stage, group_no, round, position, team_a_id, team_b_id, next_match_id, next_slot, loser_next_match_id, loser_next_slot, status, is_bye, winner_id, score_a, score_b, station, stations, called_at, scheduled_start, scheduled_end, started_at, ended_at, best_of, leg_games, legs, series_a, series_b) values\n${g.matches
       .map((m) => {
         const s = slot.get(m.id);
         const stations = s?.stations ?? m.stations;
         const begin = m.status === 'called' ? m.called_at! + tournament.call_minutes * MIN : m.started_at;
         const start = s?.start ?? begin;
         const end = s?.end ?? (begin != null ? begin + spec.minutes * Math.max(1, m.best_of) * MIN : null);
-        const head = [m.id, tournament.id, tg.id, m.stage, m.group_no, m.round, m.position, m.team_a_id, m.team_b_id, m.next_match_id, m.next_slot, m.status, m.is_bye];
+        const head = [m.id, tournament.id, tg.id, m.stage, m.group_no, m.round, m.position, m.team_a_id, m.team_b_id, m.next_match_id, m.next_slot, m.loser_next_match_id, m.loser_next_slot, m.status, m.is_bye];
         const tail = [m.winner_id, m.score_a, m.score_b, stations?.[0] ?? null];
-        const times = [iso(m.called_at), iso(start), iso(end), iso(m.started_at), iso(m.is_bye ? now - 60 * MIN : m.ended_at)];
+        const times = [iso(m.called_at), iso(start), iso(end), iso(m.started_at), iso(m.is_bye && m.status === 'completed' ? now - 60 * MIN : m.ended_at)];
         const series = `${m.best_of}, ${uuidArr(m.leg_games)}, ${json(m.legs)}, ${m.series_a}, ${m.series_b}`;
         return `(${[...head, ...tail].map(q).join(', ')}, ${intArr(m.is_bye ? null : stations)}, ${times.map(q).join(', ')}, ${series})`;
       })

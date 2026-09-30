@@ -1,11 +1,12 @@
 import { roundsToWin } from './scoring';
 import type { Game, Match, SeriesRule, StagePlan, TournamentGame } from './types';
 
-export type PlanStage = keyof StagePlan;
+export type PlanStage = 'group' | 'knockout' | 'semi' | 'final' | 'losers';
 
-/** Which part of the plan a match follows. */
+/** Which part of the plan a match follows. In a double elimination the upper final follows the semi-final rule. */
 export function planStage(m: Pick<Match, 'stage' | 'round'>, knockoutRounds: number): PlanStage {
   if (m.stage === 'group') return 'group';
+  if (m.stage === 'losers') return 'losers';
   if (m.round >= knockoutRounds) return 'final';
   if (m.round === knockoutRounds - 1) return 'semi';
   return 'knockout';
@@ -13,7 +14,7 @@ export function planStage(m: Pick<Match, 'stage' | 'round'>, knockoutRounds: num
 
 /** The series a match plays: semis fall back to the knockout rule; everything else to a single game. */
 export function seriesRule(plan: StagePlan | null | undefined, stage: PlanStage): SeriesRule {
-  const rule = plan?.[stage] ?? (stage === 'semi' ? plan?.knockout : undefined);
+  const rule = plan?.[stage] ?? (stage === 'semi' || stage === 'losers' ? plan?.knockout : undefined);
   const bestOf = rule?.best_of && rule.best_of % 2 === 1 ? rule.best_of : 1;
   return { best_of: bestOf, games: stage === 'final' ? rule?.games : undefined };
 }

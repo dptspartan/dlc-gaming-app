@@ -1,4 +1,4 @@
-import { formatDay, formatTime, roundName, type Match, type Slot, type Team } from '@dlc/core';
+import { formatDay, formatTime, matchLabel, type Match, type Slot, type Team } from '@dlc/core';
 import { Avatar, StatusPill } from './ui';
 
 export interface SlotRef {
@@ -18,33 +18,50 @@ interface Props {
 
 export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
   // Group matches have their own tables; the bracket is the knockout only.
-  const matches = all.filter((m) => m.stage !== 'group');
-  if (matches.length === 0) return null;
-  const total = Math.max(...matches.map((m) => m.round));
-  const rounds = Array.from({ length: total }, (_, i) =>
-    matches.filter((m) => m.round === i + 1).sort((a, b) => a.position - b.position),
-  );
+  const upper = all.filter((m) => m.stage === 'knockout');
+  if (upper.length === 0) return null;
+  // Loser bracket slots nobody can reach are left out.
+  const lower = all.filter((m) => m.stage === 'losers' && !(m.is_bye && m.status === 'completed' && !m.team_a_id && !m.team_b_id));
+  const total = Math.max(...upper.map((m) => m.round));
+  const shared = { teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot };
 
+  if (!all.some((m) => m.stage === 'losers')) return <Rounds matches={upper} total={total} {...shared} />;
+  return (
+    <div className="space-y-4">
+      <div className="hud text-sm text-ink">Upper bracket</div>
+      <Rounds matches={upper} total={total} {...shared} />
+      <div className="hud text-sm text-ink">Lower bracket</div>
+      <p className="-mt-2 text-sm text-muted">A first loss drops a player down here; a second one knocks them out. The winner plays the final.</p>
+      <Rounds matches={lower} total={total} {...shared} />
+    </div>
+  );
+}
+
+function Rounds({
+  matches,
+  total,
+  ...shared
+}: {
+  matches: Match[];
+  total: number;
+  teams: Map<string, Team>;
+  timeZone: string;
+  onClick?: (m: Match) => void;
+  onSlotClick?: (ref: SlotRef) => void;
+  selectedSlot?: SlotRef | null;
+}) {
+  const rounds = [...new Set(matches.map((m) => m.round))]
+    .sort((a, b) => a - b)
+    .map((r) => matches.filter((m) => m.round === r).sort((a, b) => a.position - b.position));
   return (
     <div className="overflow-x-auto pb-4">
       <div className="flex min-w-max gap-6">
-        {rounds.map((list, i) => (
-          <div key={i} className="flex w-64 flex-col">
-            <div className="hud mb-3 text-center text-xs text-flame glow-flame">
-              {roundName(i + 1, total)}
-            </div>
+        {rounds.map((list) => (
+          <div key={list[0].round} className="flex w-64 flex-col">
+            <div className="hud mb-3 text-center text-xs text-flame glow-flame">{matchLabel(list[0], total)}</div>
             <div className="flex flex-1 flex-col justify-around gap-3">
               {list.map((m) => (
-                <BracketMatch
-                  key={m.id}
-                  match={m}
-                  teams={teams}
-                  timeZone={timeZone}
-                  onClick={onMatchClick}
-                  onSlotClick={onSlotClick}
-                  selectedSlot={selectedSlot}
-                  isLast={i === total - 1}
-                />
+                <BracketMatch key={m.id} match={m} {...shared} isLast={m.stage === 'knockout' && !m.next_match_id} />
               ))}
             </div>
           </div>

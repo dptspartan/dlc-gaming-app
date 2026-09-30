@@ -38,7 +38,7 @@ export type TimetableMatch = Pick<
   | 'started_at'
   | 'ended_at'
 > &
-  Partial<Pick<Match, 'best_of' | 'leg_games'>>;
+  Partial<Pick<Match, 'best_of' | 'leg_games' | 'loser_next_match_id'>>;
 
 export interface TimetableOptions {
   windows: DayWindow[];
@@ -145,8 +145,10 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
     const g = game(m);
     const duration = g.matchMinutes * MINUTE;
     const buffer = g.bufferMinutes * MINUTE;
-    if (m.is_bye) {
+    if (m.is_bye && m.status === 'completed') {
       readyAt.set(m.id, -Infinity);
+    } else if (m.is_bye) {
+      // A loser-bracket bye waiting for its one team: ready when its feeders are (below).
     } else if (m.status === 'completed') {
       const end = (ms(m.ended_at) ?? floor) + buffer;
       readyAt.set(m.id, end);
@@ -160,10 +162,14 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
     }
   }
 
+  // A match waits for the matches its teams come from: winners, and in a double elimination losers too.
   const feeders = new Map<string, string[]>();
   for (const m of matches) {
-    if (m.next_match_id) feeders.set(m.next_match_id, [...(feeders.get(m.next_match_id) ?? []), m.id]);
+    for (const to of [m.next_match_id, m.loser_next_match_id]) if (to) feeders.set(to, [...(feeders.get(to) ?? []), m.id]);
   }
+  // A waiting bye passes its team straight on, so look through it to the matches behind it.
+  const waitingBye = new Set(matches.filter((m) => m.is_bye && m.status !== 'completed').map((m) => m.id));
+  const depsOf = (id: string): string[] => (feeders.get(id) ?? []).flatMap((f) => (waitingBye.has(f) ? depsOf(f) : [f]));
   const groupMatches = new Map<string, string[]>();
   for (const m of matches) {
     if (m.stage === 'group') groupMatches.set(m.tournament_game_id, [...(groupMatches.get(m.tournament_game_id) ?? []), m.id]);
@@ -194,7 +200,7 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
     let best: { m: TimetableMatch; start: number; overflow: boolean; picks: number[] } | null = null;
     for (const m of todo) {
       const g = game(m);
-      const deps = feeders.get(m.id) ?? [];
+      const deps = depsOf(m.id);
       if (deps.some((id) => !readyAt.has(id))) continue;
       const groups = m.stage !== 'group' ? groupMatches.get(m.tournament_game_id) ?? [] : [];
       if (groups.some((id) => !readyAt.has(id))) continue;
