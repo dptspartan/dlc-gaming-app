@@ -3,6 +3,9 @@ export type TournamentGameStatus = 'setup' | 'fixtures_ready' | 'live' | 'finish
 export type MatchStatus = 'pending' | 'ready' | 'live' | 'completed';
 export type Slot = 'a' | 'b';
 export type Scoring = 'none' | 'goals' | 'rounds';
+/** knockout: straight single elimination; groups: round-robin groups, then a knockout for the qualifiers. */
+export type Format = 'knockout' | 'groups';
+export type Stage = 'group' | 'knockout';
 
 export interface Game {
   id: string;
@@ -44,6 +47,8 @@ export interface Team {
   seed: number | null;
   /** Player names for team games; empty for solo entries. */
   members: string[];
+  /** Group (1 = A) in a group-stage game; null in a straight knockout. */
+  group_no: number | null;
   created_at: string;
 }
 
@@ -54,6 +59,13 @@ export interface TournamentGame {
   match_minutes: number;
   buffer_minutes: number;
   stations: number;
+  format: Format;
+  /** Group-stage settings, used when format is 'groups'. */
+  group_count: number;
+  /** Top N of each group go through to the knockout. */
+  advance_per_group: number;
+  /** Extra knockout places for the best of the rest across all groups. */
+  wildcards: number;
   champion_team_id: string | null;
   status: TournamentGameStatus;
   created_at: string;
@@ -63,6 +75,10 @@ export interface Match {
   id: string;
   tournament_id: string;
   tournament_game_id: string;
+  stage: Stage;
+  /** Group (1 = A) for group-stage matches; null in the knockout. */
+  group_no: number | null;
+  /** Knockout round, or matchday in the group stage. */
   round: number;
   position: number;
   team_a_id: string | null;

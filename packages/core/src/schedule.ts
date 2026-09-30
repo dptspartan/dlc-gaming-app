@@ -9,6 +9,11 @@ export interface SchedulableMatch {
   status: MatchStatus;
   is_bye: boolean;
   station?: number | null;
+  /** Group matches all come before the knockout. */
+  stage?: 'group' | 'knockout';
+  /** Known players/teams; a team is never booked into two overlapping matches. */
+  team_a_id?: string | null;
+  team_b_id?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
 }
@@ -39,6 +44,8 @@ export interface ScheduleResult {
   finishesAt: number | null;
 }
 
+const stageOrder = (m: SchedulableMatch) => (m.stage === 'group' ? 0 : 1);
+
 /**
  * Give each unplayed match a station and a time slot. Rounds are played in
  * order, a match never starts before both feeder matches (plus buffer) are
@@ -57,16 +64,22 @@ export function scheduleMatches(matches: SchedulableMatch[], options: ScheduleOp
 
   const readyAt = new Map<string, number>();
   const stationFree = Array.from({ length: stations }, () => floor);
+  const teamFree = new Map<string, number>();
+  const bookTeams = (m: SchedulableMatch, until: number) => {
+    for (const t of [m.team_a_id, m.team_b_id]) if (t) teamFree.set(t, Math.max(teamFree.get(t) ?? -Infinity, until));
+  };
 
   for (const m of matches) {
     if (m.is_bye) {
       readyAt.set(m.id, -Infinity);
     } else if (m.status === 'completed') {
       readyAt.set(m.id, (m.ended_at ? new Date(m.ended_at).getTime() : floor) + buffer);
+      bookTeams(m, readyAt.get(m.id)!);
     } else if (m.status === 'live') {
       const started = m.started_at ? new Date(m.started_at).getTime() : floor;
       const expectedEnd = Math.max(started + duration, options.now ?? 0);
       readyAt.set(m.id, expectedEnd + buffer);
+      bookTeams(m, expectedEnd + buffer);
       if (m.station && m.station <= stations) {
         stationFree[m.station - 1] = Math.max(stationFree[m.station - 1], expectedEnd + buffer);
       }
@@ -81,7 +94,10 @@ export function scheduleMatches(matches: SchedulableMatch[], options: ScheduleOp
 
   const todo = matches
     .filter((m) => !m.is_bye && (m.status === 'pending' || m.status === 'ready'))
-    .sort((a, b) => a.round - b.round || a.position - b.position);
+    .sort((a, b) => stageOrder(a) - stageOrder(b) || a.round - b.round || a.position - b.position);
+  // The knockout waits for the whole group stage.
+  const groupIds = matches.filter((m) => m.stage === 'group').map((m) => m.id);
+  const groupsDone = () => Math.max(floor, ...groupIds.map((id) => readyAt.get(id) ?? floor));
 
   const fitIntoWindows = (earliest: number): { start: number; overflow: boolean } => {
     for (const w of windows) {
@@ -95,7 +111,8 @@ export function scheduleMatches(matches: SchedulableMatch[], options: ScheduleOp
   const slots: SlotAssignment[] = [];
   for (const m of todo) {
     const deps = (feeders.get(m.id) ?? []).map((id) => readyAt.get(id) ?? floor);
-    const earliest = Math.max(floor, ...deps);
+    const busy = [m.team_a_id, m.team_b_id].map((t) => (t ? teamFree.get(t) ?? floor : floor));
+    const earliest = Math.max(floor, ...deps, ...busy, m.stage !== 'group' && groupIds.length ? groupsDone() : floor);
 
     let best = 0;
     for (let s = 1; s < stations; s++) {
@@ -105,6 +122,7 @@ export function scheduleMatches(matches: SchedulableMatch[], options: ScheduleOp
     const end = start + duration;
     stationFree[best] = end + buffer;
     readyAt.set(m.id, end + buffer);
+    bookTeams(m, end + buffer);
     slots.push({ id: m.id, station: best + 1, start, end, overflow });
   }
 
