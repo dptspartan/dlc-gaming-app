@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { roundName, type Match } from '@dlc/core';
+import { isFinal, matchLabel, type Match } from '@dlc/core';
 import { useLookups, type LiveData } from '../lib/useLiveData';
 import { playSfx } from '../lib/sfx';
 import { Avatar } from './ui';
@@ -18,7 +18,7 @@ export function useWinnerQueue() {
 
 export function WinnerOverlay({ match, data, onDone }: { match: Match | null; data: LiveData; onDone: () => void }) {
   const { roundsByTg, gameOf } = useLookups(data);
-  const champion = match ? !match.next_match_id : false;
+  const champion = match ? isFinal(match) : false;
 
   useEffect(() => {
     if (!match) return;
@@ -68,7 +68,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {tournament?.name} · {game?.name} · {roundName(latest.round, total)}
+              {tournament?.name} · {game?.name} · {matchLabel(latest, total)}
             </motion.div>
 
             <motion.div

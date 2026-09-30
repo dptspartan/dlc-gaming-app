@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { addDays } from '@dlc/core';
 import { Bracket } from '../components/Bracket';
+import { GroupTables } from '../components/GroupTables';
 import { Layout } from '../components/Layout';
 import { ScheduleList } from '../components/ScheduleList';
 import { Avatar, Empty, ErrorNote, Heading, StatusPill } from '../components/ui';
@@ -35,7 +36,7 @@ function TournamentView({ id }: { id: string }) {
     [data, id],
   );
   const [tab, setTab] = useState<string | null>(null);
-  const [view, setView] = useState<'bracket' | 'schedule' | 'players'>('bracket');
+  const [view, setView] = useState<'groups' | 'bracket' | 'schedule' | 'players' | null>(null);
   useEffect(() => {
     if (!tab && tgames.length) setTab(tgames[0].id);
   }, [tab, tgames]);
@@ -43,8 +44,13 @@ function TournamentView({ id }: { id: string }) {
   if (!tournament) return <Layout>{error ? <ErrorNote message={error} /> : null}</Layout>;
 
   const tg = tgames.find((g) => g.id === tab);
+  const hasGroups = tg?.format === 'groups';
+  const views = hasGroups ? (['groups', 'bracket', 'schedule', 'players'] as const) : (['bracket', 'schedule', 'players'] as const);
   const game = tg ? data.games.get(tg.game_id) : undefined;
   const matches = [...data.matches.values()].filter((m) => m.tournament_game_id === tab);
+  const hasKnockout = matches.some((m) => m.stage !== 'group');
+  // Until someone picks a view: group tables while the groups are on, else the bracket.
+  const shown = view === 'groups' && !hasGroups ? 'bracket' : view ?? (hasGroups && !hasKnockout ? 'groups' : 'bracket');
   const teams = [...data.teams.values()].filter((t) => t.tournament_game_id === tab).sort((a, b) => a.name.localeCompare(b.name));
   const champion = tg?.champion_team_id ? data.teams.get(tg.champion_team_id) : undefined;
   const liveCount = [...data.matches.values()].filter((m) => m.status === 'live').length;
@@ -105,21 +111,26 @@ function TournamentView({ id }: { id: string }) {
           )}
 
           <div className="mb-4 flex gap-4 border-b border-line">
-            {(['bracket', 'schedule', 'players'] as const).map((v) => (
+            {views.map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${view === v ? 'border-flame text-flame glow-flame' : 'border-transparent text-muted hover:text-ink'}`}
+                className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${shown === v ? 'border-flame text-flame glow-flame' : 'border-transparent text-muted hover:text-ink'}`}
               >
-                {v === 'players' ? (game?.team_size === 1 ? 'Players' : 'Teams') : v}
+                {v === 'players' ? (game?.team_size === 1 ? 'Players' : 'Teams') : v === 'bracket' && hasGroups ? 'Knockout' : v}
               </button>
             ))}
           </div>
 
-          {view === 'bracket' &&
-            (matches.length ? <Bracket matches={matches} teams={data.teams} timeZone={tournament.timezone} /> : <Empty>Fixtures are not out yet.</Empty>)}
-          {view === 'schedule' && <ScheduleList matches={matches} teams={data.teams} timeZone={tournament.timezone} />}
-          {view === 'players' && (
+          {shown === 'groups' && tg && <GroupTables tg={tg} teams={teams} matches={matches} />}
+          {shown === 'bracket' &&
+            (hasKnockout ? (
+              <Bracket matches={matches} teams={data.teams} timeZone={tournament.timezone} />
+            ) : (
+              <Empty>{hasGroups && matches.length ? 'The knockout is drawn once the group stage is over.' : 'Fixtures are not out yet.'}</Empty>
+            ))}
+          {shown === 'schedule' && <ScheduleList matches={matches} teams={data.teams} timeZone={tournament.timezone} />}
+          {shown === 'players' && (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {teams.map((t) => (
                 <div key={t.id} className="panel flex items-center gap-3">

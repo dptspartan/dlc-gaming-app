@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Game, Match, Team, Tournament, TournamentGame } from '@dlc/core';
+import { knockoutRounds, type Game, type Match, type Team, type Tournament, type TournamentGame } from '@dlc/core';
 import { must, supabase } from './supabase';
 
 export interface LiveData {
@@ -128,10 +128,7 @@ export function useLiveData({ tournamentId, onMatchCompleted }: Options = {}) {
 /** Handy lookups derived from LiveData. */
 export function useLookups(data: LiveData) {
   return useMemo(() => {
-    const roundsByTg = new Map<string, number>();
-    for (const m of data.matches.values()) {
-      roundsByTg.set(m.tournament_game_id, Math.max(roundsByTg.get(m.tournament_game_id) ?? 0, m.round));
-    }
+    const roundsByTg = knockoutRounds(data.matches.values());
     const gameOf = (tgId: string) => {
       const tg = data.tgames.get(tgId);
       return tg ? data.games.get(tg.game_id) : undefined;

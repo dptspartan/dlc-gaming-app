@@ -1,4 +1,4 @@
-import { formatTime, roundName, type Match } from '@dlc/core';
+import { formatTime, knockoutRounds, matchLabel, type Match } from '@dlc/core';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, Text, View } from 'react-native';
@@ -11,11 +11,7 @@ export default function TournamentMatches() {
   const [gameFilter, setGameFilter] = useState<string | null>(null);
   const tz = data.tournament?.timezone ?? 'UTC';
 
-  const rounds = useMemo(() => {
-    const r = new Map<string, number>();
-    for (const m of data.matches) r.set(m.tournament_game_id, Math.max(r.get(m.tournament_game_id) ?? 0, m.round));
-    return r;
-  }, [data.matches]);
+  const rounds = useMemo(() => knockoutRounds(data.matches), [data.matches]);
 
   const sections = useMemo(() => {
     const list = data.matches.filter((m) => !m.is_bye && (!gameFilter || m.tournament_game_id === gameFilter));
@@ -74,7 +70,7 @@ export default function TournamentMatches() {
               <Pressable style={[styles.card, { marginBottom: 8 }, m.status === 'live' && styles.cardLive]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text style={[styles.muted, { fontSize: 12 }]}>
-                    {gameName(m.tournament_game_id)} · {roundName(m.round, rounds.get(m.tournament_game_id) ?? m.round)}
+                    {gameName(m.tournament_game_id)} · {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
                     {m.station ? ` · Stn ${m.station}` : ''} · {formatTime(m.scheduled_start, tz)}
                   </Text>
                   {m.status === 'live' && m.started_at ? <Elapsed since={m.started_at} /> : <Pill status={m.status} />}

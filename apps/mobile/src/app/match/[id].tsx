@@ -1,4 +1,4 @@
-import { roundName, roundsToWin, scoringLabel } from '@dlc/core';
+import { knockoutRounds, matchLabel, roundsToWin, scoringLabel } from '@dlc/core';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -23,7 +23,7 @@ export default function MatchControl() {
 
   const tg = data.tgames.find((x) => x.id === match.tournament_game_id);
   const game = tg ? data.games.get(tg.game_id) : undefined;
-  const total = Math.max(...data.matches.filter((m) => m.tournament_game_id === match.tournament_game_id).map((m) => m.round));
+  const total = knockoutRounds(data.matches).get(match.tournament_game_id) ?? match.round;
   const a = match.team_a_id ? data.teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? data.teams.get(match.team_b_id) : undefined;
   const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
@@ -101,7 +101,7 @@ export default function MatchControl() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: `${game?.name ?? ''} · ${roundName(match.round, total)}` }} />
+      <Stack.Screen options={{ title: `${game?.name ?? ''} · ${matchLabel(match, total)}` }} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pill status={match.status} />
