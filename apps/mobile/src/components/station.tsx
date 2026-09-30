@@ -51,6 +51,11 @@ export function StationCard({ s, data, master, onPress }: { s: StationState<Matc
             {teamName(data, m.team_a_id)} <Text style={{ color: colors.muted }}>vs</Text> {teamName(data, m.team_b_id)}
             {m.status === 'live' && m.score_a != null ? `   ${m.score_a ?? 0}:${m.score_b ?? 0}` : ''}
           </Text>
+          {m.best_of > 1 && (
+            <Text style={{ color: colors.gold, fontWeight: '800' }}>
+              Best of {m.best_of} · legs {m.series_a}–{m.series_b}
+            </Text>
+          )}
           <Text style={styles.muted}>{describe(data, m)}</Text>
         </>
       ) : (

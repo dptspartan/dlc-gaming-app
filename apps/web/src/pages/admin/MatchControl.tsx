@@ -1,5 +1,18 @@
 import { useState } from 'react';
-import { fromZonedInput, matchLabel, roundsToWin, scoringLabel, stationLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
+import {
+  currentLeg,
+  fromZonedInput,
+  isSeries,
+  legGameId,
+  matchLabel,
+  roundsToWin,
+  scoringLabel,
+  stationLabel,
+  toZonedInput,
+  type Game,
+  type Match,
+  type Team,
+} from '@dlc/core';
 import { Avatar, Button, CallCountdown, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
 import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
@@ -10,6 +23,8 @@ interface Props {
   totalRounds: number;
   gameName: string;
   game?: Game;
+  /** Every game, for series whose legs are played on different games. */
+  games: Map<string, Game>;
   timeZone: string;
   matchMinutes: number;
   /** Minutes called players have to reach their station. */
@@ -18,11 +33,16 @@ interface Props {
 }
 
 /** Start, finish, correct and annotate one match. */
-export function MatchControl({ match, teams, totalRounds, gameName, game, timeZone, matchMinutes, callMinutes, onClose }: Props) {
+export function MatchControl({ match, teams, totalRounds, gameName, game: ownGame, games, timeZone, matchMinutes, callMinutes, onClose }: Props) {
   const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
   const [winner, setWinner] = useState<string | null>(match.winner_id);
+  const series = isSeries(match);
+  const leg = currentLeg(match);
+  // The leg being played decides how it is scored.
+  const game = ownGame ? games.get(legGameId(match, leg, ownGame.id)) ?? ownGame : undefined;
   const scoring = game?.scoring ?? 'none';
+  const legName = (id: string) => games.get(id)?.name ?? '';
   const [start, setStart] = useState(toZonedInput(match.scheduled_start, timeZone));
   const [station, setStation] = useState(match.station?.toString() ?? '');
   const [busy, setBusy] = useState(false);
@@ -33,6 +53,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
     setError(null);
     try {
       await fn();
+      setWinner(null);
       if (close) onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -126,11 +147,34 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
           </button>
         </div>
 
+        {series && (
+          <div className="mb-3 rounded-lg border border-line bg-black/25 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold">
+                Best of {match.best_of}
+                {match.status !== 'completed' && ` · leg ${leg + 1}: ${game?.name ?? ''}`}
+              </span>
+              <span className="font-display text-xl text-ember">
+                {match.series_a} – {match.series_b}
+              </span>
+            </div>
+            {match.legs.length > 0 && (
+              <ol className="mt-2 flex flex-col gap-0.5 text-sm text-muted">
+                {match.legs.map((l, i) => (
+                  <li key={i}>
+                    Leg {i + 1} · {legName(l.game_id)} · {teams.get(l.winner_id)?.name ?? '?'} won{l.score_a != null ? ` ${l.score_a}–${l.score_b}` : ''}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+
         {game && (
           <div className="hud mb-3 text-xs text-muted">
             {scoringLabel(game)}
-            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the match ends by itself` : ''}
-            {scoring === 'goals' ? ' · ending the match picks the higher score' : ''}
+            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the ${series ? 'leg' : 'match'} ends by itself` : ''}
+            {scoring === 'goals' ? ` · ending the ${series ? 'leg' : 'match'} picks the higher score` : ''}
           </div>
         )}
 
@@ -182,13 +226,13 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
             </>
           )}
           {canEnd && scoring === 'none' && (
-            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match, winner!), true)}>
-              {winner ? 'End & set winner' : 'Pick a winner'}
+            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match, winner!), !series)}>
+              {!winner ? 'Pick a winner' : series ? `End leg ${leg + 1}` : 'End & set winner'}
             </Button>
           )}
           {canEnd && scoring === 'goals' && (
-            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match), true)}>
-              {sa === sb ? 'Level, add the deciding goal' : `End match, ${sa > sb ? a?.name : b?.name} wins`}
+            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match), !series)}>
+              {sa === sb ? 'Level, add the deciding goal' : `End ${series ? `leg ${leg + 1}` : 'match'}, ${sa > sb ? a?.name : b?.name} wins`}
             </Button>
           )}
           {match.status === 'completed' && !match.is_bye && (
@@ -196,8 +240,24 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
               Reopen result
             </Button>
           )}
+          {match.status === 'live' && match.legs.length > 0 && (
+            <Button variant="ghost" disabled={busy} onClick={() => confirm('Undo the last leg?') && run(() => reopenMatch(match))}>
+              Undo last leg
+            </Button>
+          )}
           {match.status === 'pending' && <span className="text-muted">Waiting for earlier matches to finish.</span>}
         </div>
+
+        {canEnd && (series || scoring !== 'none') && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-sm text-muted">
+            <span>No-show? Give the {series ? 'series' : 'match'} to</span>
+            {[a, b].map((t) => (
+              <Button key={t!.id} variant="ghost" disabled={busy} onClick={() => confirm(`${t!.name} wins by walkover?`) && run(() => endMatch(match, t!.id, true), true)}>
+                {t!.name}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {!match.is_bye && (
           <div className="mt-6 border-t border-line pt-4">

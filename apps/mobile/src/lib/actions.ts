@@ -1,18 +1,19 @@
-import { scheduleTournament, timetableOptions, type Match, type Tournament, type TournamentGame } from '@dlc/core';
+import { scheduleTournament, timetableOptions, type Game, type Match, type Tournament, type TournamentGame } from '@dlc/core';
 import { rpc, supabase } from './supabase';
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;
 
 /** Give every queued match a station and a time again, from now. Runs after anything moves the queue. */
 export async function refreshTimetable(tournamentId: string) {
-  const [t, tg, m] = await Promise.all([
+  const [t, tg, m, g] = await Promise.all([
     supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
     supabase.from('tournament_games').select('*').eq('tournament_id', tournamentId),
     supabase.from('matches').select('*').eq('tournament_id', tournamentId),
+    supabase.from('games').select('*'),
   ]);
-  const err = t.error ?? tg.error ?? m.error;
+  const err = t.error ?? tg.error ?? m.error ?? g.error;
   if (err) throw new Error(err.message);
-  const result = scheduleTournament(m.data as Match[], timetableOptions(t.data as Tournament, tg.data as TournamentGame[], Date.now()));
+  const result = scheduleTournament(m.data as Match[], timetableOptions(t.data as Tournament, tg.data as TournamentGame[], Date.now(), g.data as Game[]));
   const iso = (ms: number) => new Date(ms).toISOString();
   const items = result.slots.map((s) => ({ id: s.id, station: s.station, stations: s.stations, scheduled_start: iso(s.start), scheduled_end: iso(s.end) }));
   if (items.length) await rpc('update_schedule', { p_items: items });
@@ -33,7 +34,9 @@ export const uncallMatch = (m: MatchRef, delayMinutes = 0) =>
 export const holdMatch = (m: MatchRef, until: Date | null) =>
   thenReflow(m.tournament_id, rpc('hold_match', { p_match_id: m.id, p_not_before: until?.toISOString() ?? null }));
 export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('start_match', { p_match_id: m.id }));
-export const endMatch = (m: MatchRef, winnerId: string | null) => thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId }));
+/** Ends the leg being played (the match, for a single game); a walkover hands over the whole series. */
+export const endMatch = (m: MatchRef, winnerId: string | null, walkover = false) =>
+  thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;

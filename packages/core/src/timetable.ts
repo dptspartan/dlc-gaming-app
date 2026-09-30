@@ -1,5 +1,6 @@
 import { MINUTE, tournamentWindows, type DayWindow } from './time';
-import type { Match, Tournament, TournamentGame } from './types';
+import { seriesMinutes } from './plan';
+import type { Game, Match, Tournament, TournamentGame } from './types';
 
 /**
  * The tournament timetable: every game's matches placed on the venue's
@@ -36,7 +37,8 @@ export type TimetableMatch = Pick<
   | 'not_before'
   | 'started_at'
   | 'ended_at'
->;
+> &
+  Partial<Pick<Match, 'best_of' | 'leg_games'>>;
 
 export interface TimetableOptions {
   windows: DayWindow[];
@@ -47,6 +49,8 @@ export interface TimetableOptions {
   callMinutes: number;
   /** Nothing new is placed before this instant (ms). */
   now?: number;
+  /** Minutes a match takes when it differs from its game's (a best-of series). */
+  minutes?: (m: TimetableMatch) => number | undefined;
 }
 
 export interface TimetableSlot {
@@ -88,8 +92,16 @@ export function timetableOptions(
   tournament: Pick<Tournament, 'start_date' | 'days' | 'daily_start' | 'daily_end' | 'timezone' | 'stations' | 'call_minutes'>,
   tgames: Iterable<TournamentGame>,
   now?: number,
+  catalog?: Iterable<Game>,
 ): TimetableOptions {
-  return { windows: tournamentWindows(tournament), stations: tournament.stations, games: timetableGames(tgames), callMinutes: tournament.call_minutes, now };
+  const list = [...tgames];
+  const byId = new Map(list.map((tg) => [tg.id, tg]));
+  const games = catalog ? new Map([...catalog].map((g) => [g.id, g])) : undefined;
+  const minutes = (m: TimetableMatch) => {
+    const tg = byId.get(m.tournament_game_id);
+    return tg && (m.best_of ?? 1) > 1 ? seriesMinutes({ best_of: m.best_of ?? 1, leg_games: m.leg_games ?? null }, tg, games) : undefined;
+  };
+  return { windows: tournamentWindows(tournament), stations: tournament.stations, games: timetableGames(list), callMinutes: tournament.call_minutes, now, minutes };
 }
 
 const ms = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : null);
@@ -111,8 +123,13 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
   const lastClose = windows[windows.length - 1].end;
   const floor = Math.max(windows[0].start, options.now ?? -Infinity);
   const now = options.now ?? floor;
-  const game = (m: TimetableMatch) =>
+  const base = (m: TimetableMatch) =>
     games.get(m.tournament_game_id) ?? { matchMinutes: 20, bufferMinutes: 5, stationsRequired: 1, allowedStations: null, order: 0 };
+  const game = (m: TimetableMatch): TimetableGame => {
+    const g = base(m);
+    const own = options.minutes?.(m);
+    return own ? { ...g, matchMinutes: own } : g;
+  };
 
   const stationFree = Array.from({ length: stations }, () => floor);
   const readyAt = new Map<string, number>();

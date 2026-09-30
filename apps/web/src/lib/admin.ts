@@ -5,7 +5,9 @@ import {
   knockoutFromQualifiers,
   qualifiers,
   scheduleTournament,
+  seriesFor,
   timetableOptions,
+  type Game,
   type Match,
   type Slot,
   type StageMatchDraft,
@@ -25,9 +27,37 @@ async function rpc(fn: string, args: Record<string, unknown>) {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-/** New matches, in the shape the timetable needs. */
-const queued = (tgId: string, drafts: StageMatchDraft[]) =>
-  drafts.map((d) => ({ ...d, tournament_game_id: tgId, station: null, stations: null, called_at: null, not_before: null, started_at: null, ended_at: null }));
+/** New matches, in the shape the timetable needs, each with its series from the game's plan. */
+function queued(tg: TournamentGame, drafts: StageMatchDraft[]) {
+  const rounds = Math.max(0, ...drafts.filter((d) => d.stage !== 'group').map((d) => d.round));
+  return drafts.map((d) => ({
+    ...d,
+    ...seriesFor(tg.plan, d, rounds),
+    tournament_game_id: tg.id,
+    station: null,
+    stations: null,
+    called_at: null,
+    not_before: null,
+    started_at: null,
+    ended_at: null,
+  }));
+}
+
+/** Knockout rounds a game will play, counting ones not drawn yet. */
+function knockoutRoundsOf(matches: Pick<Match, 'stage' | 'round'>[]) {
+  return Math.max(0, ...matches.filter((m) => m.stage !== 'group').map((m) => m.round));
+}
+
+/** Re-apply a game's plan to its matches that have not started, then rebuild the timetable. */
+export async function applyPlan(tg: TournamentGame, matches: Match[]) {
+  const own = matches.filter((m) => m.tournament_game_id === tg.id);
+  const rounds = knockoutRoundsOf(own);
+  const items = own
+    .filter((m) => !m.is_bye && (m.status === 'pending' || m.status === 'ready' || m.status === 'called'))
+    .map((m) => ({ id: m.id, ...seriesFor(tg.plan, m, rounds) }));
+  if (items.length) await rpc('set_series', { p_items: items });
+  await refreshTimetable(tg.tournament_id);
+}
 
 function slotsFor<T extends { id: string }>(rows: T[], result: TimetableResult) {
   const slotOf = new Map(result.slots.map((s) => [s.id, s]));
@@ -57,6 +87,7 @@ export async function generateFixtures(
   tg: TournamentGame,
   teams: Team[],
   allMatches: Match[],
+  catalog?: Iterable<Game>,
 ): Promise<TimetableResult> {
   const entrants = teams.map((t) => ({ teamId: t.id, seed: t.seed }));
   const others = allMatches.filter((m) => m.tournament_game_id !== tg.id);
@@ -69,8 +100,8 @@ export async function generateFixtures(
   } else {
     drafts = generateBracket(entrants).map((d) => ({ ...d, stage: 'knockout' as const, group_no: null }));
   }
-  const rows = queued(tg.id, drafts);
-  const result = scheduleTournament([...others, ...rows], timetableOptions(tournament, tgames, Date.now()));
+  const rows = queued(tg, drafts);
+  const result = scheduleTournament([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_groups: groups ?? null });
   await saveSlots(result, new Set(others.map((m) => m.id)));
   return result;
@@ -89,38 +120,40 @@ export async function buildKnockout(
   tg: TournamentGame,
   teams: Team[],
   allMatches: Match[],
+  catalog?: Iterable<Game>,
 ): Promise<TimetableResult> {
   const own = allMatches.filter((m) => m.tournament_game_id === tg.id);
   const through = groupQualifiers(tg, teams, own);
   if (through.length < 2) throw new Error('At least two teams need to go through to play a knockout');
-  const rows = queued(tg.id, knockoutFromQualifiers(through));
+  const rows = queued(tg, knockoutFromQualifiers(through));
   const keep = allMatches.filter((m) => m.tournament_game_id !== tg.id || m.stage === 'group');
-  const result = scheduleTournament([...keep, ...rows], timetableOptions(tournament, tgames, Date.now()));
+  const result = scheduleTournament([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_stage: 'knockout' });
   await saveSlots(result, new Set(keep.map((m) => m.id)));
   return result;
 }
 
 /** Rebuild the whole timetable from now: every queued match gets a station and a time. */
-export async function reflowTournament(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[]): Promise<TimetableResult> {
-  const result = scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now()));
+export async function reflowTournament(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): Promise<TimetableResult> {
+  const result = scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
   await saveSlots(result);
   return result;
 }
 
 /** Fetch the latest state and rebuild the timetable; run after anything changes the queue. */
 export async function refreshTimetable(tournamentId: string): Promise<TimetableResult> {
-  const [tournament, tgames, matches] = await Promise.all([
+  const [tournament, tgames, matches, games] = await Promise.all([
     supabase.from('tournaments').select('*').eq('id', tournamentId).single().then(must),
     supabase.from('tournament_games').select('*').eq('tournament_id', tournamentId).then(must),
     supabase.from('matches').select('*').eq('tournament_id', tournamentId).then(must),
+    supabase.from('games').select('*').then(must),
   ]);
-  return reflowTournament(tournament as Tournament, tgames as TournamentGame[], matches as Match[]);
+  return reflowTournament(tournament as Tournament, tgames as TournamentGame[], matches as Match[], games as Game[]);
 }
 
 /** How the queued matches fit, without saving anything. */
-export function previewTimetable(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[]): TimetableResult {
-  return scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now()));
+export function previewTimetable(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): TimetableResult {
+  return scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
 }
 
 /** Run a match action, then rebuild the timetable so the queue moves on. */
@@ -145,9 +178,13 @@ export const listAdmins = async () => (await rpc('list_admins', {})) as { user_i
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;
 export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('start_match', { p_match_id: m.id }));
-/** Scored games pick the winner from the score, so they pass no winner. */
-export const endMatch = (m: MatchRef, winnerId: string | null = null) =>
-  thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId }));
+/**
+ * End the leg being played (the match, for a single game); the series ends
+ * once a side has won most legs. Scored legs pick the winner from the score.
+ * A walkover hands the whole series to the winner.
+ */
+export const endMatch = (m: MatchRef, winnerId: string | null = null, walkover = false) =>
+  thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
 /** A best-of match ends by itself on the deciding round; the queue moves on then. */
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;

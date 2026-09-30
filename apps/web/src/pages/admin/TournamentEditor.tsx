@@ -5,7 +5,10 @@ import {
   findTeamConflicts,
   formatTime,
   type Format,
+  type Game,
   type Match,
+  type SeriesRule,
+  type StagePlan,
   type StationState,
   type Team,
   type TimetableResult,
@@ -18,6 +21,7 @@ import { ScheduleList } from '../../components/ScheduleList';
 import { StationBoard, Timetable } from '../../components/StationBoard';
 import { Avatar, Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill, Tabs } from '../../components/ui';
 import {
+  applyPlan,
   buildKnockout,
   callMatch,
   generateFixtures,
@@ -86,7 +90,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   const [openMatch, setOpenMatch] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const fit = useMemo(() => (matches.length ? safePreview(tournament, tgames, matches) : null), [tournament, tgames, matches]);
+  const fit = useMemo(() => (matches.length ? safePreview(tournament, tgames, matches, data.games.values()) : null), [tournament, tgames, matches, data.games]);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -218,6 +222,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(openTg.game_id)}
+          games={data.games}
           timeZone={tournament.timezone}
           matchMinutes={openTg.match_minutes}
           callMinutes={tournament.call_minutes}
@@ -505,15 +510,16 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
       allowed_stations: s.allowed_stations.includes(n) ? s.allowed_stations.filter((x) => x !== n) : [...s.allowed_stations, n].sort((a, b) => a - b),
     }));
   const [format, setFormat] = useState<FormatSettings>(formatOf(tg));
+  const [plan, setPlan] = useState<StagePlan>(tg.plan ?? {});
   const formatChanged = JSON.stringify(format) !== JSON.stringify(formatOf(tg));
   const [error, setError] = useState<string | null>(null);
 
   const saveSettings = async () => {
     const allowed_stations = settings.allowed_stations.length ? settings.allowed_stations : null;
-    const { error } = await supabase.from('tournament_games').update({ ...settings, allowed_stations, ...format }).eq('id', tg.id);
+    const { error } = await supabase.from('tournament_games').update({ ...settings, allowed_stations, ...format, plan }).eq('id', tg.id);
     if (error) return setError(error.message);
-    // Times and stations follow the new settings.
-    if (hasFixtures) await refreshTimetable(tg.tournament_id).catch((e: Error) => setError(e.message));
+    // Matches still to play take the new plan; times and stations follow the new settings.
+    if (hasFixtures) await applyPlan({ ...tg, plan }, [...data.matches.values()]).catch((e: Error) => setError(e.message));
     onChange();
   };
   const remove = async () => {
@@ -593,6 +599,7 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
           </span>
         </div>
       </div>
+      <PlanEditor plan={plan} onChange={setPlan} groups={format.format === 'groups'} ownGame={tg.game_id} games={[...data.games.values()]} />
       {format.format === 'groups' && (
         <p className="-mt-3 mb-5 text-sm text-muted">{describeGroupSetup(teams.length, format.group_count, format.advance_per_group, format.wildcards)}</p>
       )}
@@ -630,6 +637,90 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
       <AddTeam tg={tg} teamSize={teamSize} onAdded={onChange} />
       <ErrorNote message={error} />
     </Panel>
+  );
+}
+
+const BEST_OF = [1, 3, 5, 7];
+
+/** The whole game plan: a best-of series per stage, and the games a final is played on. */
+function PlanEditor({
+  plan,
+  onChange,
+  groups,
+  ownGame,
+  games,
+}: {
+  plan: StagePlan;
+  onChange: (p: StagePlan) => void;
+  groups: boolean;
+  ownGame: string;
+  games: Game[];
+}) {
+  const own = games.find((g) => g.id === ownGame);
+  // Legs of a final can be any game with the same players per side.
+  const legOptions = games.filter((g) => g.team_size === own?.team_size).sort((a, b) => a.name.localeCompare(b.name));
+  const set = (stage: keyof StagePlan, rule: SeriesRule) => onChange({ ...plan, [stage]: rule });
+  const stages: [keyof StagePlan, string][] = [
+    ...(groups ? [['group', 'Group matches'] as [keyof StagePlan, string]] : []),
+    ['knockout', groups ? 'Knockout rounds' : 'Early rounds'],
+    ['semi', 'Semi-finals'],
+    ['final', 'Final'],
+  ];
+  const final = plan.final ?? { best_of: 1 };
+  const legs = Array.from({ length: final.best_of }, (_, i) => final.games?.[i] ?? null);
+
+  return (
+    <div className="mb-5 rounded-xl border border-line bg-black/20 p-3">
+      <div className="field-label hud mb-2 text-[11px] text-ember/80">Game plan</div>
+      <div className="flex flex-wrap items-end gap-3">
+        {stages.map(([stage, label]) => {
+          const rule = plan[stage] ?? (stage === 'semi' ? plan.knockout : undefined) ?? { best_of: 1 };
+          return (
+            <Field key={stage} label={label}>
+              <select
+                value={rule.best_of}
+                onChange={(e) => {
+                  const best_of = Number(e.target.value);
+                  set(stage, stage === 'final' ? { best_of, games: final.games?.slice(0, best_of) } : { best_of });
+                }}
+              >
+                {BEST_OF.map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? 'One game' : `Best of ${n}`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          );
+        })}
+      </div>
+      {final.best_of > 1 && (
+        <div className="mt-3">
+          <div className="mb-1.5 text-sm text-muted">Final legs: each can be a different game, scored its own way.</div>
+          <div className="flex flex-wrap gap-2">
+            {legs.map((g, i) => (
+              <label key={i} className="flex items-center gap-2 text-sm">
+                <span className="text-muted">Leg {i + 1}</span>
+                <select
+                  value={g ?? ownGame}
+                  onChange={(e) => {
+                    const next = [...legs];
+                    next[i] = e.target.value === ownGame ? null : e.target.value;
+                    set('final', { best_of: final.best_of, games: next });
+                  }}
+                >
+                  {legOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name} ({o.scoring === 'none' ? 'winner only' : o.scoring === 'goals' ? 'goals' : `best of ${o.best_of} rounds`})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -745,7 +836,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const shown = view === 'groups' && !hasGroups ? 'bracket' : view ?? (hasGroups && !knockout.length ? 'groups' : 'bracket');
   const conflicts = useMemo(() => findTeamConflicts([...data.matches.values()]), [data.matches]);
   const all = useMemo(() => [...data.matches.values()], [data.matches]);
-  const fit = useMemo(() => (all.length ? safePreview(tournament, tgames, all) : null), [tournament, tgames, all]);
+  const fit = useMemo(() => (all.length ? safePreview(tournament, tgames, all, data.games.values()) : null), [tournament, tgames, all, data.games]);
 
   if (tgames.length === 0) return <Empty>Add a game first.</Empty>;
 
@@ -767,14 +858,14 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
     if (!tg) return;
     if (teams.length < 2) return setError('Add at least two players or teams first.');
     if (matches.length && !confirm('Replace the current fixtures? Any edits to them will be lost.')) return;
-    void act(() => generateFixtures(tournament, tgames, tg, teams, all));
+    void act(() => generateFixtures(tournament, tgames, tg, teams, all, data.games.values()));
   };
 
   const startKnockout = () => {
     if (!tg) return;
     if (knockout.length && !confirm('Rebuild the knockout from the current group tables?')) return;
     void act(async () => {
-      const r = await buildKnockout(tournament, tgames, tg, teams, all);
+      const r = await buildKnockout(tournament, tgames, tg, teams, all, data.games.values());
       setView('bracket');
       return r;
     });
@@ -905,6 +996,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(tg.game_id)}
+          games={data.games}
           timeZone={tournament.timezone}
           matchMinutes={tg.match_minutes}
           callMinutes={tournament.call_minutes}
@@ -915,9 +1007,9 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   );
 }
 
-function safePreview(tournament: Tournament, tgames: TournamentGame[], matches: Match[]) {
+function safePreview(tournament: Tournament, tgames: TournamentGame[], matches: Match[], catalog: Iterable<Game>) {
   try {
-    return previewTimetable(tournament, tgames, matches);
+    return previewTimetable(tournament, tgames, matches, catalog);
   } catch {
     return null;
   }
