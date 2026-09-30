@@ -20,7 +20,7 @@ export const theme = {
 export const statusColor: Record<string, string> = {
   pending: '#a8999b',
   ready: theme.ember,
-  called: theme.amber,
+  called: theme.gold,
   live: theme.flame,
   completed: theme.gold,
 };
