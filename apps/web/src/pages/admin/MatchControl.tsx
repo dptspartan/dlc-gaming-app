@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fromZonedInput, roundName, roundsToWin, scoringLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
+import { fromZonedInput, matchLabel, roundsToWin, scoringLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
 import { Avatar, Button, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
 import { endMatch, reopenMatch, scorePoint, startMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
@@ -109,7 +109,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="hud text-xs text-flame glow-flame">
-              {gameName} · {roundName(match.round, totalRounds)}
+              {gameName} · {matchLabel(match, totalRounds)}
             </div>
             <div className="mt-1 flex items-center gap-3">
               <StatusPill status={match.status} />

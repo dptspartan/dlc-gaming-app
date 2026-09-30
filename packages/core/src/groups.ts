@@ -132,6 +132,20 @@ function compareRows(a: StandingRow, b: StandingRow, name: (id: string) => strin
   return b.won - a.won || b.diff - a.diff || b.for - a.for || name(a.teamId).localeCompare(name(b.teamId));
 }
 
+/**
+ * The same order across groups, per match played, so a team from a smaller
+ * group (fewer matches, e.g. 4-4-3 groups) is compared fairly with the rest.
+ */
+function compareAcross(a: StandingRow, b: StandingRow, name: (id: string) => string) {
+  const per = (r: StandingRow, v: number) => (r.played ? v / r.played : 0);
+  return (
+    per(b, b.won) - per(a, a.won) ||
+    per(b, b.diff) - per(a, a.diff) ||
+    per(b, b.for) - per(a, a.for) ||
+    name(a.teamId).localeCompare(name(b.teamId))
+  );
+}
+
 /** Group tables from finished group matches, sorted into finishing order. */
 export function groupStandings(teams: Pick<Team, 'id' | 'name' | 'group_no'>[], matches: StandingMatch[]): Map<number, StandingRow[]> {
   const rows = new Map<string, StandingRow>();
@@ -170,8 +184,8 @@ export function groupStandings(teams: Pick<Team, 'id' | 'name' | 'group_no'>[], 
 
 /**
  * Who goes through, best first: every group's winners, then every group's
- * runners-up, and so on (each tier ordered by record), then the best
- * `wildcards` of the rest across all groups.
+ * runners-up, and so on (each tier ordered by record per match), then the
+ * best `wildcards` of the rest across all groups.
  */
 export function qualifiers(
   standings: Map<number, StandingRow[]>,
@@ -182,10 +196,10 @@ export function qualifiers(
   const out: string[] = [];
   for (let place = 1; place <= advancePerGroup; place++) {
     const tier = [...standings.values()].map((list) => list[place - 1]).filter(Boolean);
-    out.push(...tier.sort((a, b) => compareRows(a, b, name)).map((r) => r.teamId));
+    out.push(...tier.sort((a, b) => compareAcross(a, b, name)).map((r) => r.teamId));
   }
   const rest = [...standings.values()].flatMap((list) => list.slice(advancePerGroup));
-  out.push(...rest.sort((a, b) => compareRows(a, b, name)).slice(0, wildcards).map((r) => r.teamId));
+  out.push(...rest.sort((a, b) => compareAcross(a, b, name)).slice(0, wildcards).map((r) => r.teamId));
   return out;
 }
 

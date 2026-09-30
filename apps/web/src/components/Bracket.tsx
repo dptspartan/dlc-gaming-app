@@ -16,7 +16,9 @@ interface Props {
   selectedSlot?: SlotRef | null;
 }
 
-export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
+export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
+  // Group matches have their own tables; the bracket is the knockout only.
+  const matches = all.filter((m) => m.stage !== 'group');
   if (matches.length === 0) return null;
   const total = Math.max(...matches.map((m) => m.round));
   const rounds = Array.from({ length: total }, (_, i) =>

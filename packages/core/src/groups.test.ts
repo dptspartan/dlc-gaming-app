@@ -93,3 +93,35 @@ describe('scheduleMatches with teams', () => {
     }
   });
 });
+
+describe('uneven groups', () => {
+  it('compares wildcards per match played, so a smaller group is not penalised', () => {
+    // Group 1 has 3 teams (2 matches each), group 2 has 4 (3 matches each).
+    const row = (teamId: string, group: number, played: number, won: number, diff: number) => ({
+      teamId, group, played, won, lost: played - won, for: 0, against: 0, diff, rank: 0,
+    });
+    const standings = new Map([
+      [1, [row('a1', 1, 2, 2, 4), row('a2', 1, 2, 1, 1), row('a3', 1, 2, 0, -5)]],
+      [2, [row('b1', 2, 3, 3, 6), row('b2', 2, 3, 1, 2), row('b3', 2, 3, 1, 0), row('b4', 2, 3, 1, -8)]],
+    ]);
+    // a2 won 1 of 2 (50%), b2 won 1 of 3 (33%): a2 is the better runner-up.
+    expect(qualifiers(standings, 1, 1)).toEqual(['a1', 'b1', 'a2']);
+  });
+});
+
+describe('scheduleMatches across stages', () => {
+  it('starts the knockout only after every group match', () => {
+    const { matches: group } = generateGroupStage(entrants(6), 2, { newId });
+    const ko = knockoutFromQualifiers(['t1', 't2', 't3', 't4'], { newId });
+    const start = Date.UTC(2026, 0, 1, 10);
+    const r = scheduleMatches([...ko, ...group] as unknown as Match[], {
+      windows: [{ day: 1, start, end: start + 12 * 3600_000 }],
+      matchMinutes: 10,
+      bufferMinutes: 0,
+      stations: 3,
+    });
+    const slot = new Map(r.slots.map((s) => [s.id, s]));
+    const lastGroup = Math.max(...group.map((m) => slot.get(m.id)!.end));
+    for (const m of ko.filter((x) => !x.is_bye)) expect(slot.get(m.id)!.start).toBeGreaterThanOrEqual(lastGroup);
+  });
+});

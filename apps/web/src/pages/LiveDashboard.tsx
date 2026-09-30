@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { formatTime, gridFor, paginate, roundName, roundsToWin, type Game, type Match } from '@dlc/core';
+import { formatTime, gridFor, isFinal, matchLabel, paginate, roundsToWin, type Game, type Match } from '@dlc/core';
 import { Avatar, Elapsed, ErrorNote } from '../components/ui';
 import { Glitch, Particles } from '../components/WinnerOverlay';
 import { useLiveData, useLookups, type LiveData } from '../lib/useLiveData';
@@ -33,7 +33,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [page, setPage] = useState(0);
   const celebrate = useCallback((m: Match) => {
-    playSfx(m.next_match_id ? 'win' : 'champion');
+    playSfx(isFinal(m) ? 'champion' : 'win');
     clearTimeout(timers.current.get(m.id));
     setCelebrating((s) => new Set(s).add(m.id));
     setPage(0);
@@ -46,7 +46,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           next.delete(m.id);
           return next;
         });
-      }, m.next_match_id ? CELEBRATE_MS : CHAMPION_MS),
+      }, isFinal(m) ? CHAMPION_MS : CELEBRATE_MS),
     );
   }, []);
   useEffect(() => {
@@ -203,7 +203,7 @@ function LiveCard({
 }) {
   const a = match.team_a_id ? data.teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? data.teams.get(match.team_b_id) : undefined;
-  const final = !match.next_match_id;
+  const final = isFinal(match);
   const done = match.status === 'completed';
   const scored = !!game && game.scoring !== 'none';
   const avatar = big ? 140 : compact ? 56 : 84;
@@ -236,7 +236,7 @@ function LiveCard({
             {gameName}
           </div>
           <div className={`hud mt-1.5 truncate text-ember glow-ember ${big ? 'text-base' : 'text-xs'}`}>
-            {roundName(match.round, totalRounds)}
+            {matchLabel(match, totalRounds)}
             {game && ` · ${game.team_size === 1 ? '1v1' : `${game.team_size}v${game.team_size}`}`}
             {game?.scoring === 'rounds' && ` · Bo${game.best_of}`}
             {match.station ? ` · Station ${match.station}` : ''}

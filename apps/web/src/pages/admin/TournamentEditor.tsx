@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { findTeamConflicts, formatTime, type Match, type ScheduleResult, type Team, type Tournament, type TournamentGame } from '@dlc/core';
+import {
+  describeGroupSetup,
+  findTeamConflicts,
+  formatTime,
+  type Format,
+  type Match,
+  type ScheduleResult,
+  type Team,
+  type Tournament,
+  type TournamentGame,
+} from '@dlc/core';
 import { Bracket, type SlotRef } from '../../components/Bracket';
+import { GroupTables } from '../../components/GroupTables';
 import { ScheduleList } from '../../components/ScheduleList';
 import { Avatar, Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill } from '../../components/ui';
-import { generateFixtures, previewSchedule, reflowSchedule, swapSlots } from '../../lib/admin';
+import { buildKnockout, generateFixtures, groupQualifiers, previewSchedule, reflowSchedule, swapSlots } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
 import { MatchControl } from './MatchControl';
@@ -157,6 +168,7 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
   const tgames = [...data.tgames.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
   const available = [...data.games.values()].filter((g) => !tgames.some((tg) => tg.game_id === g.id));
   const [gameId, setGameId] = useState('');
+  const [format, setFormat] = useState<FormatSettings>(defaultFormat);
   const [error, setError] = useState<string | null>(null);
 
   const add = async (e: FormEvent) => {
@@ -165,10 +177,11 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
     if (!game) return;
     const { error } = await supabase
       .from('tournament_games')
-      .insert({ tournament_id: tournament.id, game_id: game.id, match_minutes: game.default_match_minutes, buffer_minutes: 5, stations: 1 });
+      .insert({ tournament_id: tournament.id, game_id: game.id, match_minutes: game.default_match_minutes, buffer_minutes: 5, stations: 1, ...format });
     if (error) setError(error.message);
     else {
       setGameId('');
+      setFormat(defaultFormat);
       onChange();
     }
   };
@@ -187,6 +200,7 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
               ))}
             </select>
           </Field>
+          <FormatFields value={format} onChange={setFormat} />
           <Button disabled={!gameId}>Add game</Button>
           <Link to="/admin/games" className="text-sm text-muted hover:text-ember">
             Manage the game catalog
@@ -202,16 +216,56 @@ function GamesPanel({ tournament, data, onChange }: { tournament: Tournament; da
   );
 }
 
+type FormatSettings = Pick<TournamentGame, 'format' | 'group_count' | 'advance_per_group' | 'wildcards'>;
+
+const defaultFormat: FormatSettings = { format: 'knockout', group_count: 2, advance_per_group: 2, wildcards: 0 };
+const formatOf = (tg: TournamentGame): FormatSettings => ({
+  format: tg.format,
+  group_count: tg.group_count,
+  advance_per_group: tg.advance_per_group,
+  wildcards: tg.wildcards,
+});
+
+/** Knockout, or groups (how many, how many go through, wildcards) then a knockout. */
+function FormatFields({ value, onChange }: { value: FormatSettings; onChange: (v: FormatSettings) => void }) {
+  const num = (key: keyof FormatSettings) => (e: { target: { value: string } }) => onChange({ ...value, [key]: Number(e.target.value) });
+  return (
+    <>
+      <Field label="Format">
+        <select value={value.format} onChange={(e) => onChange({ ...value, format: e.target.value as Format })}>
+          <option value="knockout">Knockout</option>
+          <option value="groups">Groups, then knockout</option>
+        </select>
+      </Field>
+      {value.format === 'groups' && (
+        <>
+          <Field label="Groups">
+            <input type="number" min={1} max={32} className="w-20" value={value.group_count} onChange={num('group_count')} />
+          </Field>
+          <Field label="Go through per group">
+            <input type="number" min={1} max={16} className="w-24" value={value.advance_per_group} onChange={num('advance_per_group')} />
+          </Field>
+          <Field label="Wildcards">
+            <input type="number" min={0} max={64} className="w-20" value={value.wildcards} onChange={num('wildcards')} title="Best teams that finish outside the qualifying places" />
+          </Field>
+        </>
+      )}
+    </>
+  );
+}
+
 function TournamentGameCard({ tg, data, onChange }: { tg: TournamentGame; data: LiveData; onChange: () => void }) {
   const game = data.games.get(tg.game_id);
   const teamSize = game?.team_size ?? 1;
   const teams = [...data.teams.values()].filter((t) => t.tournament_game_id === tg.id).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const hasFixtures = [...data.matches.values()].some((m) => m.tournament_game_id === tg.id);
   const [settings, setSettings] = useState({ match_minutes: tg.match_minutes, buffer_minutes: tg.buffer_minutes, stations: tg.stations });
+  const [format, setFormat] = useState<FormatSettings>(formatOf(tg));
+  const formatChanged = JSON.stringify(format) !== JSON.stringify(formatOf(tg));
   const [error, setError] = useState<string | null>(null);
 
   const saveSettings = async () => {
-    const { error } = await supabase.from('tournament_games').update(settings).eq('id', tg.id);
+    const { error } = await supabase.from('tournament_games').update({ ...settings, ...format }).eq('id', tg.id);
     if (error) setError(error.message);
     else onChange();
   };
@@ -258,10 +312,15 @@ function TournamentGameCard({ tg, data, onChange }: { tg: TournamentGame; data: 
         <Field label="Stations">
           <input type="number" min={1} max={64} className="w-24" value={settings.stations} onChange={(e) => setSettings({ ...settings, stations: Number(e.target.value) })} />
         </Field>
+        <FormatFields value={format} onChange={setFormat} />
         <Button variant="ghost" onClick={saveSettings}>
           Save settings
         </Button>
       </div>
+      {format.format === 'groups' && (
+        <p className="-mt-3 mb-5 text-sm text-muted">{describeGroupSetup(teams.length, format.group_count, format.advance_per_group, format.wildcards)}</p>
+      )}
+      {formatChanged && hasFixtures && <p className="-mt-3 mb-5 text-sm text-amber">Save, then regenerate the fixtures for a new format to take effect.</p>}
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {teams.map((t) => (
@@ -385,7 +444,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const { roundsByTg, gameOf } = useLookups(data);
   const tgames = [...data.tgames.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
   const [tgId, setTgId] = useState<string | null>(null);
-  const [view, setView] = useState<'bracket' | 'schedule'>('bracket');
+  const [view, setView] = useState<'groups' | 'bracket' | 'schedule' | null>(null);
   const [swapMode, setSwapMode] = useState(false);
   const [selected, setSelected] = useState<SlotRef | null>(null);
   const [openMatch, setOpenMatch] = useState<string | null>(null);
@@ -401,6 +460,13 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const matches = useMemo(() => [...data.matches.values()].filter((m) => m.tournament_game_id === tgId), [data.matches, tgId]);
   const teams = [...data.teams.values()].filter((t) => t.tournament_game_id === tgId);
   const started = matches.some((m) => m.status === 'live' || (m.status === 'completed' && !m.is_bye));
+  const hasGroups = tg?.format === 'groups' && matches.some((m) => m.stage === 'group');
+  const groupMatches = matches.filter((m) => m.stage === 'group');
+  const knockout = matches.filter((m) => m.stage !== 'group');
+  const groupsDone = groupMatches.length > 0 && groupMatches.every((m) => m.status === 'completed');
+  const knockoutStarted = knockout.some((m) => m.status === 'live' || (m.status === 'completed' && !m.is_bye));
+  const through = tg && hasGroups ? groupQualifiers(tg, teams, matches) : [];
+  const shown = view === 'groups' && !hasGroups ? 'bracket' : view ?? (hasGroups && !knockout.length ? 'groups' : 'bracket');
   const conflicts = useMemo(() => findTeamConflicts([...data.matches.values()]), [data.matches]);
   const fit = useMemo(() => (tg && matches.length ? previewSchedule(tournament, tg, matches.filter((m) => m.status !== 'live' && m.status !== 'completed')) : null), [tournament, tg, matches]);
 
@@ -425,6 +491,16 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
     if (teams.length < 2) return setError('Add at least two players or teams first.');
     if (matches.length && !confirm('Replace the current fixtures? Any edits to them will be lost.')) return;
     void act(() => generateFixtures(tournament, tg, teams));
+  };
+
+  const startKnockout = () => {
+    if (!tg) return;
+    if (knockout.length && !confirm('Rebuild the knockout from the current group tables?')) return;
+    void act(async () => {
+      const r = await buildKnockout(tournament, tg, teams, matches);
+      setView('bracket');
+      return r;
+    });
   };
 
   const onSlotClick = (ref: SlotRef) => {
@@ -484,6 +560,23 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               {teams.length} entrants · {tg.stations} station{tg.stations > 1 ? 's' : ''} · {tg.match_minutes}+{tg.buffer_minutes} min
             </span>
           </div>
+          {hasGroups && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+              <Button
+                variant={groupsDone && !knockout.length ? 'success' : 'ghost'}
+                disabled={busy || !groupsDone || knockoutStarted}
+                onClick={startKnockout}
+                title={!groupsDone ? 'Finish every group match first' : knockoutStarted ? 'The knockout has started' : undefined}
+              >
+                {knockout.length ? 'Rebuild knockout' : 'Start knockout'}
+              </Button>
+              <span className="text-sm text-muted">
+                {groupsDone
+                  ? `Going through (best first): ${through.map(teamName).join(', ')}`
+                  : `${groupMatches.filter((m) => m.status === 'completed').length} of ${groupMatches.length} group matches played. The knockout is drawn when they are all done.`}
+              </span>
+            </div>
+          )}
           {swapMode && <p className="mt-3 text-sm text-ember">Click one player slot, then another, to swap them. Only matches that have not started can change.</p>}
           {(result ?? fit) && <FitNote result={(result ?? fit)!} tz={tournament.timezone} />}
           {conflicts.length > 0 && (
@@ -497,20 +590,24 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
       )}
 
       <div className="mb-4 flex gap-4 border-b border-line">
-        {(['bracket', 'schedule'] as const).map((v) => (
+        {(hasGroups ? (['groups', 'bracket', 'schedule'] as const) : (['bracket', 'schedule'] as const)).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`hud -mb-px border-b-2 pb-2 text-xs ${view === v ? 'border-flame text-flame' : 'border-transparent text-muted'}`}
+            className={`hud -mb-px border-b-2 pb-2 text-xs ${shown === v ? 'border-flame text-flame' : 'border-transparent text-muted'}`}
           >
-            {v}
+            {v === 'bracket' && hasGroups ? 'knockout' : v}
           </button>
         ))}
       </div>
 
       {matches.length === 0 ? (
         <Empty>No fixtures yet. Add players, then generate fixtures.</Empty>
-      ) : view === 'bracket' ? (
+      ) : shown === 'groups' && tg ? (
+        <GroupTables tg={tg} teams={teams} matches={matches} onMatchClick={(m) => setOpenMatch(m.id)} />
+      ) : shown === 'bracket' && hasGroups && !knockout.length ? (
+        <Empty>The knockout is drawn from the group tables once every group match is played.</Empty>
+      ) : shown === 'bracket' ? (
         <Bracket
           matches={matches}
           teams={data.teams}
