@@ -1,6 +1,20 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { knockoutRounds, type Game, type Match, type Team, type Tournament, type TournamentGame } from '@dlc/core';
-import { must, supabase } from './supabase';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  knockoutRounds,
+  type Game,
+  type Match,
+  type Team,
+  type Tournament,
+  type TournamentGame,
+} from "@dlc/core";
+import { must, supabase } from "./supabase";
 
 export interface LiveData {
   tournaments: Map<string, Tournament>;
@@ -18,20 +32,30 @@ const empty = (): LiveData => ({
   matches: new Map(),
 });
 
-const byId = <T extends { id: string }>(rows: T[]) => new Map(rows.map((r) => [r.id, r]));
+const byId = <T extends { id: string }>(rows: T[]) =>
+  new Map(rows.map((r) => [r.id, r]));
 
 interface Options {
   /** Limit to one tournament. Without it, every scheduled or live tournament is loaded. */
   tournamentId?: string;
   /** Called once when a played match turns completed while the page is open. */
   onMatchCompleted?: (match: Match) => void;
+  /** Also reload this often (ms), in case the realtime connection silently drops. */
+  poll?: number;
 }
+
+/** A match that finished longer ago than this is old news when a reload finds it. */
+const FRESH_MS = 3 * 60_000;
 
 /**
  * Loads tournaments, games, teams and matches, then keeps them current with
  * Supabase Realtime so the page updates the moment an admin acts.
  */
-export function useLiveData({ tournamentId, onMatchCompleted }: Options = {}) {
+export function useLiveData({
+  tournamentId,
+  onMatchCompleted,
+  poll,
+}: Options = {}) {
   const [data, setData] = useState<LiveData>(empty);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,17 +68,49 @@ export function useLiveData({ tournamentId, onMatchCompleted }: Options = {}) {
 
   const load = useCallback(async () => {
     try {
-      let tq = supabase.from('tournaments').select('*');
-      tq = tournamentId ? tq.eq('id', tournamentId) : tq.in('status', ['scheduled', 'live']);
+      let tq = supabase.from("tournaments").select("*");
+      tq = tournamentId
+        ? tq.eq("id", tournamentId)
+        : tq.in("status", ["scheduled", "live"]);
       const tournaments = must(await tq) as Tournament[];
       const ids = tournaments.map((t) => t.id);
-      const safeIds = ids.length ? ids : ['00000000-0000-0000-0000-000000000000'];
+      const safeIds = ids.length
+        ? ids
+        : ["00000000-0000-0000-0000-000000000000"];
       const [games, tgames, teams, matches] = await Promise.all([
-        supabase.from('games').select('*').then(must),
-        supabase.from('tournament_games').select('*').in('tournament_id', safeIds).then(must),
-        supabase.from('teams').select('*').in('tournament_id', safeIds).then(must),
-        supabase.from('matches').select('*').in('tournament_id', safeIds).then(must),
+        supabase.from("games").select("*").then(must),
+        supabase
+          .from("tournament_games")
+          .select("*")
+          .in("tournament_id", safeIds)
+          .then(must),
+        supabase
+          .from("teams")
+          .select("*")
+          .in("tournament_id", safeIds)
+          .then(must),
+        supabase
+          .from("matches")
+          .select("*")
+          .in("tournament_id", safeIds)
+          .then(must),
       ]);
+      // A reload can be the first news of a match that ended while realtime was down.
+      const before = dataRef.current.matches;
+      const now = Date.now();
+      for (const m of matches as Match[]) {
+        const prev = before.get(m.id);
+        if (
+          prev &&
+          prev.status !== "completed" &&
+          m.status === "completed" &&
+          !m.is_bye &&
+          m.ended_at &&
+          now - Date.parse(m.ended_at) < FRESH_MS
+        ) {
+          completedRef.current?.(m);
+        }
+      }
       setData({
         tournaments: byId(tournaments),
         games: byId(games as Game[]),
@@ -78,49 +134,112 @@ export function useLiveData({ tournamentId, onMatchCompleted }: Options = {}) {
       reloadTimer = setTimeout(() => void load(), 300);
     };
 
-    const filter = tournamentId ? `tournament_id=eq.${tournamentId}` : undefined;
-    const channel = supabase
-      .channel(`live-${tournamentId ?? 'all'}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          const id = (payload.old as { id?: string }).id;
-          if (!id) return;
-          setData((d) => {
-            const matches = new Map(d.matches);
-            matches.delete(id);
-            return { ...d, matches };
-          });
-          return;
-        }
-        const next = payload.new as Match;
-        const current = dataRef.current;
-        if (!current.tournaments.has(next.tournament_id) || !current.tgames.has(next.tournament_game_id)) {
-          reloadSoon();
-          return;
-        }
-        const prev = current.matches.get(next.id);
-        if (prev && prev.status !== 'completed' && next.status === 'completed' && !next.is_bye) {
-          completedRef.current?.(next);
-        }
-        setData((d) => ({ ...d, matches: new Map(d.matches).set(next.id, next) }));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter }, reloadSoon)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_games', filter }, reloadSoon)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tournaments', filter: tournamentId ? `id=eq.${tournamentId}` : undefined },
-        reloadSoon,
-      )
-      .subscribe((status) => {
-        // Catch up on anything missed while the connection was down.
-        if (status === 'SUBSCRIBED') reloadSoon();
-      });
+    const filter = tournamentId
+      ? `tournament_id=eq.${tournamentId}`
+      : undefined;
+    let stopped = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    // A channel that errors, times out or closes is rebuilt, then the page
+    // reloads to catch up on what it missed.
+    const subscribe = () => {
+      const ch: ReturnType<typeof supabase.channel> = supabase
+        .channel(
+          `live-${tournamentId ?? "all"}-${Math.random().toString(36).slice(2)}`,
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "matches", filter },
+          (payload) => {
+            if (payload.eventType === "DELETE") {
+              const id = (payload.old as { id?: string }).id;
+              if (!id) return;
+              setData((d) => {
+                const matches = new Map(d.matches);
+                matches.delete(id);
+                return { ...d, matches };
+              });
+              return;
+            }
+            const next = payload.new as Match;
+            const current = dataRef.current;
+            if (
+              !current.tournaments.has(next.tournament_id) ||
+              !current.tgames.has(next.tournament_game_id)
+            ) {
+              reloadSoon();
+              return;
+            }
+            const prev = current.matches.get(next.id);
+            if (
+              prev &&
+              prev.status !== "completed" &&
+              next.status === "completed" &&
+              !next.is_bye
+            ) {
+              completedRef.current?.(next);
+            }
+            setData((d) => ({
+              ...d,
+              matches: new Map(d.matches).set(next.id, next),
+            }));
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "teams", filter },
+          reloadSoon,
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "tournament_games", filter },
+          reloadSoon,
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "tournaments",
+            filter: tournamentId ? `id=eq.${tournamentId}` : undefined,
+          },
+          reloadSoon,
+        )
+        .subscribe((status) => {
+          if (stopped || channel !== ch) return;
+          // Catch up on anything missed while the connection was down.
+          if (status === "SUBSCRIBED") reloadSoon();
+          else if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            channel = null;
+            void supabase.removeChannel(ch);
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(subscribe, 3000);
+          }
+        });
+      channel = ch;
+    };
+    subscribe();
+
+    const timer = poll ? setInterval(() => void load(), poll) : undefined;
+    const onVisible = () =>
+      document.visibilityState === "visible" && reloadSoon();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", reloadSoon);
 
     return () => {
+      stopped = true;
       clearTimeout(reloadTimer);
-      void supabase.removeChannel(channel);
+      clearTimeout(retryTimer);
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", reloadSoon);
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [tournamentId, load]);
+  }, [tournamentId, load, poll]);
 
   return { data, loading, error, reload: load };
 }
