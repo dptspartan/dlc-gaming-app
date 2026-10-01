@@ -93,11 +93,11 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   const upNext = all
     .filter((m) => (m.status === 'ready' || m.status === 'pending') && !m.is_bye && m.scheduled_start)
     .sort((a, b) => a.scheduled_start!.localeCompare(b.scheduled_start!))
-    .slice(0, 8);
+    .slice(0, 3);
   const results = all
     .filter((m) => m.status === 'completed' && !m.is_bye && m.ended_at)
     .sort((a, b) => b.ended_at!.localeCompare(a.ended_at!))
-    .slice(0, 8);
+    .slice(0, 3);
 
   // Venue operators can press W to replay the latest winner announcement.
   const latest = results[0];
@@ -190,9 +190,10 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           )}
         </main>
 
-        <aside className="flex max-h-[40vh] w-full shrink-0 flex-col gap-4 overflow-y-auto lg:max-h-none lg:w-80">
+        <aside className="flex w-full shrink-0 flex-col gap-4 pb-5 lg:w-80">
           <RailList title="Up next" matches={upNext} data={data} tz={tz} gameOf={gameOf} kind="next" />
           <RailList title="Results" matches={results} data={data} tz={tz} gameOf={gameOf} kind="result" />
+          <Credits />
         </aside>
       </div>
     </div>
@@ -543,6 +544,29 @@ function Side({
         <Avatar name={name} url={url} size={size} ring={hit ? '#ffc93c' : '#ff2a4a55'} />
       </motion.div>
       <span className={`font-display w-full truncate font-bold ${big ? 'text-4xl' : compact ? 'text-base' : 'text-xl'}`}>{name}</span>
+    </div>
+  );
+}
+
+const CREDITS = [
+  ['Shoaib Rashid', 'shoaibrashid-tech'],
+  ['Afnan Hussain', 'AfnanHussain10'],
+  ['Zain Malik', 'zainuamalik'],
+];
+
+/** The people behind the app, always on the board. */
+function Credits() {
+  return (
+    <div className="panel neon-gold mt-auto px-4 py-3">
+      <div className="hud mb-2 text-center text-base text-flame glow-flame">Powered By</div>
+      <ul className="space-y-1.5">
+        {CREDITS.map(([name, handle]) => (
+          <li key={handle} className="flex items-baseline justify-between gap-2 leading-tight">
+            <span className="font-display text-[15px] font-bold whitespace-nowrap text-ink">{name}</span>
+            <span className="truncate font-mono text-xs text-ember">{handle}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
