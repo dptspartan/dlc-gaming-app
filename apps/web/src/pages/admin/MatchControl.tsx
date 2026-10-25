@@ -1,7 +1,20 @@
 import { useState } from 'react';
-import { fromZonedInput, roundName, roundsToWin, scoringLabel, toZonedInput, type Game, type Match, type Team } from '@dlc/core';
-import { Avatar, Button, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
-import { endMatch, reopenMatch, scorePoint, startMatch } from '../../lib/admin';
+import {
+  currentLeg,
+  fromZonedInput,
+  isSeries,
+  legGameId,
+  matchLabel,
+  roundsToWin,
+  scoringLabel,
+  stationLabel,
+  toZonedInput,
+  type Game,
+  type Match,
+  type Team,
+} from '@dlc/core';
+import { Avatar, Button, CallCountdown, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
+import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 
 interface Props {
@@ -10,17 +23,26 @@ interface Props {
   totalRounds: number;
   gameName: string;
   game?: Game;
+  /** Every game, for series whose legs are played on different games. */
+  games: Map<string, Game>;
   timeZone: string;
   matchMinutes: number;
+  /** Minutes called players have to reach their station. */
+  callMinutes: number;
   onClose: () => void;
 }
 
 /** Start, finish, correct and annotate one match. */
-export function MatchControl({ match, teams, totalRounds, gameName, game, timeZone, matchMinutes, onClose }: Props) {
+export function MatchControl({ match, teams, totalRounds, gameName, game: ownGame, games, timeZone, matchMinutes, callMinutes, onClose }: Props) {
   const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
   const [winner, setWinner] = useState<string | null>(match.winner_id);
+  const series = isSeries(match);
+  const leg = currentLeg(match);
+  // The leg being played decides how it is scored.
+  const game = ownGame ? games.get(legGameId(match, leg, ownGame.id)) ?? ownGame : undefined;
   const scoring = game?.scoring ?? 'none';
+  const legName = (id: string) => games.get(id)?.name ?? '';
   const [start, setStart] = useState(toZonedInput(match.scheduled_start, timeZone));
   const [station, setStation] = useState(match.station?.toString() ?? '');
   const [busy, setBusy] = useState(false);
@@ -31,6 +53,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
     setError(null);
     try {
       await fn();
+      setWinner(null);
       if (close) onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -40,10 +63,10 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
   };
 
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
-  const canEnd = (match.status === 'live' || match.status === 'ready') && a && b;
+  const canEnd = (match.status === 'live' || match.status === 'ready' || match.status === 'called') && a && b;
   const sa = match.score_a ?? 0;
   const sb = match.score_b ?? 0;
-  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match.id, side, delta));
+  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match, side, delta));
   const editableTime = match.status === 'pending' || match.status === 'ready';
 
   const saveTime = () =>
@@ -58,6 +81,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
           scheduled_start: startDate.toISOString(),
           scheduled_end: new Date(startDate.getTime() + duration).toISOString(),
           station: num(station),
+          stations: num(station) ? [num(station)] : null,
         })
         .eq('id', match.id);
       if (error) throw new Error(error.message);
@@ -70,22 +94,26 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
       if (error) throw new Error(error.message);
     });
 
-  const side = (team: Team | undefined, id: string | null) => (
-    <button
-      type="button"
-      disabled={!canEnd || !id || scoring !== 'none'}
-      onClick={() => setWinner(id)}
-      className={`glass-card flex flex-1 flex-col items-center gap-2 p-4 transition ${winner && winner === id ? 'neon-win' : ''} ${
-        canEnd && id ? 'hover:border-ember' : ''
-      }`}
-    >
-      <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
-      <span className="font-display text-center font-bold">{team?.name ?? 'TBD'}</span>
-      {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
-      {winner && winner === id && <span className="font-display text-xs text-gold">WINNER</span>}
-      {match.status === 'completed' && match.winner_id === id && scoring !== 'none' && <span className="font-display text-xs text-gold">WINNER</span>}
-    </button>
-  );
+  const side = (team: Team | undefined, id: string | null) => {
+    // A finished match marks its result; a winner-only match marks the admin's pick.
+    const won = !!id && (match.status === 'completed' ? match.winner_id === id : scoring === 'none' && winner === id);
+    const lost = match.status === 'completed' && !!id && !won;
+    return (
+      <button
+        type="button"
+        disabled={!canEnd || !id || scoring !== 'none'}
+        onClick={() => setWinner(id)}
+        className={`glass-card flex w-full min-w-0 flex-1 flex-col items-center gap-2 p-4 transition ${won ? 'neon-win' : ''} ${
+          lost ? 'opacity-50' : ''
+        } ${canEnd && id && scoring === 'none' ? 'hover:border-ember' : ''}`}
+      >
+        <Avatar name={team?.name ?? 'TBD'} url={team?.logo_url} size={56} />
+        <span className="font-display w-full truncate text-center font-bold">{team?.name ?? 'TBD'}</span>
+        {team && team.members.length > 0 && <span className="text-center text-xs text-muted">{team.members.join(', ')}</span>}
+        {won && <span className="font-display text-xs text-gold">WINNER</span>}
+      </button>
+    );
+  };
 
   const scoreButtons = (side: 'a' | 'b', value: number) =>
     canEnd && (
@@ -105,11 +133,13 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="hud text-xs text-flame glow-flame">
-              {gameName} · {roundName(match.round, totalRounds)}
+              {gameName} · {matchLabel(match, totalRounds)}
             </div>
             <div className="mt-1 flex items-center gap-3">
               <StatusPill status={match.status} />
               {match.status === 'live' && match.started_at && <Elapsed since={match.started_at} />}
+              {match.status === 'called' && match.called_at && <CallCountdown calledAt={match.called_at} minutes={callMinutes} />}
+              {match.station && <span className="font-semibold">{stationLabel(match)}</span>}
             </div>
           </div>
           <button onClick={onClose} className="text-2xl text-muted hover:text-ink" aria-label="Close">
@@ -117,11 +147,34 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
           </button>
         </div>
 
+        {series && (
+          <div className="mb-3 rounded-lg border border-line bg-black/25 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold">
+                Best of {match.best_of}
+                {match.status !== 'completed' && ` · leg ${leg + 1}: ${game?.name ?? ''}`}
+              </span>
+              <span className="font-display text-xl text-ember">
+                {match.series_a} – {match.series_b}
+              </span>
+            </div>
+            {match.legs.length > 0 && (
+              <ol className="mt-2 flex flex-col gap-0.5 text-sm text-muted">
+                {match.legs.map((l, i) => (
+                  <li key={i}>
+                    Leg {i + 1} · {legName(l.game_id)} · {teams.get(l.winner_id)?.name ?? '?'} won{l.score_a != null ? ` ${l.score_a}–${l.score_b}` : ''}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+
         {game && (
           <div className="hud mb-3 text-xs text-muted">
             {scoringLabel(game)}
-            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the match ends by itself` : ''}
-            {scoring === 'goals' ? ' · ending the match picks the higher score' : ''}
+            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the ${series ? 'leg' : 'match'} ends by itself` : ''}
+            {scoring === 'goals' ? ` · ending the ${series ? 'leg' : 'match'} picks the higher score` : ''}
           </div>
         )}
 
@@ -132,8 +185,8 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
             {side(b, match.team_b_id)}
           </div>
         ) : (
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
-            <div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
+            <div className="flex flex-col">
               {side(a, match.team_a_id)}
               {scoreButtons('a', sa)}
             </div>
@@ -142,7 +195,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
               <span className="px-2 text-flame">:</span>
               {sb}
             </div>
-            <div>
+            <div className="flex flex-col">
               {side(b, match.team_b_id)}
               {scoreButtons('b', sb)}
             </div>
@@ -152,28 +205,59 @@ export function MatchControl({ match, teams, totalRounds, gameName, game, timeZo
         <ErrorNote message={error} />
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {match.status === 'ready' && (
-            <Button disabled={busy} onClick={() => run(() => startMatch(match.id))}>
+          {match.status === 'ready' && match.station && a && b && (
+            <Button disabled={busy} onClick={() => run(() => callMatch(match, match.station!))}>
+              Call players to station {match.station}
+            </Button>
+          )}
+          {(match.status === 'ready' || match.status === 'called') && (
+            <Button variant={match.status === 'called' ? 'primary' : 'ghost'} disabled={busy} onClick={() => run(() => startMatch(match))}>
               Start match
             </Button>
           )}
+          {match.status === 'called' && (
+            <>
+              <Button variant="ghost" disabled={busy} onClick={() => run(() => uncallMatch(match, 10), true)}>
+                Skip 10 min
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => run(() => uncallMatch(match, 0), true)}>
+                Cancel call
+              </Button>
+            </>
+          )}
           {canEnd && scoring === 'none' && (
-            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match.id, winner!), true)}>
-              {winner ? 'End & set winner' : 'Pick a winner'}
+            <Button variant="success" disabled={busy || !winner} onClick={() => run(() => endMatch(match, winner!), !series)}>
+              {!winner ? 'Pick a winner' : series ? `End leg ${leg + 1}` : 'End & set winner'}
             </Button>
           )}
           {canEnd && scoring === 'goals' && (
-            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match.id), true)}>
-              {sa === sb ? 'Level, add the deciding goal' : `End match, ${sa > sb ? a?.name : b?.name} wins`}
+            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match), !series)}>
+              {sa === sb ? 'Level, add the deciding goal' : `End ${series ? `leg ${leg + 1}` : 'match'}, ${sa > sb ? a?.name : b?.name} wins`}
             </Button>
           )}
           {match.status === 'completed' && !match.is_bye && (
-            <Button variant="danger" disabled={busy} onClick={() => confirm('Undo this result?') && run(() => reopenMatch(match.id))}>
+            <Button variant="danger" disabled={busy} onClick={() => confirm('Undo this result?') && run(() => reopenMatch(match))}>
               Reopen result
+            </Button>
+          )}
+          {match.status === 'live' && match.legs.length > 0 && (
+            <Button variant="ghost" disabled={busy} onClick={() => confirm('Undo the last leg?') && run(() => reopenMatch(match))}>
+              Undo last leg
             </Button>
           )}
           {match.status === 'pending' && <span className="text-muted">Waiting for earlier matches to finish.</span>}
         </div>
+
+        {canEnd && (series || scoring !== 'none') && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-sm text-muted">
+            <span>No-show? Give the {series ? 'series' : 'match'} to</span>
+            {[a, b].map((t) => (
+              <Button key={t!.id} variant="ghost" disabled={busy} onClick={() => confirm(`${t!.name} wins by walkover?`) && run(() => endMatch(match, t!.id, true), true)}>
+                {t!.name}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {!match.is_bye && (
           <div className="mt-6 border-t border-line pt-4">

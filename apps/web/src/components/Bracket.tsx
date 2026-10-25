@@ -1,5 +1,5 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { formatDay, formatTime, roundName, type Match, type Slot, type Team } from '@dlc/core';
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { formatDay, formatTime, matchLabel, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -18,69 +18,45 @@ interface Props {
   selectedSlot?: SlotRef | null;
 }
 
-export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
-  const boardRef = useRef<HTMLDivElement>(null);
-  const [flowPaths, setFlowPaths] = useState<string[]>([]);
+export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
+  // Group matches have their own tables; the bracket is the knockout only.
+  const upper = all.filter((m) => m.stage === 'knockout');
+  if (upper.length === 0) return null;
+  // Loser bracket slots nobody can reach are left out.
+  const lower = all.filter((m) => m.stage === 'losers' && !(m.is_bye && m.status === 'completed' && !m.team_a_id && !m.team_b_id));
+  const total = Math.max(...upper.map((m) => m.round));
+  const shared = { teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot };
 
-  const updateFlowPaths = useCallback(() => {
-    const board = boardRef.current;
-    if (!board) return;
-
-    const boardRect = board.getBoundingClientRect();
-    const cards = [...board.querySelectorAll<HTMLElement>('[data-bracket-round][data-bracket-index]')];
-    const rounds = new Map<number, HTMLElement[]>();
-    for (const card of cards) {
-      const round = Number(card.dataset.bracketRound);
-      rounds.set(round, [...(rounds.get(round) ?? []), card]);
-    }
-
-    const nextPaths: string[] = [];
-    for (let round = 0; round < Math.max(...rounds.keys()); round += 1) {
-      const sources = (rounds.get(round) ?? []).sort((a, b) => Number(a.dataset.bracketIndex) - Number(b.dataset.bracketIndex));
-      const targets = (rounds.get(round + 1) ?? []).sort((a, b) => Number(a.dataset.bracketIndex) - Number(b.dataset.bracketIndex));
-
-      sources.forEach((source, sourceIndex) => {
-        const winnerId = source.dataset.bracketWinnerId;
-        if (!winnerId || source.dataset.bracketStatus === 'pending') return;
-
-        const winningRow = [...source.querySelectorAll<HTMLElement>('[data-bracket-team-id]')]
-          .find((row) => row.dataset.bracketTeamId === winnerId);
-        const target = targets[Math.floor(sourceIndex / 2)];
-        const targetSlot = target?.querySelector<HTMLElement>(`[data-bracket-slot="${sourceIndex % 2 === 0 ? 'a' : 'b'}"]`);
-        if (!winningRow || !target || !targetSlot) return;
-
-        const sourceRect = winningRow.getBoundingClientRect();
-        const targetRect = targetSlot.getBoundingClientRect();
-        const startX = sourceRect.right - boardRect.left;
-        const startY = sourceRect.top + sourceRect.height / 2 - boardRect.top;
-        const endX = targetRect.left - boardRect.left;
-        const endY = targetRect.top + targetRect.height / 2 - boardRect.top;
-        const handle = Math.max(12, (endX - startX) * 0.55);
-        nextPaths.push(`M ${startX} ${startY} C ${startX + handle} ${startY}, ${endX - handle} ${endY}, ${endX} ${endY}`);
-      });
-    }
-
-    setFlowPaths((current) => current.join('|') === nextPaths.join('|') ? current : nextPaths);
-  }, []);
-
-  useLayoutEffect(() => {
-    const board = boardRef.current;
-    if (!board) return;
-
-    updateFlowPaths();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(updateFlowPaths);
-    observer.observe(board);
-    board.querySelectorAll<HTMLElement>('[data-bracket-round][data-bracket-index]').forEach((card) => observer.observe(card));
-    return () => observer.disconnect();
-  }, [matches, updateFlowPaths]);
-
-  if (matches.length === 0) return null;
-  const total = Math.max(...matches.map((m) => m.round));
-  const rounds = Array.from({ length: total }, (_, i) =>
-    matches.filter((m) => m.round === i + 1).sort((a, b) => a.position - b.position),
+  if (!all.some((m) => m.stage === 'losers')) return <Rounds matches={upper} total={total} {...shared} />;
+  return (
+    <div className="space-y-4">
+      <div className="hud text-sm text-ink">Upper bracket</div>
+      <Rounds matches={upper} total={total} {...shared} />
+      <div className="hud text-sm text-ink">Lower bracket</div>
+      <p className="-mt-2 text-sm text-muted">A first loss drops a player down here; a second one knocks them out. The winner plays the final.</p>
+      <Rounds matches={lower} total={total} {...shared} />
+    </div>
   );
+}
 
+function Rounds({
+  matches,
+  total,
+  ...shared
+}: {
+  matches: Match[];
+  total: number;
+  teams: Map<string, Team>;
+  timeZone: string;
+  onClick?: (m: Match) => void;
+  onSlotClick?: (ref: SlotRef) => void;
+  selectedSlot?: SlotRef | null;
+}) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flowPaths = useFlowPaths(boardRef, matches);
+  const rounds = [...new Set(matches.map((m) => m.round))]
+    .sort((a, b) => a - b)
+    .map((r) => matches.filter((m) => m.round === r).sort((a, b) => a.position - b.position));
   return (
     <div className="overflow-x-auto pb-4">
       <div className="bracket-board relative flex min-w-max gap-20" ref={boardRef}>
@@ -90,38 +66,84 @@ export function Bracket({ matches, teams, timeZone, onMatchClick, onSlotClick, s
           </svg>
         )}
         {rounds.map((list, i) => (
-          <div key={i} className={`bracket-round-column relative flex w-64 flex-col ${i < total - 1 ? 'bracket-stage-divider' : ''}`}>
-            <div className="hud bracket-round-title mb-3 text-center text-xs text-flame glow-flame">
-              {roundName(i + 1, total)}
-            </div>
+          <div
+            key={list[0].round}
+            className={`bracket-round-column relative flex w-64 flex-col ${i < rounds.length - 1 ? 'bracket-stage-divider' : ''}`}
+          >
+            <div className="hud bracket-round-title mb-3 text-center text-xs text-flame glow-flame">{matchLabel(list[0], total)}</div>
             <div className="flex flex-1 flex-col justify-around gap-3">
-              {list.map((m, matchIndex) => (
-                <div
-                  key={m.id}
-                  className={i === total - 1 && matchIndex === 0 ? 'bracket-final-slot' : undefined}
-                  data-bracket-round={i}
-                  data-bracket-index={matchIndex}
-                  data-bracket-winner-id={m.winner_id ?? ''}
-                  data-bracket-status={m.status}
-                >
-                  <BracketMatch
-                    match={m}
-                    teams={teams}
-                    timeZone={timeZone}
-                    onClick={onMatchClick}
-                    onSlotClick={onSlotClick}
-                    selectedSlot={selectedSlot}
-                    isLast={i === total - 1}
-                  />
-                  {i === total - 1 && matchIndex === 0 && <img className="bracket-final-trophy" src={trophySticker} alt="" aria-hidden="true" />}
-                </div>
-              ))}
+              {list.map((m) => {
+                const isFinal = m.stage === 'knockout' && !m.next_match_id;
+                return (
+                  <div
+                    key={m.id}
+                    className={isFinal ? 'bracket-final-slot' : undefined}
+                    data-bracket-match-id={m.id}
+                    data-bracket-winner-id={m.winner_id ?? ''}
+                    data-bracket-status={m.status}
+                  >
+                    <BracketMatch match={m} {...shared} isLast={isFinal} />
+                    {isFinal && <img className="bracket-final-trophy" src={trophySticker} alt="" aria-hidden="true" />}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+/**
+ * Curves from each decided match's winner row to the slot it advanced into,
+ * measured from the rendered cards. Only the dlc-labs theme shows them.
+ */
+function useFlowPaths(boardRef: RefObject<HTMLDivElement | null>, matches: Match[]) {
+  const [flowPaths, setFlowPaths] = useState<string[]>([]);
+
+  const update = useCallback(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const boardRect = board.getBoundingClientRect();
+    const cards = new Map(
+      [...board.querySelectorAll<HTMLElement>('[data-bracket-match-id]')].map((card) => [card.dataset.bracketMatchId!, card]),
+    );
+
+    const next: string[] = [];
+    for (const m of matches) {
+      if (!m.winner_id || !m.next_match_id || !m.next_slot || m.status === 'pending') continue;
+      const source = cards.get(m.id);
+      const target = cards.get(m.next_match_id);
+      const winningRow = source?.querySelector<HTMLElement>(`[data-bracket-team-id="${m.winner_id}"]`);
+      const targetSlot = target?.querySelector<HTMLElement>(`[data-bracket-slot="${m.next_slot}"]`);
+      if (!winningRow || !targetSlot) continue;
+
+      const sourceRect = winningRow.getBoundingClientRect();
+      const targetRect = targetSlot.getBoundingClientRect();
+      const startX = sourceRect.right - boardRect.left;
+      const startY = sourceRect.top + sourceRect.height / 2 - boardRect.top;
+      const endX = targetRect.left - boardRect.left;
+      const endY = targetRect.top + targetRect.height / 2 - boardRect.top;
+      const handle = Math.max(12, (endX - startX) * 0.55);
+      next.push(`M ${startX} ${startY} C ${startX + handle} ${startY}, ${endX - handle} ${endY}, ${endX} ${endY}`);
+    }
+
+    setFlowPaths((current) => (current.join('|') === next.join('|') ? current : next));
+  }, [boardRef, matches]);
+
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(board);
+    board.querySelectorAll<HTMLElement>('[data-bracket-match-id]').forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [boardRef, update]);
+
+  return flowPaths;
 }
 
 function BracketMatch({

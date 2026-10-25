@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="bg" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050505"/><stop offset=".5" stop-color="#3a0412" stop-opacity=".7"/><stop offset="1" stop-color="#ff2a4a" stop-opacity=".7"/></linearGradient>
+<filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#000" opacity=".22"/></pattern>
+</defs>
+<rect width="640" height="360" fill="#050505"/>
+<rect width="640" height="360" fill="url(#bg)"/>
+<g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+ <circle cx="220" cy="180" r="90" stroke="#ff1e2d" stroke-width="6"/>
+ <path d="M150 180 Q220 120 290 180 Q220 240 150 180" stroke="#ff2a4a" stroke-width="4"/>
+ <circle cx="220" cy="180" r="22" stroke="#ffc93c" stroke-width="5"/>
+ <path d="M330 120 L600 90 M340 180 L620 180 M330 240 L600 270" stroke="#ff2a4a" stroke-width="4" opacity=".8"/>
+ <path d="M420 60 L470 150 L440 150 L500 300" stroke="#ffc93c" stroke-width="4"/>
+</g>
+<rect width="640" height="360" fill="url(#scan)"/>
+</svg>

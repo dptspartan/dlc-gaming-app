@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { roundName, type Match } from '@dlc/core';
+import { isFinal, matchLabel, type Match } from '@dlc/core';
 import { useLookups, type LiveData } from '../lib/useLiveData';
+import { playSfx } from '../lib/sfx';
 import { Avatar } from './ui';
 
 const SHOW_MS = 6500;
@@ -17,10 +18,11 @@ export function useWinnerQueue() {
 
 export function WinnerOverlay({ match, data, onDone }: { match: Match | null; data: LiveData; onDone: () => void }) {
   const { roundsByTg, gameOf } = useLookups(data);
-  const champion = match ? !match.next_match_id : false;
+  const champion = match ? isFinal(match) : false;
 
   useEffect(() => {
     if (!match) return;
+    playSfx(champion ? 'champion' : 'win');
     const t = setTimeout(onDone, champion ? CHAMPION_MS : SHOW_MS);
     return () => clearTimeout(t);
   }, [match, champion, onDone]);
@@ -66,7 +68,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {tournament?.name} · {game?.name} · {roundName(latest.round, total)}
+              {tournament?.name} · {game?.name} · {matchLabel(latest, total)}
             </motion.div>
 
             <motion.div
@@ -170,13 +172,27 @@ export function Glitch({ text }: { text: string }) {
   );
 }
 
-export function Particles({ color, count, spread = 600 }: { color: string; count: number; spread?: number }) {
+export function Particles({
+  color,
+  count,
+  spread = 600,
+  delay = 0.5,
+  jitter = 0.6,
+  duration = 2.2,
+}: {
+  color: string;
+  count: number;
+  spread?: number;
+  delay?: number;
+  jitter?: number;
+  duration?: number;
+}) {
   const [parts] = useState(() =>
     Array.from({ length: count }, () => ({
       angle: Math.random() * Math.PI * 2,
       dist: spread / 3 + Math.random() * spread,
       size: 3 + Math.random() * 7,
-      delay: 0.5 + Math.random() * 0.6,
+      delay: delay + Math.random() * jitter,
       tint: Math.random() > 0.5 ? color : Math.random() > 0.5 ? '#ff2a4a' : '#ff1e2d',
     })),
   );
@@ -189,7 +205,7 @@ export function Particles({ color, count, spread = 600 }: { color: string; count
           style={{ width: p.size, height: p.size, background: p.tint, boxShadow: `0 0 10px ${p.tint}` }}
           initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
           animate={{ x: Math.cos(p.angle) * p.dist, y: Math.sin(p.angle) * p.dist, opacity: 0, rotate: 360 }}
-          transition={{ duration: 2.2, delay: p.delay, ease: 'easeOut' }}
+          transition={{ duration, delay: p.delay, ease: 'easeOut' }}
         />
       ))}
     </div>

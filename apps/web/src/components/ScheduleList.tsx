@@ -1,4 +1,4 @@
-import { formatDay, formatTime, roundName, type Match, type Team } from '@dlc/core';
+import { formatDay, formatTime, knockoutRounds, matchLabel, type Match, type Team } from '@dlc/core';
 import { Avatar, Empty, StatusPill } from './ui';
 
 export function ScheduleList({
@@ -15,8 +15,7 @@ export function ScheduleList({
   label?: (m: Match) => string;
   onMatchClick?: (m: Match) => void;
 }) {
-  const totalByTg = new Map<string, number>();
-  for (const m of matches) totalByTg.set(m.tournament_game_id, Math.max(totalByTg.get(m.tournament_game_id) ?? 0, m.round));
+  const totalByTg = knockoutRounds(matches);
 
   const list = matches
     .filter((m) => !m.is_bye)
@@ -47,7 +46,7 @@ export function ScheduleList({
                 <span className="font-mono text-sm text-ember glow-ember">{formatTime(m.scheduled_start, timeZone)}</span>
                 <span className="hidden truncate text-sm text-muted sm:block">
                   {label ? `${label(m)} · ` : ''}
-                  {roundName(m.round, totalByTg.get(m.tournament_game_id) ?? m.round)}
+                  {matchLabel(m, totalByTg.get(m.tournament_game_id) ?? m.round)}
                   {m.station ? ` · Stn ${m.station}` : ''}
                 </span>
                 <span className="flex min-w-0 items-center gap-2">

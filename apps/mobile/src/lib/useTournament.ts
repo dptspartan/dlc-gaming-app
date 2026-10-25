@@ -1,4 +1,4 @@
-import type { Game, Match, Team, Tournament, TournamentGame } from '@dlc/core';
+import type { Game, Match, StationMaster, Team, Tournament, TournamentGame } from '@dlc/core';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
@@ -8,9 +8,11 @@ export interface TournamentData {
   games: Map<string, Game>;
   teams: Map<string, Team>;
   matches: Match[];
+  /** Game master per station. */
+  masters: StationMaster[];
 }
 
-const empty: TournamentData = { tournament: null, tgames: [], games: new Map(), teams: new Map(), matches: [] };
+const empty: TournamentData = { tournament: null, tgames: [], games: new Map(), teams: new Map(), matches: [], masters: [] };
 
 /** One tournament's games, teams and matches, kept live with Supabase Realtime. */
 export function useTournament(id: string) {
@@ -19,14 +21,15 @@ export function useTournament(id: string) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [t, tg, g, tm, m] = await Promise.all([
+    const [t, tg, g, tm, m, sm] = await Promise.all([
       supabase.from('tournaments').select('*').eq('id', id).single(),
       supabase.from('tournament_games').select('*').eq('tournament_id', id),
       supabase.from('games').select('*'),
       supabase.from('teams').select('*').eq('tournament_id', id),
       supabase.from('matches').select('*').eq('tournament_id', id),
+      supabase.from('station_masters').select('*').eq('tournament_id', id),
     ]);
-    const err = t.error ?? tg.error ?? g.error ?? tm.error ?? m.error;
+    const err = t.error ?? tg.error ?? g.error ?? tm.error ?? m.error ?? sm.error;
     if (err) setError(err.message);
     else {
       setError(null);
@@ -36,6 +39,7 @@ export function useTournament(id: string) {
         games: new Map((g.data as Game[]).map((x) => [x.id, x])),
         teams: new Map((tm.data as Team[]).map((x) => [x.id, x])),
         matches: m.data as Match[],
+        masters: sm.data as StationMaster[],
       });
     }
     setLoading(false);
@@ -52,6 +56,8 @@ export function useTournament(id: string) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `tournament_id=eq.${id}` }, () => void load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_games', filter: `tournament_id=eq.${id}` }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'station_masters', filter: `tournament_id=eq.${id}` }, () => void load())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${id}` }, () => void load())
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') void load();
       });

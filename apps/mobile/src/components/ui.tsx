@@ -1,9 +1,10 @@
-import { elapsed, statusColor, theme } from '@dlc/core';
+import { countdown, elapsed, statusColor, statusLabel, theme } from '@dlc/core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-export const colors = theme;
+/** Brighter secondary text than the web board: this app is read at arm's length in a noisy venue. */
+export const colors = { ...theme, muted: '#c9bcbe' };
 
 const mono = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
@@ -70,7 +71,7 @@ export function Button({
       {busy ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text style={[styles.buttonText, { color: fg, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: variant === 'primary' ? 6 : 0 }]}>{title.toUpperCase()}</Text>
+        <Text style={[styles.buttonText, { color: fg, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: variant === 'primary' ? 6 : 0 }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -80,7 +81,7 @@ export function Pill({ status }: { status: string }) {
   const color = statusColor[status] ?? theme.muted;
   return (
     <View style={[styles.pill, { borderColor: color, backgroundColor: `${color}1f`, shadowColor: color, shadowOpacity: 0.6, shadowRadius: 6 }]}>
-      <Text style={[styles.pillText, { color }]}>{status.toUpperCase()}</Text>
+      <Text style={[styles.pillText, { color }]}>{statusLabel[status] ?? status}</Text>
     </View>
   );
 }
@@ -100,12 +101,28 @@ export function Avatar({ name, url, size = 40 }: { name: string; url?: string | 
   );
 }
 
-export function Elapsed({ since }: { since: string }) {
+export function useNow() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+  return now;
+}
+
+/** Time left for called players to reach the station; red once they are late. */
+export function CallCountdown({ calledAt, minutes, size = 18 }: { calledAt: string; minutes: number; size?: number }) {
+  const now = useNow();
+  const left = Math.round((new Date(calledAt).getTime() + minutes * 60_000 - now) / 1000);
+  return (
+    <Text style={{ color: left < 0 ? theme.red : theme.gold, fontSize: size, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+      {left < 0 ? `late ${countdown(-left)}` : countdown(left)}
+    </Text>
+  );
+}
+
+export function Elapsed({ since }: { since: string }) {
+  const now = useNow();
   return (
     <Text style={{ color: theme.ember, fontFamily: mono, fontWeight: '700', fontVariant: ['tabular-nums'], textShadowColor: theme.ember, textShadowRadius: 8 }}>
       {elapsed(since, now)}
@@ -119,10 +136,10 @@ export function ErrorText({ message }: { message: string | null }) {
 }
 
 export const styles = StyleSheet.create({
-  button: { paddingVertical: 13, paddingHorizontal: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, overflow: 'visible' },
-  buttonText: { fontWeight: '900', letterSpacing: 2.5, fontSize: 13 },
+  button: { paddingVertical: 15, paddingHorizontal: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, overflow: 'visible' },
+  buttonText: { fontWeight: '800', letterSpacing: 0.2, fontSize: 16 },
   pill: { borderWidth: 1, paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', borderRadius: 999 },
-  pillText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, fontFamily: mono },
+  pillText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
   avatar: { backgroundColor: 'rgba(255,42,74,0.14)', borderColor: 'rgba(255,42,74,0.35)', borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   card: {
     backgroundColor: theme.glass,
@@ -134,11 +151,12 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
   },
+  cardCalled: { borderColor: theme.gold, backgroundColor: 'rgba(255,201,60,0.07)', shadowColor: theme.gold, shadowOpacity: 0.45, shadowRadius: 16, elevation: 6 },
   cardLive: { borderColor: theme.flame, backgroundColor: 'rgba(255,30,45,0.08)', shadowColor: theme.flame, shadowOpacity: 0.55, shadowRadius: 18, elevation: 8 },
   h1: { color: theme.ember, fontSize: 22, fontWeight: '900', letterSpacing: 3, textShadowColor: theme.ember, textShadowRadius: 14 },
-  label: { color: theme.ember, opacity: 0.85, fontSize: 11, fontWeight: '700', letterSpacing: 2.5, marginBottom: 6, fontFamily: mono },
+  label: { color: theme.text, opacity: 0.7, fontSize: 13, fontWeight: '800', letterSpacing: 0.6, marginBottom: 6 },
   text: { color: theme.text, fontSize: 16 },
-  muted: { color: theme.muted, fontSize: 14 },
+  muted: { color: '#c9bcbe', fontSize: 15 },
   mono: { fontFamily: mono, letterSpacing: 1.5 },
   input: {
     backgroundColor: 'rgba(7,4,3,0.6)',

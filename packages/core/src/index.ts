@@ -5,3 +5,7 @@ export * from './time';
 export * from './layout';
 export * from './theme';
 export * from './scoring';
+export * from './groups';
+export * from './timetable';
+export * from './plan';
+export * from './double';

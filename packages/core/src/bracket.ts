@@ -14,6 +14,8 @@ export interface MatchDraft {
   team_b_id: string | null;
   next_match_id: string | null;
   next_slot: Slot | null;
+  loser_next_match_id?: string | null;
+  loser_next_slot?: Slot | null;
   status: MatchStatus;
   is_bye: boolean;
   winner_id: string | null;
