@@ -32,9 +32,11 @@ jobs:
       - uses: supabase/setup-cli@v1
         if: steps.secrets.outputs.ok == 'true'
         with:
-          version: latest
+          # Pinned: "latest" is looked up through the GitHub API on every run and
+          # fails when that is rate limited. Bump it deliberately.
+          version: 2.122.0
       - name: Push migrations
         if: steps.secrets.outputs.ok == 'true'
         run: |
           supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
