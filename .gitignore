@@ -6,3 +6,6 @@ dist/
 .env.local
 apps/mobile/ios/
 apps/mobile/android/
+.pnpm-store/
+supabase/.branches/
+supabase/.temp/
