@@ -5,25 +5,38 @@ type ThemeContextValue = { theme: ThemeId; setTheme: (theme: ThemeId) => void };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// The DLC × dubizzleLabs theme is the default. Only an explicit pick from the
+// switch is stored; the old "dlc-theme" key was written on every visit, so it
+// is ignored rather than read as a choice.
+const STORAGE_KEY = 'dlc-theme-choice';
+
 function readTheme(): ThemeId {
   try {
-    return localStorage.getItem('dlc-theme') === 'dlc-labs' ? 'dlc-labs' : 'classic';
+    return localStorage.getItem(STORAGE_KEY) === 'classic' ? 'classic' : 'dlc-labs';
   } catch {
-    return 'classic';
+    return 'dlc-labs';
   }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<ThemeId>(readTheme);
+  const [theme, setThemeState] = useState<ThemeId>(readTheme);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem('dlc-theme', theme);
-    } catch {
-      // The theme remains switchable for this session when storage is unavailable.
-    }
   }, [theme]);
-  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+  const value = useMemo(
+    () => ({
+      theme,
+      setTheme: (next: ThemeId) => {
+        setThemeState(next);
+        try {
+          localStorage.setItem(STORAGE_KEY, next);
+        } catch {
+          // The theme remains switchable for this session when storage is unavailable.
+        }
+      },
+    }),
+    [theme],
+  );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

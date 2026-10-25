@@ -1,6 +1,6 @@
 # Design System — DLC Gaming Club × dubizzleLabs
 
-This file covers the **dlc-labs** theme (`<html data-theme="dlc-labs">`). The classic neon theme stays the default and is out of scope here. Every dlc-labs rule lives in `apps/web/src/index.css` under `:root[data-theme="dlc-labs"]`, so classic never picks it up. The brand source is `dlcgaming-assets/asset_board.png`.
+This file covers the **dlc-labs** theme (`<html data-theme="dlc-labs">`). It is the default theme. The classic neon theme stays available from the header switch, and is out of scope here. Every dlc-labs rule lives in `apps/web/src/index.css` under `:root[data-theme="dlc-labs"]`, so classic never picks it up. The brand source is `dlcgaming-assets/asset_board.png`.
 
 ## Product Context
 - **What this is:** Live tournament tracker for the DLC Gaming Club office events: brackets, groups, stations, a venue live board and an organizer control room.
@@ -74,4 +74,5 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-25 | Anton + Barlow Condensed, loaded from Google Fonts | Impact and Arial Narrow aren't on most phones, and the Orbitron / Share Tech Mono leftovers from classic read as sci-fi rather than the zine brand. |
 | 2026-10-25 | Live board sized to the viewport | Scores were about 40px on a 1080p TV, too small to read across the venue. |
 | 2026-10-25 | Cup page: game picker cards, paper view switch, champion poster, ghost byes | The controls stacked four rows deep with red on secondary navigation, and the champion got the least design on the page. |
+| 2026-10-25 | dlc-labs is the default theme | Classic is opt-in from the switch; only an explicit pick is stored (`dlc-theme-choice`). |
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |

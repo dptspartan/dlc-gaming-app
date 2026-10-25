@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dlc-labs">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -9,6 +9,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <title>DLC Gaming Club</title>
+    <script>
+      // Apply a stored classic pick before first paint; dlc-labs is the default.
+      try {
+        if (localStorage.getItem("dlc-theme-choice") === "classic") document.documentElement.dataset.theme = "classic";
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
