@@ -1,6 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 export type ThemeId = 'classic' | 'dlc-labs';
+
+/**
+ * Set at build time (VITE_THEME_LOCK=dlc-labs or classic) to ship a single
+ * theme: no switcher, and any stored pick is ignored. vite.config.ts rejects
+ * other values. Unset, the theme is switchable.
+ */
+export const LOCKED_THEME: ThemeId | null =
+  import.meta.env.VITE_THEME_LOCK === 'classic' || import.meta.env.VITE_THEME_LOCK === 'dlc-labs'
+    ? import.meta.env.VITE_THEME_LOCK
+    : null;
 type ThemeContextValue = { theme: ThemeId; setTheme: (theme: ThemeId) => void };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -11,6 +21,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'dlc-theme-choice';
 
 function readTheme(): ThemeId {
+  if (LOCKED_THEME) return LOCKED_THEME;
   try {
     return localStorage.getItem(STORAGE_KEY) === 'classic' ? 'classic' : 'dlc-labs';
   } catch {
@@ -27,6 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => ({
       theme,
       setTheme: (next: ThemeId) => {
+        if (LOCKED_THEME) return;
         setThemeState(next);
         try {
           localStorage.setItem(STORAGE_KEY, next);
@@ -49,6 +61,7 @@ export function useTheme() {
 /** Header pill that flips between the classic and DLC × dubizzleLabs themes. */
 export function ThemeSwitch({ className = '' }: { className?: string }) {
   const { theme, setTheme } = useTheme();
+  if (LOCKED_THEME) return null;
   return (
     <button
       type="button"
