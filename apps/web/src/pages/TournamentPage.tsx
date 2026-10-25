@@ -166,7 +166,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
               <button
                 key={g.id}
                 onClick={() => setTab(g.id)}
-                className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur transition ${
+                className={`game-tab font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur transition ${
                   g.id === tab
                     ? "border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,42,74,0.35)]"
                     : "border-line bg-white/5 text-muted hover:text-ink"
@@ -227,7 +227,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                   <button
                     key={v}
                     onClick={() => setView(v)}
-                    className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${shown === v ? "border-flame text-flame glow-flame" : "border-transparent text-muted hover:text-ink"}`}
+                    className={`view-tab hud -mb-px border-b-2 px-1 pb-2 text-xs ${shown === v ? "border-flame text-flame glow-flame" : "border-transparent text-muted hover:text-ink"}`}
                   >
                     {v === "players"
                       ? game?.team_size === 1

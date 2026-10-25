@@ -1564,3 +1564,30 @@ input[type="file"]::file-selector-button {
     padding-inline: 0.5rem;
   }
 }
+
+/* Phones: every tap target is at least 44px tall. */
+@media (max-width: 640px) {
+  header nav > a,
+  main a[href$="/live"],
+  .tab,
+  .view-tab,
+  .view-toggle,
+  .game-tab {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .view-tab {
+    padding-bottom: 0;
+  }
+  /* The pill keeps its size; an invisible halo makes it a 44px target. */
+  .theme-switch {
+    position: relative;
+  }
+  .theme-switch::before {
+    content: "";
+    position: absolute;
+    inset: -11px -4px;
+  }
+}
