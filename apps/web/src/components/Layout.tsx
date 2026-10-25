@@ -24,9 +24,6 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
                 <span className="live-dot" style={{ width: 8, height: 8 }} /> Live
               </span>
             </NavLink>
-            <NavLink to="/admin" className={nav}>
-              Admin
-            </NavLink>
             <ThemeSwitch className="ml-1 sm:ml-3" />
           </nav>
         </div>
