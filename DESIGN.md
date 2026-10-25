@@ -45,6 +45,11 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 - **State edge:** an inset 4–6px bar on the left of a card. Red for live, amber for called, gold for winner/final.
 - **Sticker avatar:** rounded square, 4–6px white outline, hard offset shadow, rotated ±4–5°.
 - **Stickers and mascot:** die-cut PNGs from `apps/web/src/assets/dlc/` with a drop shadow. At most one per card, on a corner, and at most one mascot per screen.
+- **Game picker:** a card per game with its cover art and name in Anton, plus a small LIVE (red) or DONE (grey) tape. The selected game is a cream paper card rotated −1°. On phones it is one swipeable row.
+- **Secondary navigation** (the Games/Stations view switch, sub-tabs): paper or underline treatments. Never solid red, because red is only for live state and primary actions.
+- **Meta chips:** outlined pills in Barlow Condensed for format, duration, stations and player count.
+- **Champion poster:** a cream paper banner with a red CHAMPION tape, the name in big Anton, the trophy sticker on the left and the mascot on the right.
+- **Byes:** a faint dashed slot with no paper header. A bye is a placeholder, not a match.
 - **Buttons:** primary is solid red; secondary is surface with a line border; ghost is text-only. 6px radius. No gradients.
 - **Badges:** pill with a 1.5px border. LIVE is a solid red fill with a white dot.
 
@@ -68,4 +73,5 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-25 | Initial dlc-labs design system | Created by /design-consultation from the brand board. Goal: a fun office event, with the live board as the priority surface. |
 | 2026-10-25 | Anton + Barlow Condensed, loaded from Google Fonts | Impact and Arial Narrow aren't on most phones, and the Orbitron / Share Tech Mono leftovers from classic read as sci-fi rather than the zine brand. |
 | 2026-10-25 | Live board sized to the viewport | Scores were about 40px on a 1080p TV, too small to read across the venue. |
+| 2026-10-25 | Cup page: game picker cards, paper view switch, champion poster, ghost byes | The controls stacked four rows deep with red on secondary navigation, and the champion got the least design on the page. |
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |

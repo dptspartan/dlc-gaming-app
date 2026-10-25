@@ -1216,8 +1216,8 @@ input[type="file"]::file-selector-button {
 }
 
 :root[data-theme="dlc-labs"] .view-toggle[aria-pressed="true"] {
-  background: var(--dlc-red);
-  color: white;
+  background: var(--dlc-paper);
+  color: var(--dlc-ink);
 }
 
 /* Scores, timers and VS on the new boards set in the editorial display face. */
@@ -1637,4 +1637,242 @@ input[type="file"]::file-selector-button {
     padding: 1.5rem 1rem 1rem;
     text-align: center;
   }
+}
+
+/* ------------------------------------------------------------------------
+   DLC × dubizzleLabs: cup page. Game picker cards, quiet view switch, meta
+   chips, champion poster, sticker avatars, ghost byes.
+   ------------------------------------------------------------------------ */
+
+.game-tab-cover,
+.champion-trophy,
+.champion-mascot {
+  display: none;
+}
+
+/* View switch: secondary navigation, so paper on charcoal instead of red. */
+:root[data-theme="dlc-labs"] .view-switch {
+  background: transparent;
+  border-color: rgba(241, 238, 229, 0.22);
+  border-radius: 8px;
+  padding: 3px;
+}
+:root[data-theme="dlc-labs"] .view-toggle {
+  white-space: nowrap;
+  border-radius: 6px;
+  font-family: var(--dlc-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Game picker: cover art + name, the selected game is a cream paper card. */
+:root[data-theme="dlc-labs"] .game-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 56px;
+  padding: 0.4rem 1rem 0.4rem 0.4rem;
+  border-radius: 10px;
+  border-color: rgba(241, 238, 229, 0.2) !important;
+  background: #171717 !important;
+  color: var(--dlc-paper) !important;
+  font-family: var(--dlc-display);
+  font-weight: 400;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  transition:
+    transform 120ms ease-out,
+    background-color 120ms ease-out;
+}
+:root[data-theme="dlc-labs"] .game-tab:hover {
+  transform: translateY(-1px);
+}
+:root[data-theme="dlc-labs"] .game-tab[aria-pressed="true"] {
+  background: var(--dlc-paper) !important;
+  border-color: var(--dlc-paper) !important;
+  color: var(--dlc-ink) !important;
+  transform: rotate(-1deg);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.45) !important;
+}
+:root[data-theme="dlc-labs"] .game-tab-cover {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  object-fit: cover;
+  background: #0e0e0e;
+}
+:root[data-theme="dlc-labs"] .game-tab .live-dot {
+  display: none;
+}
+:root[data-theme="dlc-labs"] .game-tab-state {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  padding: 0.15rem 0.45rem;
+  background: var(--dlc-red);
+  color: white;
+  font: 700 0.65rem/1 var(--dlc-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(4deg);
+}
+:root[data-theme="dlc-labs"] .game-tab-state[data-state="finished"] {
+  background: #3a3a3a;
+}
+@media (max-width: 640px) {
+  /* One swipeable row instead of wrapping into several. */
+  :root[data-theme="dlc-labs"] .game-picker {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
+    margin-inline: -1rem;
+    padding: 10px 1rem 8px;
+    scrollbar-width: none;
+  }
+  :root[data-theme="dlc-labs"] .game-picker::-webkit-scrollbar {
+    display: none;
+  }
+  :root[data-theme="dlc-labs"] .game-tab {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+}
+
+/* Game meta: small chips; the status keeps its pill. */
+:root[data-theme="dlc-labs"] .game-meta {
+  gap: 0.5rem;
+}
+:root[data-theme="dlc-labs"] .game-meta > span:not([data-status]) {
+  border: 1px solid rgba(241, 238, 229, 0.2);
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font: 600 0.9rem/1.4 var(--dlc-ui);
+  color: var(--dlc-paper);
+}
+
+/* Champion: a cream poster with the trophy sticker and the mascot. */
+:root[data-theme="dlc-labs"] .champion-card {
+  position: relative;
+  overflow: visible;
+  min-height: 132px;
+  margin-top: 1.5rem;
+  padding: 1.25rem 9rem 1.25rem 8rem;
+  background: var(--dlc-paper) !important;
+  color: var(--dlc-ink);
+  border: 0 !important;
+  border-radius: 10px;
+  box-shadow: 5px 6px 0 rgba(0, 0, 0, 0.45) !important;
+  transform: rotate(-0.6deg);
+}
+:root[data-theme="dlc-labs"] .champion-trophy {
+  display: block;
+  position: absolute;
+  left: 0.75rem;
+  top: -26px;
+  width: 104px;
+  height: 108px;
+  object-fit: contain;
+  transform: rotate(-10deg);
+  filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.45));
+}
+:root[data-theme="dlc-labs"] .champion-mascot {
+  display: block;
+  position: absolute;
+  right: 1.25rem;
+  bottom: -14px;
+  width: 104px;
+  height: 150px;
+  object-fit: contain;
+  transform: rotate(6deg);
+  filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.45));
+}
+:root[data-theme="dlc-labs"] .champion-label {
+  display: inline-block;
+  padding: 0.25rem 0.7rem;
+  background: var(--dlc-red);
+  color: white !important;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  clip-path: polygon(2% 0, 97% 0, 100% 14%, 98% 30%, 100% 78%, 97% 100%, 3% 100%, 0 86%, 2% 70%, 0 18%);
+  transform: rotate(-1.5deg);
+}
+:root[data-theme="dlc-labs"] .champion-name {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 0.95;
+  margin-top: 0.35rem;
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .champion-card .avatar {
+  width: 64px !important;
+  height: 64px !important;
+  font-size: 1.6rem !important;
+  border-width: 4px !important;
+  transform: rotate(-4deg);
+}
+@media (max-width: 640px) {
+  :root[data-theme="dlc-labs"] .champion-card {
+    padding: 1.25rem 1rem 1.25rem 6rem;
+  }
+  :root[data-theme="dlc-labs"] .champion-trophy {
+    width: 76px;
+    height: 80px;
+    left: 0.25rem;
+    top: -18px;
+  }
+  :root[data-theme="dlc-labs"] .champion-card .avatar,
+  :root[data-theme="dlc-labs"] .champion-mascot {
+    display: none;
+  }
+}
+
+/* Sticker avatars everywhere public (live cards size their own; admin stays plain). */
+:root[data-theme="dlc-labs"] .avatar {
+  border: 2px solid white !important;
+  border-radius: 22%;
+  background: var(--dlc-red) !important;
+  color: white !important;
+  text-shadow: none !important;
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.5) !important;
+}
+:root[data-theme="dlc-labs"] .admin .avatar {
+  border-width: 1px !important;
+  box-shadow: none !important;
+}
+:root[data-theme="dlc-labs"] .roster-card .avatar {
+  transform: rotate(-4deg);
+}
+:root[data-theme="dlc-labs"] .roster-card .font-bold {
+  font: 400 1.25rem/1.1 var(--dlc-display);
+  letter-spacing: 0.02em;
+}
+
+/* Byes are placeholders, not matches: a faint dashed slot. */
+:root[data-theme="dlc-labs"] .glass-card.bracket-bye {
+  background: transparent !important;
+  border: 1.5px dashed rgba(241, 238, 229, 0.2) !important;
+  box-shadow: none !important;
+  opacity: 0.55 !important;
+}
+:root[data-theme="dlc-labs"] .glass-card.overflow-hidden.bracket-bye > div:first-child {
+  background: transparent;
+  color: var(--dlc-muted);
+  border-bottom-color: rgba(241, 238, 229, 0.12);
+}
+:root[data-theme="dlc-labs"] .glass-card.bracket-bye .avatar {
+  background: #2a2a2a !important;
+  border-color: rgba(241, 238, 229, 0.4) !important;
+}
+
+/* Bracket card header: the status pill stays on one line. */
+:root[data-theme="dlc-labs"] .glass-card.overflow-hidden > div:first-child [data-status] {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
 }

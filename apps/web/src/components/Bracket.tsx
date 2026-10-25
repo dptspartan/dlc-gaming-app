@@ -199,7 +199,7 @@ function BracketMatch({
 
   return (
     <div
-      className={`glass-card overflow-hidden transition ${border} ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-ember' : ''} ${match.is_bye ? 'opacity-45' : ''}`}
+      className={`glass-card overflow-hidden transition ${border} ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-ember' : ''} ${match.is_bye ? 'bracket-bye opacity-45' : ''}`}
       onClick={() => onClick?.(match)}
     >
       <div className="flex items-center justify-between gap-2 border-b border-line px-2.5 py-1.5 font-mono text-[11px] text-muted">
