@@ -1551,3 +1551,16 @@ input[type="file"]::file-selector-button {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* The theme pill stays on one line; on phones the header nav tightens to fit it. */
+.theme-switch {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  header nav {
+    gap: 0;
+  }
+  header nav > a {
+    padding-inline: 0.5rem;
+  }
+}
