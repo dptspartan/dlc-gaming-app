@@ -1485,3 +1485,69 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .live-board .panel {
   background: rgba(23, 23, 23, 0.96);
 }
+
+/* ---------------------------------------------- Live board on phones */
+
+/* Below lg the board is a scrolling page, not a fixed TV frame: header wraps,
+   matches stack one per row at a fixed aspect, the rail follows underneath. */
+@media (max-width: 1023px) {
+  .live-board {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+  .live-header {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+  /* Two rows: logo and clock, then the status pills. */
+  .live-header > div:last-child {
+    display: contents;
+  }
+  .live-header > a {
+    flex: 1;
+    order: 0;
+  }
+  .live-header > div:last-child > :last-child {
+    order: 0;
+  }
+  .live-header::after {
+    content: "";
+    flex-basis: 100%;
+    order: 1;
+  }
+  .live-header .brand-lockup {
+    flex-shrink: 0;
+    width: 112px !important;
+    height: 44px !important;
+  }
+  .live-header > div:last-child > :not(:last-child) {
+    order: 2;
+  }
+  .live-header button,
+  .live-header .theme-switch {
+    white-space: nowrap;
+  }
+  .live-stage {
+    flex: none;
+  }
+  .live-board main {
+    flex: none;
+  }
+  .live-grid {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: none !important;
+  }
+  .live-grid > .live-card {
+    height: auto;
+    aspect-ratio: 5 / 4;
+    min-height: 0;
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

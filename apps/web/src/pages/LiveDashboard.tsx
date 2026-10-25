@@ -220,7 +220,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
       </header>
       <ErrorNote message={error} />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
+      <div className="live-stage flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
         <main className="min-h-0 flex-1">
           {live.length === 0 ? (
             <NothingLive
@@ -236,7 +236,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           ) : (
             <LayoutGroup>
               <div
-                className="grid h-full gap-4"
+                className="live-grid grid h-full gap-4"
                 style={{
                   gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
                   gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
