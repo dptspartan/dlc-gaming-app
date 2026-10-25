@@ -30,8 +30,23 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Supabase URL and publishable key come from apps/web/.env.production.
+      # Build settings are repository variables (Settings → Secrets and variables →
+      # Actions → Variables), not committed files. VITE_ values end up in the public
+      # bundle, so only the Supabase URL, publishable key and theme lock belong here.
+      - name: Check build variables
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Set the VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY repository variables."
+            exit 1
+          fi
       - run: pnpm --filter web build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_THEME_LOCK: ${{ vars.VITE_THEME_LOCK }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: apps/web/dist

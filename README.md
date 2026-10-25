@@ -38,7 +38,7 @@ pnpm test         # bracket and scheduling tests
 pnpm typecheck
 ```
 
-The Supabase URL and publishable key are in `apps/web/.env.*` and `apps/mobile/.env`. They are safe to commit: row-level security only lets admins change data.
+For local development the Supabase URL and publishable key are in `apps/web/.env.development` and `apps/mobile/.env`. The deployed web build gets its settings from GitHub repository variables instead (see Deployment); for a local production build, put them in `apps/web/.env.production.local`, which git ignores. Never put the Supabase secret key in any `VITE_` or `EXPO_PUBLIC_` variable: those are bundled into the public app.
 
 ## Admins
 
@@ -52,13 +52,13 @@ Public sign-up is off; only accounts an admin creates can sign in.
 | Workflow | When | Needs |
 |---|---|---|
 | `ci.yml` | every push and PR | nothing |
-| `deploy-web.yml` | push to `main` touching the web app | Settings → Pages → Source: **GitHub Actions** |
+| `deploy-web.yml` | push to `main` touching the web app | Settings → Pages → Source: **GitHub Actions**; repository variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_THEME_LOCK` |
 | `supabase-migrate.yml` | push to `main` touching `supabase/migrations` | secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF` (skips without them) |
 | `mobile-eas.yml` | run by hand | secret `EXPO_TOKEN`, and run `npx eas init` once in `apps/mobile` |
 
 The web app uses hash URLs (`/#/t/demo-cup`), so it works on GitHub Pages under any repository name.
 
-The deployed site is locked to the DLC × dubizzleLabs theme with `VITE_THEME_LOCK=dlc-labs` in `apps/web/.env.production`: no theme switcher, and stored picks are ignored. Set it to `classic` to ship the classic theme, or remove it to bring the switcher back. Local `pnpm dev` is unlocked, so both themes stay available while working. Any other value fails the build.
+The deployed site is locked to the DLC × dubizzleLabs theme with the `VITE_THEME_LOCK=dlc-labs` repository variable: no theme switcher, and stored picks are ignored. Set it to `classic` to ship the classic theme, or remove it to bring the switcher back. Local `pnpm dev` is unlocked, so both themes stay available while working. Any other value fails the build.
 
 ## Demo data
 
