@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { formatDay, formatTime, matchLabel, type Match, type Slot, type Team } from '@dlc/core';
+import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -73,7 +73,7 @@ function Rounds({
             <div className="hud bracket-round-title mb-3 text-center text-xs text-flame glow-flame">{matchLabel(list[0], total)}</div>
             <div className="flex flex-1 flex-col justify-around gap-3">
               {list.map((m) => {
-                const isFinal = m.stage === 'knockout' && !m.next_match_id;
+                const isFinal = m.stage === 'knockout' && isFinalMatch(m);
                 return (
                   <div
                     key={m.id}

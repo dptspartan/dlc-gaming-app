@@ -38,7 +38,7 @@ export type TimetableMatch = Pick<
   | 'started_at'
   | 'ended_at'
 > &
-  Partial<Pick<Match, 'best_of' | 'leg_games' | 'loser_next_match_id'>>;
+  Partial<Pick<Match, 'best_of' | 'leg_games' | 'loser_next_match_id' | 'station_locked' | 'round_code' | 'fixture_day'>>;
 
 export interface TimetableOptions {
   windows: DayWindow[];
@@ -170,6 +170,18 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
   // A waiting bye passes its team straight on, so look through it to the matches behind it.
   const waitingBye = new Set(matches.filter((m) => m.is_bye && m.status !== 'completed').map((m) => m.id));
   const depsOf = (id: string): string[] => (feeders.get(id) ?? []).flatMap((f) => (waitingBye.has(f) ? depsOf(f) : [f]));
+  // Uploaded days have no feeder links, so a stage waits for the same game's earlier stages that day.
+  const uploadedDay = new Map<string, TimetableMatch[]>();
+  for (const m of matches) {
+    if (m.round_code && m.fixture_day) {
+      const key = `${m.tournament_game_id}|${m.fixture_day}`;
+      uploadedDay.set(key, [...(uploadedDay.get(key) ?? []), m]);
+    }
+  }
+  const earlierStages = (m: TimetableMatch): string[] =>
+    m.round_code && m.fixture_day
+      ? (uploadedDay.get(`${m.tournament_game_id}|${m.fixture_day}`) ?? []).filter((x) => x.round < m.round && !(x.is_bye && x.status === 'completed')).map((x) => x.id)
+      : [];
   const groupMatches = new Map<string, string[]>();
   for (const m of matches) {
     if (m.stage === 'group') groupMatches.set(m.tournament_game_id, [...(groupMatches.get(m.tournament_game_id) ?? []), m.id]);
@@ -185,13 +197,16 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
   };
 
   const allStations = Array.from({ length: stations }, (_, i) => i + 1);
-  const allowedFor = (g: TimetableGame) => (g.allowedStations ?? allStations).filter((s) => s >= 1 && s <= stations);
+  // An uploaded fixture with a station keeps it; everything else may use any of its game's stations.
+  const allowedFor = (g: TimetableGame, m: TimetableMatch) =>
+    (m.station_locked && matchStations(m).length ? matchStations(m) : g.allowedStations ?? allStations).filter((s) => s >= 1 && s <= stations);
+  const needed = (g: TimetableGame, m: TimetableMatch) => (m.station_locked && matchStations(m).length ? matchStations(m).length : Math.max(1, g.stationsRequired));
   const slots: TimetableSlot[] = [];
   const unplaced: string[] = [];
   let todo = matches.filter((m) => {
     if (m.is_bye || (m.status !== 'pending' && m.status !== 'ready')) return false;
     const g = game(m);
-    if (allowedFor(g).length >= Math.max(1, g.stationsRequired)) return true;
+    if (allowedFor(g, m).length >= needed(g, m)) return true;
     unplaced.push(m.id);
     return false;
   });
@@ -200,7 +215,7 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
     let best: { m: TimetableMatch; start: number; overflow: boolean; picks: number[] } | null = null;
     for (const m of todo) {
       const g = game(m);
-      const deps = depsOf(m.id);
+      const deps = [...depsOf(m.id), ...earlierStages(m)];
       if (deps.some((id) => !readyAt.has(id))) continue;
       const groups = m.stage !== 'group' ? groupMatches.get(m.tournament_game_id) ?? [] : [];
       if (groups.some((id) => !readyAt.has(id))) continue;
@@ -212,9 +227,9 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
         ...[m.team_a_id, m.team_b_id].map((t) => (t ? teamFree.get(t) ?? -Infinity : -Infinity)),
       );
       // The stations that free up first (lowest number on ties).
-      const picks = allowedFor(g)
+      const picks = allowedFor(g, m)
         .sort((a, b) => Math.max(stationFree[a - 1], earliest) - Math.max(stationFree[b - 1], earliest) || a - b)
-        .slice(0, Math.max(1, g.stationsRequired));
+        .slice(0, needed(g, m));
       const { start, overflow } = fit(Math.max(earliest, ...picks.map((s) => stationFree[s - 1])), g.matchMinutes * MINUTE);
       if (!best || start < best.start || (start === best.start && rank(m, games) < rank(best.m, games))) best = { m, start, overflow, picks };
     }

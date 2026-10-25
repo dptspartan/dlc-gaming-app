@@ -1,3 +1,4 @@
+import type { RoundCode } from './fixtures';
 export type TournamentStatus = 'draft' | 'scheduled' | 'live' | 'finished';
 export type TournamentGameStatus = 'setup' | 'fixtures_ready' | 'live' | 'finished';
 /** called: sent to a station, waiting for the players to show up. */
@@ -116,6 +117,12 @@ export interface Match {
   station: number | null;
   /** Every station the match takes, when a game needs more than one. */
   stations: number[] | null;
+  /** The station came from an uploaded fixture: the timetable keeps it. */
+  station_locked: boolean;
+  /** Stage of an uploaded day's fixture (PRE … F); null in a generated bracket. */
+  round_code: RoundCode | null;
+  /** Event-local day an uploaded fixture was uploaded for. */
+  fixture_day: string | null;
   /** When the players were called to the station. */
   called_at: string | null;
   /** Held back in the queue until this time (skipped or delayed). */

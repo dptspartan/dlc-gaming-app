@@ -9,3 +9,4 @@ export * from './groups';
 export * from './timetable';
 export * from './plan';
 export * from './double';
+export * from './fixtures';

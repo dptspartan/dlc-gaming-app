@@ -1,4 +1,5 @@
 import {
+  fixtureNotBefore,
   generateGroupStage,
   groupStandings,
   knockoutFor,
@@ -7,6 +8,8 @@ import {
   scheduleTournament,
   seriesFor,
   timetableOptions,
+  ROUND_NUMBER,
+  type FixtureRow,
   type Game,
   type Match,
   type Slot,
@@ -107,6 +110,24 @@ export async function generateFixtures(
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_groups: groups ?? null });
   await saveSlots(result, new Set(others.map((m) => m.id)));
   return result;
+}
+
+/**
+ * Upload one day's fixtures for a game (see parseFixturesCsv), then rebuild
+ * the timetable so matches without a time or station get one that day.
+ */
+export async function uploadDayFixtures(tournament: Tournament, tg: TournamentGame, rows: FixtureRow[]): Promise<TimetableResult> {
+  const items = rows.map((r) => ({
+    round_code: r.round_code,
+    fixture_day: r.date,
+    team_a_id: r.team_a_id,
+    team_b_id: r.team_b_id,
+    station: r.station,
+    not_before: fixtureNotBefore(r, tournament).toISOString(),
+    ...seriesFor(tg.plan, { stage: 'knockout', round: ROUND_NUMBER[r.round_code], round_code: r.round_code }, ROUND_NUMBER.F),
+  }));
+  await rpc('upload_day_fixtures', { p_tournament_game_id: tg.id, p_matches: items });
+  return refreshTimetable(tournament.id);
 }
 
 /** Who goes through from the group tables, best first. */
