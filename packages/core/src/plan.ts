@@ -4,7 +4,8 @@ import type { Game, Match, SeriesRule, StagePlan, TournamentGame } from './types
 export type PlanStage = 'group' | 'knockout' | 'semi' | 'final' | 'losers';
 
 /** Which part of the plan a match follows. In a double elimination the upper final follows the semi-final rule. */
-export function planStage(m: Pick<Match, 'stage' | 'round'>, knockoutRounds: number): PlanStage {
+export function planStage(m: Pick<Match, 'stage' | 'round'> & Partial<Pick<Match, 'round_code'>>, knockoutRounds: number): PlanStage {
+  if (m.round_code) return m.round_code === 'F' ? 'final' : m.round_code === 'SF' ? 'semi' : 'knockout';
   if (m.stage === 'group') return 'group';
   if (m.stage === 'losers') return 'losers';
   if (m.round >= knockoutRounds) return 'final';
@@ -20,7 +21,7 @@ export function seriesRule(plan: StagePlan | null | undefined, stage: PlanStage)
 }
 
 /** best_of and leg games for a new or re-planned match. */
-export function seriesFor(plan: StagePlan | null | undefined, m: Pick<Match, 'stage' | 'round'>, knockoutRounds: number) {
+export function seriesFor(plan: StagePlan | null | undefined, m: Pick<Match, 'stage' | 'round'> & Partial<Pick<Match, 'round_code'>>, knockoutRounds: number) {
   const rule = seriesRule(plan, planStage(m, knockoutRounds));
   const games = rule.games?.slice(0, rule.best_of);
   return { best_of: rule.best_of, leg_games: games?.some(Boolean) ? games : null };

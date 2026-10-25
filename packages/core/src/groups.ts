@@ -1,5 +1,6 @@
 import { generateBracket, orderEntrants, nextPowerOfTwo, roundName, type BracketEntrant, type GenerateOptions, type MatchDraft } from './bracket';
 import { generateDoubleElim, loserRounds } from './double';
+import { ROUND_LABEL } from './fixtures';
 import type { Match, Stage, Team } from './types';
 
 /** A generated match tagged with the stage (and group) it belongs to. */
@@ -12,15 +13,21 @@ export const groupLetter = (n: number) => String.fromCharCode(64 + n);
 
 export const isGroupMatch = (m: Pick<Match, 'stage'>) => m.stage === 'group';
 
-/** The knockout final: the only match whose winner is crowned champion. */
-export const isFinal = (m: Pick<Match, 'stage' | 'next_match_id'>) => m.stage !== 'group' && !m.next_match_id;
+/**
+ * The knockout final: the only match whose winner is crowned champion. An
+ * uploaded fixture has no next match either, so it is the final only when it
+ * was uploaded as one.
+ */
+export const isFinal = (m: Pick<Match, 'stage' | 'next_match_id'> & Partial<Pick<Match, 'round_code'>>) =>
+  m.stage !== 'group' && !m.next_match_id && (m.round_code == null || m.round_code === 'F');
 
 /**
  * "Group B · Matchday 2" in the group stage, "Semi-final" etc. in the knockout.
  * A double-elimination knockout has upper rounds (their losers drop down),
  * lower rounds, and the final.
  */
-export function matchLabel(m: Pick<Match, 'stage' | 'group_no' | 'round'> & Partial<Pick<Match, 'loser_next_match_id'>>, knockoutRounds: number): string {
+export function matchLabel(m: Pick<Match, 'stage' | 'group_no' | 'round'> & Partial<Pick<Match, 'loser_next_match_id' | 'round_code'>>, knockoutRounds: number): string {
+  if (m.round_code) return ROUND_LABEL[m.round_code];
   if (m.stage === 'group') return `Group ${groupLetter(m.group_no ?? 1)} · Matchday ${m.round}`;
   if (m.stage === 'losers') return m.round >= loserRounds(knockoutRounds) ? 'Lower final' : `Lower round ${m.round}`;
   if (m.loser_next_match_id) {

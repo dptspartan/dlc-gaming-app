@@ -3,7 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   describeGroupSetup,
   findTeamConflicts,
+  fixturesTemplate,
+  formatDay,
   formatTime,
+  parseFixturesCsv,
+  ROUND_LABEL,
+  zonedToUtc,
+  type ParsedFixtures,
   type Format,
   type Game,
   type Match,
@@ -32,6 +38,7 @@ import {
   startMatch,
   swapSlots,
   uncallMatch,
+  uploadDayFixtures,
 } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
@@ -826,6 +833,135 @@ function AddTeam({ tg, teamSize, onAdded }: { tg: TournamentGame; teamSize: numb
 
 /* ----------------------------------------------------- Fixtures & matches */
 
+/**
+ * Upload one day's fixtures for a stage from a CSV: preview every row and
+ * every problem first, then replace that stage's fixtures for that day.
+ */
+function DayUpload({
+  tournament,
+  tg,
+  teams,
+  matches,
+  busy,
+  onUpload,
+}: {
+  tournament: Tournament;
+  tg: TournamentGame;
+  teams: Team[];
+  matches: Match[];
+  busy: boolean;
+  onUpload: (rows: ParsedFixtures['rows']) => Promise<boolean>;
+}) {
+  const [file, setFile] = useState<{ name: string; parsed: ParsedFixtures } | null>(null);
+  const [inputKey, setInputKey] = useState(0);
+  const name = (id: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : 'TBD');
+  const day = (date: string) => formatDay(zonedToUtc(date, '12:00', tournament.timezone), tournament.timezone);
+
+  const read = async (f: File | undefined) => {
+    if (!f) return;
+    setFile({ name: f.name, parsed: parseFixturesCsv(await f.text(), { tournament, tg, teams }) });
+  };
+  const reset = () => {
+    setFile(null);
+    setInputKey((k) => k + 1);
+  };
+  const template = () => {
+    const blob = new Blob([fixturesTemplate(tournament.start_date, teams)], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fixtures-template.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const rows = file?.parsed.rows ?? [];
+  const errors = file?.parsed.errors ?? [];
+  const groups = [...new Set(rows.map((r) => `${r.round_code}|${r.date}`))].map((k) => {
+    const [code, date] = k.split('|') as [keyof typeof ROUND_LABEL, string];
+    return { code, date, count: rows.filter((r) => r.round_code === code && r.date === date).length, replaces: matches.filter((m) => m.round_code === code && m.fixture_day === date).length };
+  });
+  const generated = matches.filter((m) => m.round_code == null).length;
+
+  const upload = async () => {
+    if (generated && !confirm(`Uploading replaces this game's generated bracket (${generated} matches). Continue?`)) return;
+    if (await onUpload(rows)) reset();
+  };
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-semibold">Upload a day</span>
+        <input key={inputKey} type="file" accept=".csv,text/csv" disabled={busy} onChange={(e) => void read(e.target.files?.[0])} className="max-w-xs text-sm" />
+        <Button variant="ghost" onClick={template}>
+          Download template
+        </Button>
+        <span className="text-sm text-muted">One stage per row: PRE, R32, R16, QF, SF or F. Time and station are optional.</span>
+      </div>
+
+      {file && (
+        <div className="mt-3">
+          {errors.length > 0 && (
+            <div className="mb-3 rounded-lg border border-danger/60 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <div className="mb-1 font-semibold">
+                {errors.length} problem{errors.length > 1 ? 's' : ''} in {file.name}. Fix the file and choose it again.
+              </div>
+              <ul className="list-disc pl-5">
+                {errors.map((e, i) => (
+                  <li key={i}>
+                    Line {e.line}: {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {rows.length > 0 && (
+            <div className="glass-card mb-3 overflow-x-auto">
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <thead className="text-xs tracking-wide text-muted uppercase">
+                  <tr className="border-b border-line">
+                    <th className="px-3 py-2">Stage</th>
+                    <th className="px-3 py-2">Day</th>
+                    <th className="px-3 py-2">Time</th>
+                    <th className="px-3 py-2">Station</th>
+                    <th className="px-3 py-2">Match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.line} className="border-b border-line/50 last:border-0">
+                      <td className="px-3 py-1.5">{ROUND_LABEL[r.round_code]}</td>
+                      <td className="px-3 py-1.5">{day(r.date)}</td>
+                      <td className="px-3 py-1.5">{r.time ?? <span className="text-muted">auto</span>}</td>
+                      <td className="px-3 py-1.5">{r.station ?? <span className="text-muted">auto</span>}</td>
+                      <td className="px-3 py-1.5">
+                        {name(r.team_a_id)} <span className="text-muted">vs</span> {name(r.team_b_id)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button disabled={busy || errors.length > 0 || rows.length === 0} onClick={() => void upload()}>
+              Upload {rows.length} fixture{rows.length === 1 ? '' : 's'}
+            </Button>
+            <Button variant="ghost" disabled={busy} onClick={reset}>
+              Cancel
+            </Button>
+            <span className="text-sm text-muted">
+              {groups
+                .map((g) => `${ROUND_LABEL[g.code]} on ${day(g.date)}: ${g.count}${g.replaces ? ` (replaces ${g.replaces})` : ''}`)
+                .join(' · ')}
+              {generated ? ` · Replaces the generated bracket (${generated} matches).` : ''}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament; data: LiveData; onChange: () => void }) {
   const { roundsByTg, gameOf } = useLookups(data);
   const tgames = [...data.tgames.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -859,15 +995,18 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
 
   if (tgames.length === 0) return <Empty>Add a game first.</Empty>;
 
-  const act = async (fn: () => Promise<TimetableResult | void>) => {
+  /** Run an action; false when it failed (the error is shown). */
+  const act = async (fn: () => Promise<TimetableResult | void>): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       const r = await fn();
       if (r) setResult(r);
       onChange();
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -965,6 +1104,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               </span>
             </div>
           )}
+          <DayUpload tournament={tournament} tg={tg} teams={teams} matches={matches} busy={busy} onUpload={(rows) => act(() => uploadDayFixtures(tournament, tg, rows))} />
           {swapMode && <p className="mt-3 text-sm text-ember">Click one player slot, then another, to swap them. Only matches that have not started can change.</p>}
           {(result ?? fit) && <FitNote result={(result ?? fit)!} tz={tournament.timezone} />}
           {conflicts.length > 0 && (
@@ -990,7 +1130,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
       </div>
 
       {matches.length === 0 ? (
-        <Empty>No fixtures yet. Add players, then generate fixtures.</Empty>
+        <Empty>No fixtures yet. Add players, then generate fixtures or upload a day.</Empty>
       ) : shown === 'groups' && tg ? (
         <GroupTables tg={tg} teams={teams} matches={matches} onMatchClick={(m) => setOpenMatch(m.id)} />
       ) : shown === 'bracket' && hasGroups && !knockout.length ? (
