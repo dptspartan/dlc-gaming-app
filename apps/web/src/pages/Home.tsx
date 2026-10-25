@@ -28,7 +28,10 @@ export function Home() {
   return (
     <Layout>
       <section className="relative mb-10 overflow-hidden py-10 text-center">
-        <div className="hud mb-3 text-sm text-ember">&gt; dlc_gaming_club.exe // live tournament feed</div>
+        <div className="hud mb-3 text-sm text-ember">
+          <span className="classic-only">&gt; dlc_gaming_club.exe // live tournament feed</span>
+          <span className="dlc-only">Play · Compete · Connect</span>
+        </div>
         <div className="font-display text-5xl font-black tracking-[0.12em] uppercase sm:text-7xl">
           <span className="glitch chrome-text" data-text="GAME ON">
             GAME ON
@@ -55,7 +58,7 @@ export function Home() {
                     {t.banner_url ? (
                       <img src={t.banner_url} alt="" className="h-32 w-full rounded-t-[13px] object-cover opacity-80 group-hover:opacity-100" />
                     ) : (
-                      <div className="h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(255,42,74,0.35),rgba(217,0,27,0.25),rgba(255,30,45,0.35))] [mask:linear-gradient(#000,transparent)]" />
+                      <div className="event-card-art h-32 w-full rounded-t-[13px] bg-[linear-gradient(135deg,rgba(255,42,74,0.35),rgba(217,0,27,0.25),rgba(255,30,45,0.35))] [mask:linear-gradient(#000,transparent)]" />
                     )}
                     <div className="p-4">
                       <div className="font-display text-lg font-bold tracking-wide group-hover:text-ember">{t.name}</div>

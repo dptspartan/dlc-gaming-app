@@ -461,12 +461,14 @@ input[type="file"]::file-selector-button {
   --dlc-ink: #171717;
   --dlc-charcoal: #111111;
   --dlc-muted: #aaa8a2;
+  --dlc-display: "Anton", Impact, sans-serif;
+  --dlc-ui: "Barlow Condensed", "Arial Narrow", sans-serif;
 }
 
 :root[data-theme="dlc-labs"] body {
   background: #101010;
   color: #f4f1e9;
-  font-family: "Arial Narrow", "Roboto Condensed", Rajdhani, sans-serif;
+  font-family: var(--dlc-ui);
   font-size: 16px;
 }
 
@@ -509,7 +511,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] header a.font-display {
   display: flex;
   align-items: baseline;
-  font-family: Impact, "Arial Narrow", sans-serif;
+  font-family: var(--dlc-display);
   letter-spacing: 0.015em;
 }
 
@@ -758,7 +760,7 @@ input[type="file"]::file-selector-button {
   color: var(--dlc-ink);
   border-color: rgba(0, 0, 0, 0.16);
   border-bottom: 1px solid rgba(242, 13, 34, 0.38);
-  font-family: "Arial Narrow", Rajdhani, sans-serif;
+  font-family: var(--dlc-ui);
   font-weight: 700;
 }
 
@@ -846,7 +848,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] h1 .chrome-text,
 :root[data-theme="dlc-labs"] section > .font-display {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: var(--dlc-display);
   letter-spacing: 0.015em;
 }
 
@@ -929,12 +931,12 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] main a[href*="/live"] {
   background: var(--dlc-red) !important;
   border-color: var(--dlc-red) !important;
-  color: #111 !important;
+  color: white !important;
   box-shadow: none !important;
 }
 
 :root[data-theme="dlc-labs"] .rounded-full.border.px-2\.5.py-0\.5 {
-  font-family: "Arial Narrow", Rajdhani, sans-serif;
+  font-family: var(--dlc-ui);
   letter-spacing: 0.12em;
   box-shadow: none !important;
   backdrop-filter: none;
@@ -1029,7 +1031,7 @@ input[type="file"]::file-selector-button {
 
 /* Tabs: a red underline on the active one. */
 :root[data-theme="dlc-labs"] .tab {
-  font-family: "Arial Narrow", Rajdhani, sans-serif;
+  font-family: var(--dlc-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1080,7 +1082,7 @@ input[type="file"]::file-selector-button {
 
 /* Station board. */
 :root[data-theme="dlc-labs"] .station-number {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: var(--dlc-display);
   font-weight: 400;
   font-size: 2rem;
   line-height: 1;
@@ -1145,7 +1147,7 @@ input[type="file"]::file-selector-button {
   transform: rotate(-1.5deg);
 }
 :root[data-theme="dlc-labs"] .point-burst-label {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: var(--dlc-display);
   padding: 0.05em 0.4em;
   background: var(--dlc-red);
   color: white !important;
@@ -1178,7 +1180,7 @@ input[type="file"]::file-selector-button {
   padding: 0.08em 0.35em;
   background: var(--dlc-red);
   color: white !important;
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: var(--dlc-display);
   font-weight: 400;
   text-shadow: none !important;
   transform: rotate(-2deg);
@@ -1223,7 +1225,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .live-board main .font-display,
 :root[data-theme="dlc-labs"] .live-board aside .font-display,
 :root[data-theme="dlc-labs"] .live-header > div .font-display {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: var(--dlc-display);
   font-weight: 400;
   letter-spacing: 0.02em;
 }
@@ -1242,4 +1244,244 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .btn-success {
   background-color: var(--dlc-amber);
   color: var(--dlc-ink);
+}
+
+/* ------------------------------------------------------------------------
+   DLC × dubizzleLabs: DESIGN.md pass. Loaded fonts everywhere, the live
+   board sized to its cards, brand art on the edges.
+   ------------------------------------------------------------------------ */
+
+.dlc-only,
+.empty-mascot,
+.live-card-sticker,
+.point-burst-mascot {
+  display: none;
+}
+:root[data-theme="dlc-labs"] .dlc-only {
+  display: revert;
+}
+:root[data-theme="dlc-labs"] .classic-only {
+  display: none;
+}
+
+/* One display face and one UI face; nothing from the classic sci-fi stack. */
+:root[data-theme="dlc-labs"] .font-display {
+  font-family: var(--dlc-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+:root[data-theme="dlc-labs"] :where(.hud, .font-mono) {
+  font-family: var(--dlc-ui);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+:root[data-theme="dlc-labs"] .font-mono {
+  letter-spacing: 0.04em;
+}
+:root[data-theme="dlc-labs"] .btn-primary,
+:root[data-theme="dlc-labs"] .btn-ghost,
+:root[data-theme="dlc-labs"] .btn-danger,
+:root[data-theme="dlc-labs"] .btn-success {
+  font-family: var(--dlc-ui);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  border-radius: 6px;
+}
+/* Admin keeps its plain working face. */
+:root[data-theme="dlc-labs"] .admin :is(.hud, .font-mono, button, input, select, textarea) {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* Empty states: the mascot instead of terminal slashes. */
+:root[data-theme="dlc-labs"] .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+:root[data-theme="dlc-labs"] .empty-mascot {
+  display: block;
+  width: 96px;
+  height: 120px;
+  object-fit: contain;
+  transform: rotate(-5deg);
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.7));
+}
+
+/* Home: event cards without a banner get the grayscale venue art. */
+:root[data-theme="dlc-labs"] .event-card-art {
+  background:
+    url("./assets/dlc/sticker-game-on.png") right 20px top 14px / auto 78% no-repeat,
+    url("./assets/dlc/mascot-beanbag.png") right 150px top 18px / auto 72% no-repeat,
+    url("./assets/dlc/paper-cream-torn.png") left -20px bottom -26px / 70% auto no-repeat,
+    #1b1b1b !important;
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* ------------------------------------------------------------ Live board */
+
+/* Each card is a size container so scores, avatars and clocks scale with the card, from one big card to a grid of six. */
+:root[data-theme="dlc-labs"] .live-card {
+  container-type: size;
+  overflow: visible;
+  border-radius: 12px;
+}
+:root[data-theme="dlc-labs"] .live-card-art {
+  border-radius: inherit;
+  filter: grayscale(1) contrast(1.1);
+  opacity: 0.12;
+}
+
+/* Header: cream paper strip with a torn bottom edge and the game name in ink. */
+:root[data-theme="dlc-labs"] .live-card-head {
+  border: 0;
+  margin: -1px -1px 0;
+  padding: max(0.6rem, 3cqh) max(1rem, 3cqw) max(1rem, 5cqh) max(3.5rem, 9cqw);
+  background: var(--dlc-paper);
+  color: var(--dlc-ink);
+  border-radius: 12px 12px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 80%, 96% 88%, 91% 81%, 85% 90%, 78% 82%, 70% 92%, 62% 83%, 55% 91%, 47% 81%, 39% 90%, 31% 82%, 23% 92%, 15% 83%, 8% 90%, 3% 82%, 0 88%);
+}
+:root[data-theme="dlc-labs"] .live-card-head-art,
+:root[data-theme="dlc-labs"] .live-card-head > .shrink-0:not(.live-state) {
+  display: none;
+}
+:root[data-theme="dlc-labs"] .live-card-head .chrome-text {
+  color: var(--dlc-ink);
+  -webkit-text-stroke: 0;
+  font-size: clamp(1.25rem, 8cqh, 4rem);
+  letter-spacing: 0.01em;
+}
+:root[data-theme="dlc-labs"] .live-card-head .hud {
+  color: #3d3b37 !important;
+  font-size: clamp(0.7rem, 3.2cqh, 1.25rem);
+  letter-spacing: 0.12em;
+}
+:root[data-theme="dlc-labs"] .live-state {
+  border: 0;
+  border-radius: 0;
+  padding: 0.3em 0.75em;
+  background: var(--dlc-red) !important;
+  color: white !important;
+  font-size: clamp(0.7rem, 3cqh, 1.25rem);
+  clip-path: polygon(2% 0, 97% 0, 100% 14%, 98% 30%, 100% 78%, 97% 100%, 3% 100%, 0 86%, 2% 70%, 0 18%);
+  transform: rotate(-1.5deg);
+}
+:root[data-theme="dlc-labs"] .live-state[data-state="called"],
+:root[data-theme="dlc-labs"] .live-state[data-state="done"] {
+  background: var(--dlc-amber) !important;
+  color: var(--dlc-ink) !important;
+}
+:root[data-theme="dlc-labs"] .live-state .live-dot {
+  background: white;
+}
+
+/* Score, names and avatars sized to the card. */
+:root[data-theme="dlc-labs"] .live-score {
+  font-size: min(34cqh, 15cqw) !important;
+  line-height: 0.9;
+}
+:root[data-theme="dlc-labs"] .live-score > .text-flame {
+  color: var(--dlc-red) !important;
+}
+:root[data-theme="dlc-labs"] .live-score.live-vs {
+  font-size: min(20cqh, 10cqw) !important;
+  font-style: normal;
+}
+:root[data-theme="dlc-labs"] .live-name {
+  font-family: var(--dlc-ui);
+  font-weight: 700;
+  font-size: clamp(0.9rem, 6.5cqh, 2.25rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:root[data-theme="dlc-labs"] .live-card .avatar {
+  width: min(24cqh, 15cqw) !important;
+  height: min(24cqh, 15cqw) !important;
+  border-radius: 18%;
+  border: max(3px, 1.2cqh) solid white;
+  background: var(--dlc-red);
+  color: white !important;
+  text-shadow: none !important;
+  font-size: min(10cqh, 6cqw) !important;
+  box-shadow: 3px 5px 0 rgba(0, 0, 0, 0.5) !important;
+  transform: rotate(-5deg);
+}
+:root[data-theme="dlc-labs"] .live-card .relative.flex.flex-1 > :last-child .avatar {
+  background: #2a2a2a;
+  transform: rotate(4deg);
+}
+:root[data-theme="dlc-labs"] .call-clock {
+  font-size: min(30cqh, 13cqw) !important;
+}
+:root[data-theme="dlc-labs"] .call-title {
+  font-size: clamp(0.8rem, 5cqh, 2.25rem) !important;
+}
+
+/* Footer: paper station tag and a big clock. */
+:root[data-theme="dlc-labs"] .live-card-foot {
+  background: transparent;
+  font-size: clamp(0.7rem, 3cqh, 1.1rem);
+}
+:root[data-theme="dlc-labs"] .live-station {
+  border: 0;
+  border-radius: 2px;
+  background: var(--dlc-paper);
+  color: var(--dlc-ink);
+  letter-spacing: 0.12em;
+}
+:root[data-theme="dlc-labs"] .live-timer {
+  font-family: var(--dlc-display);
+  font-weight: 400;
+  font-size: clamp(1.25rem, 9cqh, 3.5rem) !important;
+  line-height: 1;
+}
+
+/* One sticker on the top-left corner of each card, never over the data. */
+:root[data-theme="dlc-labs"] .live-card-sticker {
+  display: block;
+  position: absolute;
+  z-index: 3;
+  top: max(-22px, -4cqh);
+  left: max(-18px, -3cqw);
+  width: clamp(40px, 9cqw, 96px);
+  height: clamp(40px, 9cqw, 96px);
+  object-fit: contain;
+  transform: rotate(-12deg);
+  filter: drop-shadow(3px 4px 3px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+/* Point burst: the mascot pops up beside "+1 GOAL". */
+:root[data-theme="dlc-labs"] .point-burst-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: min(14cqh, 7cqw) !important;
+}
+:root[data-theme="dlc-labs"] .point-burst-mascot {
+  display: block;
+  width: 1.6em;
+  height: 2em;
+  object-fit: contain;
+  transform: rotate(8deg);
+}
+
+/* Rail: readable across the room. */
+:root[data-theme="dlc-labs"] .rail-list > div:not(.rail-title) {
+  font-size: clamp(1rem, 1.6vh, 1.5rem);
+}
+:root[data-theme="dlc-labs"] .rail-list .text-xs {
+  font-size: clamp(0.75rem, 1.15vh, 1rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+:root[data-theme="dlc-labs"] .live-board .glass-card,
+:root[data-theme="dlc-labs"] .live-board .panel {
+  background: rgba(23, 23, 23, 0.96);
 }
