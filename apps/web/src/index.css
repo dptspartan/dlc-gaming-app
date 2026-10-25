@@ -994,3 +994,248 @@ input[type="file"]::file-selector-button {
     width: 88px;
   }
 }
+
+/* ------------------------------------------------------------------------
+   DLC × dubizzleLabs: surfaces added since the first pass (stations, group
+   stage, timetable, tabs, admin and the live board).
+   ------------------------------------------------------------------------ */
+
+:root[data-theme="dlc-labs"] {
+  --dlc-amber: #e2b83f;
+}
+
+/* Players called to a station: a steady amber edge instead of the pulse. */
+:root[data-theme="dlc-labs"] .neon-called {
+  animation: none;
+  border-color: rgba(226, 184, 63, 0.7) !important;
+  box-shadow:
+    inset 4px 0 var(--dlc-amber),
+    0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dlc-labs"] .text-amber,
+:root[data-theme="dlc-labs"] .text-gold {
+  color: var(--dlc-amber) !important;
+}
+
+:root[data-theme="dlc-labs"] .glass-strong {
+  background: #141414;
+  border: 1px solid rgba(241, 238, 229, 0.26);
+}
+
+/* Tabs: a red underline on the active one. */
+:root[data-theme="dlc-labs"] .tab {
+  font-family: "Arial Narrow", Rajdhani, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+:root[data-theme="dlc-labs"] .tab.border-ember {
+  border-color: var(--dlc-red);
+}
+
+/* Shared red tape label, as on the section and round titles. */
+:root[data-theme="dlc-labs"] .group-title,
+:root[data-theme="dlc-labs"] .rail-title {
+  display: inline-block;
+  margin: 0.75rem 0 0.25rem 0.75rem;
+  padding: 0.28rem 0.8rem;
+  border: 0;
+  background: var(--dlc-red);
+  color: white !important;
+  clip-path: polygon(
+    2% 0,
+    97% 0,
+    100% 12%,
+    98% 26%,
+    100% 78%,
+    97% 100%,
+    3% 100%,
+    0 86%,
+    2% 72%,
+    0 18%
+  );
+  transform: rotate(-1deg);
+}
+:root[data-theme="dlc-labs"] .rail-title {
+  margin: 0 0 0.75rem;
+}
+
+/* Group tables: paper header row, red marker for the places going through. */
+:root[data-theme="dlc-labs"] .group-table thead tr {
+  color: #8f8c85;
+  letter-spacing: 0.08em;
+}
+:root[data-theme="dlc-labs"] .group-table tr[data-place="through"] {
+  background: rgba(242, 13, 34, 0.1);
+  box-shadow: inset 3px 0 var(--dlc-red);
+}
+:root[data-theme="dlc-labs"] .group-table tr[data-place="wildcard"] {
+  background: rgba(226, 184, 63, 0.07);
+  box-shadow: inset 3px 0 var(--dlc-amber);
+}
+
+/* Station board. */
+:root[data-theme="dlc-labs"] .station-number {
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--dlc-paper);
+}
+:root[data-theme="dlc-labs"] .station-number > .text-muted {
+  color: var(--dlc-red);
+}
+:root[data-theme="dlc-labs"] .station-queue-title {
+  color: var(--dlc-red);
+  letter-spacing: 0.12em;
+}
+:root[data-theme="dlc-labs"] .station-card .border-dashed {
+  border-color: rgba(241, 238, 229, 0.22);
+}
+
+/* Timetable: paper header strip like the bracket cards. */
+:root[data-theme="dlc-labs"] .timetable thead tr {
+  background: var(--dlc-paper);
+  color: var(--dlc-ink);
+  border-bottom: 1px solid rgba(242, 13, 34, 0.38);
+}
+:root[data-theme="dlc-labs"] .timetable tbody .text-ember {
+  color: var(--dlc-red) !important;
+}
+
+/* Admin keeps its plain working type; only the colours follow the theme. */
+:root[data-theme="dlc-labs"] .admin .field-label {
+  color: var(--dlc-paper);
+}
+
+/* ------------------------------------------------------------ Live board */
+
+:root[data-theme="dlc-labs"] .live-header {
+  background: #090909;
+  border-bottom: 2px solid var(--dlc-red);
+}
+
+:root[data-theme="dlc-labs"] .live-clock {
+  background: var(--dlc-red);
+  border-color: var(--dlc-red);
+  border-radius: 4px;
+  color: white !important;
+}
+
+:root[data-theme="dlc-labs"] .scanlines::after {
+  display: none;
+}
+
+/* Glows set inline by the animations read as neon; the editorial theme uses flat type. */
+:root[data-theme="dlc-labs"] .score-digit,
+:root[data-theme="dlc-labs"] .call-title,
+:root[data-theme="dlc-labs"] .call-clock,
+:root[data-theme="dlc-labs"] .card-winner-name {
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55) !important;
+}
+:root[data-theme="dlc-labs"] .call-title {
+  display: inline-block;
+  padding: 0.1em 0.5em;
+  background: var(--dlc-amber);
+  color: var(--dlc-ink) !important;
+  transform: rotate(-1.5deg);
+}
+:root[data-theme="dlc-labs"] .point-burst-label {
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  padding: 0.05em 0.4em;
+  background: var(--dlc-red);
+  color: white !important;
+  text-shadow: none !important;
+  transform: rotate(-3deg);
+}
+:root[data-theme="dlc-labs"] .point-burst-flash {
+  background: radial-gradient(
+    circle at var(--x, 50%) 55%,
+    rgba(242, 13, 34, 0.28),
+    transparent 55%
+  ) !important;
+}
+
+/* Winner takeover: charcoal card with a red tape title instead of the gold glow. */
+:root[data-theme="dlc-labs"] .card-winner {
+  background: rgba(14, 14, 14, 0.97) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-theme="dlc-labs"] .card-winner-sweep {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(242, 13, 34, 0.22),
+    transparent
+  ) !important;
+}
+:root[data-theme="dlc-labs"] .card-winner-title {
+  padding: 0.08em 0.35em;
+  background: var(--dlc-red);
+  color: white !important;
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-weight: 400;
+  text-shadow: none !important;
+  transform: rotate(-2deg);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.4);
+}
+
+.card-winner-trophy,
+.stand-by-mascot {
+  display: none;
+}
+:root[data-theme="dlc-labs"] .card-winner-emoji {
+  display: none;
+}
+:root[data-theme="dlc-labs"] .card-winner-trophy {
+  display: block;
+  width: 84px;
+  height: 86px;
+  object-fit: contain;
+  filter: drop-shadow(3px 4px 3px rgba(0, 0, 0, 0.62));
+}
+:root[data-theme="dlc-labs"] .stand-by-mascot {
+  display: block;
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  transform: rotate(-5deg);
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.78));
+}
+
+:root[data-theme="dlc-labs"] header.live-header .brand-lockup {
+  width: 132px;
+  height: 52px;
+}
+
+:root[data-theme="dlc-labs"] .view-toggle[aria-pressed="true"] {
+  background: var(--dlc-red);
+  color: white;
+}
+
+/* Scores, timers and VS on the new boards set in the editorial display face. */
+:root[data-theme="dlc-labs"] .station-card .font-display:not(button),
+:root[data-theme="dlc-labs"] .live-board main .font-display,
+:root[data-theme="dlc-labs"] .live-board aside .font-display,
+:root[data-theme="dlc-labs"] .live-header > div .font-display {
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+:root[data-theme="dlc-labs"] .station-card .font-display.text-sm {
+  font-size: 1rem;
+}
+
+/* The theme drops gradient fills, so filled buttons get a solid one back. */
+:root[data-theme="dlc-labs"] .btn-primary {
+  background-color: var(--dlc-red);
+  color: white;
+}
+:root[data-theme="dlc-labs"] .btn-primary:hover {
+  background-color: #d10a1c;
+}
+:root[data-theme="dlc-labs"] .btn-success {
+  background-color: var(--dlc-amber);
+  color: var(--dlc-ink);
+}

@@ -145,7 +145,8 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                   : `/t/${tournament.slug}`,
               )
             }
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${timetable === on ? "bg-ember/20 text-ink shadow-[inset_0_0_0_1px_rgba(255,42,74,0.6)]" : "text-muted hover:text-ink"}`}
+            aria-pressed={timetable === on}
+            className={`view-toggle flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${timetable === on ? "bg-ember/20 text-ink shadow-[inset_0_0_0_1px_rgba(255,42,74,0.6)]" : "text-muted hover:text-ink"}`}
           >
             {label}
           </button>

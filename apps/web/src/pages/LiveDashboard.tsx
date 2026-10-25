@@ -23,6 +23,9 @@ import { Glitch, Particles } from "../components/WinnerOverlay";
 import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
 import { useTournamentId } from "../lib/useTournamentBySlug";
+import dlcLockup from "../assets/dlc/logo-lockup.png";
+import mascotPlayer from "../assets/dlc/mascot-player.png";
+import trophySticker from "../assets/dlc/sticker-trophy.png";
 
 const PAGE_MS = 10_000;
 /** How long a finished match stays on the board, celebrating its winner, before it pops off. */
@@ -157,14 +160,19 @@ function Board({ tournamentId }: { tournamentId?: string }) {
     Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
+    <div className="live-board flex h-screen flex-col overflow-hidden">
+      <header className="live-header flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
         <Link
           to="/"
           className="font-display text-lg font-black tracking-widest"
         >
           <span className="text-ember glow-ember">DLC</span>
           <span className="text-flame glow-flame"> GAMING CLUB</span>
+          <img
+            className="brand-lockup"
+            src={dlcLockup}
+            alt="DLC Gaming Club × dubizzleLabs"
+          />
         </Link>
         <div className="hud hidden truncate text-sm text-muted md:block">
           {tournamentId
@@ -198,7 +206,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               {calledCount} CALLED
             </span>
           )}
-          <span className="rounded-lg border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-xl tabular-nums text-ember glow-ember">
+          <span className="live-clock rounded-lg border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-xl tabular-nums text-ember glow-ember">
             {formatTime(clock, tz)}
           </span>
         </div>
@@ -348,7 +356,7 @@ function LiveCard({
         transition: { duration: 0.45 },
       }}
       transition={{ type: "spring", stiffness: 220, damping: 24 }}
-      className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${called ? "neon-called" : done || final ? "neon-gold" : "neon-live"}`}
+      className={`live-card panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${called ? "neon-called" : done || final ? "neon-gold" : "neon-live"}`}
     >
       {game?.cover_url && (
         <img
@@ -577,7 +585,7 @@ function CallPanel({
   return (
     <div className="flex flex-col items-center gap-1 text-center">
       <motion.div
-        className={`font-display font-black uppercase text-amber ${big ? "text-4xl" : compact ? "text-sm" : "text-xl"}`}
+        className={`call-title font-display font-black uppercase text-amber ${big ? "text-4xl" : compact ? "text-sm" : "text-xl"}`}
         style={{ textShadow: "0 0 16px rgba(255,107,129,0.8)" }}
         animate={{ opacity: [1, 0.45, 1] }}
         transition={{ duration: 1.4, repeat: Infinity }}
@@ -585,7 +593,7 @@ function CallPanel({
         Players to {station || "your station"}
       </motion.div>
       <div
-        className={`font-display font-black tabular-nums ${late ? "text-flame" : "text-ink"} ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
+        className={`call-clock font-display font-black tabular-nums ${late ? "text-flame" : "text-ink"} ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
         style={{
           textShadow: late
             ? "0 0 20px rgba(255,30,45,0.9)"
@@ -695,7 +703,7 @@ function Digit({ value }: { value: number }) {
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.span
         key={value}
-        className="inline-block text-ink"
+        className="score-digit inline-block text-ink"
         style={{ textShadow: "0 0 18px rgba(255,42,74,0.8)" }}
         initial={{ y: -30, opacity: 0, scale: 1.6, color: "#ffc93c" }}
         animate={{ y: 0, opacity: 1, scale: 1, color: "#fff0f1" }}
@@ -738,7 +746,7 @@ function CardWinner({
   const ls = score && (winnerId === match.team_a_id ? score[1] : score[0]);
   return (
     <motion.div
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 overflow-hidden text-center backdrop-blur-md"
+      className="card-winner absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 overflow-hidden text-center backdrop-blur-md"
       style={{
         background: `radial-gradient(circle at center, ${accent}33, transparent 65%), rgba(10,4,3,0.97)`,
       }}
@@ -747,7 +755,7 @@ function CardWinner({
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="absolute inset-y-0 w-1/2"
+        className="card-winner-sweep absolute inset-y-0 w-1/2"
         style={{
           background: `linear-gradient(90deg, transparent, ${accent}40, transparent)`,
         }}
@@ -761,7 +769,7 @@ function CardWinner({
         spread={big ? 500 : compact ? 160 : 280}
       />
       <motion.div
-        className="font-display relative font-black uppercase leading-none"
+        className="card-winner-title font-display relative font-black uppercase leading-none"
         style={{
           color: accent,
           textShadow: `0 0 24px ${accent}, 0 0 50px ${accent}88`,
@@ -799,7 +807,7 @@ function CardWinner({
         />
         <div className="text-left">
           <div
-            className={`font-display font-bold ${big ? "text-5xl" : compact ? "text-base" : "text-2xl"}`}
+            className={`card-winner-name font-display font-bold ${big ? "text-5xl" : compact ? "text-base" : "text-2xl"}`}
             style={{ textShadow: `0 0 16px ${accent}aa` }}
           >
             {winner?.name ?? "Winner"}
@@ -820,7 +828,13 @@ function CardWinner({
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 1.1, type: "spring" }}
         >
-          🏆
+          <span className="card-winner-emoji">🏆</span>
+          <img
+            className="card-winner-trophy"
+            src={trophySticker}
+            alt=""
+            aria-hidden="true"
+          />
         </motion.div>
       )}
     </motion.div>
@@ -962,7 +976,9 @@ function RailList({
     id ? (data.teams.get(id)?.name ?? "?") : "TBD";
   return (
     <div className="panel p-4">
-      <div className="hud mb-3 text-xs text-flame glow-flame">▸ {title}</div>
+      <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
+        ▸ {title}
+      </div>
       {matches.length === 0 && (
         <div className="text-sm text-muted">Nothing yet.</div>
       )}
@@ -1041,6 +1057,12 @@ function NothingLive({
     id ? (data.teams.get(id)?.name ?? "?") : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
+      <img
+        className="stand-by-mascot"
+        src={mascotPlayer}
+        alt=""
+        aria-hidden="true"
+      />
       <div className="hud text-sm text-muted">// stand by</div>
       {next ? (
         <>
@@ -1142,8 +1164,9 @@ function PointBurst({
       exit={{ opacity: 0, transition: { duration: 0.3 } }}
     >
       <motion.div
-        className="absolute inset-0"
+        className="point-burst-flash absolute inset-0"
         style={{
+          ["--x" as string]: x,
           background: `radial-gradient(circle at ${x} 55%, ${gold}55, rgba(255,42,74,0.25) 30%, transparent 60%)`,
         }}
         initial={{ opacity: 0 }}
@@ -1179,7 +1202,7 @@ function PointBurst({
         style={{ left: x }}
       >
         <motion.div
-          className="font-display whitespace-nowrap font-black uppercase"
+          className="point-burst-label font-display whitespace-nowrap font-black uppercase"
           style={{
             color: gold,
             textShadow: `0 0 18px ${gold}, 0 0 40px rgba(255,42,74,0.9)`,
