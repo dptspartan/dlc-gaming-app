@@ -1629,3 +1629,12 @@ input[type="file"]::file-selector-button {
     text-align: right;
   }
 }
+
+/* Phones: the credit line sits at the end of the page instead of over content. */
+@media (max-width: 640px) {
+  .powered-by {
+    position: static;
+    padding: 1.5rem 1rem 1rem;
+    text-align: center;
+  }
+}

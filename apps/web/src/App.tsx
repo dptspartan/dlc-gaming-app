@@ -25,7 +25,7 @@ export function App() {
           <Route path="/admin/games" element={<AdminGate><AdminGames /></AdminGate>} />
           <Route path="/admin/t/:id" element={<AdminGate><TournamentEditor /></AdminGate>} />
         </Routes>
-        <div className="hud pointer-events-none fixed right-3 bottom-2 z-50 text-[10px] text-muted/70 select-none">
+        <div className="powered-by hud pointer-events-none fixed right-3 bottom-2 z-50 text-[10px] text-muted/70 select-none">
           Powered by Claude (Employee number: GOAT5789)
         </div>
       </HashRouter>
