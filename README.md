@@ -58,6 +58,8 @@ Public sign-up is off; only accounts an admin creates can sign in.
 
 The web app uses hash URLs (`/#/t/demo-cup`), so it works on GitHub Pages under any repository name.
 
+The deployed site is locked to the DLC × dubizzleLabs theme with `VITE_THEME_LOCK=dlc-labs` in `apps/web/.env.production`: no theme switcher, and stored picks are ignored. Set it to `classic` to ship the classic theme, or remove it to bring the switcher back. Local `pnpm dev` is unlocked, so both themes stay available while working. Any other value fails the build.
+
 ## Demo data
 
 `pnpm demo-seed > demo.sql` prints SQL for a demo tournament with three games and generated fixtures. Run it in the Supabase SQL editor.

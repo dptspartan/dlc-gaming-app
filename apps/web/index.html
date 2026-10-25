@@ -10,10 +10,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <title>DLC Gaming Club</title>
     <script>
-      // Apply a stored classic pick before first paint; dlc-labs is the default.
-      try {
-        if (localStorage.getItem("dlc-theme-choice") === "classic") document.documentElement.dataset.theme = "classic";
-      } catch {}
+      // Set the theme before first paint: a build-time lock wins, then a stored
+      // classic pick; dlc-labs is the default. Vite fills in the lock at build.
+      (function () {
+        var lock = "%VITE_THEME_LOCK%";
+        var root = document.documentElement;
+        if (lock === "classic" || lock === "dlc-labs") {
+          root.dataset.theme = lock;
+          return;
+        }
+        try {
+          if (localStorage.getItem("dlc-theme-choice") === "classic") root.dataset.theme = "classic";
+        } catch {}
+      })();
     </script>
   </head>
   <body>
