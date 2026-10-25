@@ -32,3 +32,19 @@ export function useTheme() {
   if (!value) throw new Error('useTheme must be used within ThemeProvider');
   return value;
 }
+
+/** Header pill that flips between the classic and DLC × dubizzleLabs themes. */
+export function ThemeSwitch({ className = '' }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
+  return (
+    <button
+      type="button"
+      className={`theme-switch hud rounded-full border border-line px-2.5 py-1 text-[10px] text-muted transition hover:text-ink ${className}`}
+      aria-label={`Switch to ${theme === 'classic' ? 'DLC × dubizzleLabs' : 'classic'} theme`}
+      title="Preview themes"
+      onClick={() => setTheme(theme === 'classic' ? 'dlc-labs' : 'classic')}
+    >
+      {theme === 'classic' ? 'CLASSIC' : 'DLC × LABS'}
+    </button>
+  );
+}

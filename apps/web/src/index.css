@@ -520,7 +520,10 @@ input[type="file"]::file-selector-button {
   margin-left: 0.2em;
 }
 
-.brand-lockup {
+/* Brand art (lockup, stickers, trophy) is dlc-labs only; classic never shows it. */
+.brand-lockup,
+.event-collage,
+.bracket-final-trophy {
   display: none;
 }
 :root[data-theme="dlc-labs"] header .brand-lockup {
@@ -541,6 +544,7 @@ input[type="file"]::file-selector-button {
 }
 
 :root[data-theme="dlc-labs"] .event-collage {
+  display: block;
   position: absolute;
   z-index: 0;
   inset: 0;

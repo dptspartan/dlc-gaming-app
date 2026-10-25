@@ -23,6 +23,7 @@ import { Glitch, Particles } from "../components/WinnerOverlay";
 import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
 import { useTournamentId } from "../lib/useTournamentBySlug";
+import { ThemeSwitch } from "../lib/theme";
 import dlcLockup from "../assets/dlc/logo-lockup.png";
 import mascotPlayer from "../assets/dlc/mascot-player.png";
 import trophySticker from "../assets/dlc/sticker-trophy.png";
@@ -182,6 +183,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               : "No events running"}
         </div>
         <div className="flex items-center gap-4">
+          <ThemeSwitch />
           <button
             type="button"
             onClick={() => sound.setEnabled(!sound.enabled)}

@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { useTheme } from '../lib/theme';
+import { ThemeSwitch } from '../lib/theme';
 import dlcLockup from '../assets/dlc/logo-lockup.png';
 
 export function Layout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  const { theme, setTheme } = useTheme();
   const nav = ({ isActive }: { isActive: boolean }) =>
     `hud rounded-full px-3 py-1 text-xs transition ${isActive ? 'bg-ember/10 text-ember glow-ember shadow-[inset_0_0_0_1px_rgba(255,42,74,0.5)]' : 'text-muted hover:text-ink'}`;
   return (
@@ -28,15 +27,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
             <NavLink to="/admin" className={nav}>
               Admin
             </NavLink>
-            <button
-              type="button"
-              className="theme-switch hud ml-1 rounded-full border border-line px-2.5 py-1 text-[10px] text-muted transition hover:text-ink sm:ml-3"
-              aria-label={`Switch to ${theme === 'classic' ? 'DLC × dubizzleLabs' : 'classic'} theme`}
-              title="Preview themes"
-              onClick={() => setTheme(theme === 'classic' ? 'dlc-labs' : 'classic')}
-            >
-              {theme === 'classic' ? 'CLASSIC' : 'DLC × LABS'}
-            </button>
+            <ThemeSwitch className="ml-1 sm:ml-3" />
           </nav>
         </div>
       </header>
