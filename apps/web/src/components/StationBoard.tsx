@@ -33,9 +33,9 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
         const m = s.current;
         const tone = m?.status === 'live' ? 'neon-live' : m?.status === 'called' ? 'neon-called' : '';
         return (
-          <div key={s.station} className={`panel flex flex-col p-4 ${tone}`}>
+          <div key={s.station} className={`station-card panel flex flex-col p-4 ${tone}`}>
             <div className="mb-3 flex items-baseline justify-between gap-2">
-              <div className="font-display text-2xl font-black">
+              <div className="station-number font-display text-2xl font-black">
                 <span className="text-muted">#</span>
                 {s.station}
               </div>
@@ -68,7 +68,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
             {actions?.(s)}
 
             <div className="mt-auto pt-2">
-              <div className="mb-1 text-xs font-semibold tracking-wide text-muted uppercase">Up next</div>
+              <div className="station-queue-title mb-1 text-xs font-semibold tracking-wide text-muted uppercase">Up next</div>
               {s.queue.length === 0 && <div className="text-sm text-muted">Nothing planned</div>}
               <ul className="flex flex-col gap-1">
                 {s.queue.slice(0, upNext).map((q) => (
@@ -115,7 +115,7 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
   const name = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : 'TBD');
   if (list.length === 0) return <div className="py-8 text-center text-muted">Every match has been played.</div>;
   return (
-    <div className="glass-card overflow-x-auto">
+    <div className="timetable glass-card overflow-x-auto">
       <table className="w-full min-w-[40rem] text-left">
         <thead className="text-xs tracking-wide text-muted uppercase">
           <tr className="border-b border-line">

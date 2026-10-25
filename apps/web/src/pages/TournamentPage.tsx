@@ -16,6 +16,17 @@ import {
 import { WinnerOverlay, useWinnerQueue } from "../components/WinnerOverlay";
 import { useLiveData } from "../lib/useLiveData";
 import { useTournamentId } from "../lib/useTournamentBySlug";
+import mascotBeanbag from "../assets/dlc/mascot-beanbag.png";
+import mascotController from "../assets/dlc/mascot-controller.png";
+import stickerBolt from "../assets/dlc/sticker-bolt.png";
+import stickerBetterGames from "../assets/dlc/sticker-better-games.png";
+import stickerController from "../assets/dlc/sticker-controller.png";
+import stickerCrown from "../assets/dlc/sticker-crown.png";
+import stickerGameOn from "../assets/dlc/sticker-game-on.png";
+import stickerHeadphones from "../assets/dlc/sticker-headphones.png";
+import stickerKeyboard from "../assets/dlc/sticker-keyboard.png";
+import stickerTrophy from "../assets/dlc/sticker-trophy.png";
+import mascotPlayer from "../assets/dlc/mascot-player.png";
 
 export function TournamentPage({ timetable = false }: { timetable?: boolean }) {
   const { slug } = useParams();
@@ -94,7 +105,18 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
         data={data}
         onDone={overlay.shift}
       />
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="event-hero mb-3 flex flex-wrap items-end justify-between gap-4">
+        <div className="event-collage" aria-hidden="true">
+          <img className="event-sticker event-sticker-mascot" src={mascotBeanbag} alt="" />
+          <img className="event-sticker event-sticker-mascot-controller" src={mascotController} alt="" />
+          <img className="event-sticker event-sticker-crown" src={stickerCrown} alt="" />
+          <img className="event-sticker event-sticker-game-on" src={stickerGameOn} alt="" />
+          <img className="event-sticker event-sticker-better-games" src={stickerBetterGames} alt="" />
+          <img className="event-sticker event-sticker-controller" src={stickerController} alt="" />
+          <img className="event-sticker event-sticker-keyboard" src={stickerKeyboard} alt="" />
+          <img className="event-sticker event-sticker-headphones" src={stickerHeadphones} alt="" />
+          <img className="event-sticker event-sticker-bolt" src={stickerBolt} alt="" />
+        </div>
         <Heading
           sub={`${tournament.start_date}${tournament.days > 1 ? ` → ${addDays(tournament.start_date, tournament.days - 1)}` : ""} · daily ${tournament.daily_start.slice(0, 5)}–${tournament.daily_end.slice(0, 5)} (${tournament.timezone})`}
         >
@@ -109,7 +131,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
         </Link>
       </div>
 
-      <div className="mb-5 flex gap-1 rounded-xl border border-line bg-white/5 p-1 backdrop-blur sm:inline-flex">
+      <div className="view-switch mb-5 flex gap-1 rounded-xl border border-line bg-white/5 p-1 backdrop-blur sm:inline-flex">
         {(
           [
             [false, "Games & brackets"],
@@ -125,7 +147,8 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                   : `/t/${tournament.slug}`,
               )
             }
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${timetable === on ? "bg-ember/20 text-ink shadow-[inset_0_0_0_1px_rgba(255,42,74,0.6)]" : "text-muted hover:text-ink"}`}
+            aria-pressed={timetable === on}
+            className={`view-toggle flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${timetable === on ? "bg-ember/20 text-ink shadow-[inset_0_0_0_1px_rgba(255,42,74,0.6)]" : "text-muted hover:text-ink"}`}
           >
             {label}
           </button>
@@ -140,18 +163,34 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
             <Empty>Games will appear here once they are added.</Empty>
           )}
 
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="game-picker mb-4 flex flex-wrap gap-2">
             {tgames.map((g) => (
               <button
                 key={g.id}
                 onClick={() => setTab(g.id)}
-                className={`font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur transition ${
+                aria-pressed={g.id === tab}
+                className={`game-tab font-display rounded-xl border px-4 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur transition ${
                   g.id === tab
                     ? "border-ember bg-ember/15 text-ember shadow-[0_0_18px_rgba(255,42,74,0.35)]"
                     : "border-line bg-white/5 text-muted hover:text-ink"
                 }`}
               >
-                {data.games.get(g.game_id)?.name ?? "Game"}
+                {data.games.get(g.game_id)?.cover_url && (
+                  <img
+                    className="game-tab-cover"
+                    src={data.games.get(g.game_id)!.cover_url!}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="game-tab-name">
+                  {data.games.get(g.game_id)?.name ?? "Game"}
+                </span>
+                {(g.status === "live" || g.status === "finished") && (
+                  <span className="game-tab-state dlc-only" data-state={g.status}>
+                    {g.status === "live" ? "Live" : "Done"}
+                  </span>
+                )}
                 {g.status === "live" && (
                   <span
                     className="live-dot ml-2 inline-block"
@@ -164,7 +203,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
 
           {tg && (
             <>
-              <div className="mb-5 flex flex-wrap items-center gap-4 text-muted">
+              <div className="game-meta mb-5 flex flex-wrap items-center gap-4 text-muted">
                 <StatusPill status={tg.status.replace("_", " ")} />
                 <span>
                   {game?.team_size === 1
@@ -184,8 +223,14 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
               </div>
 
               {champion && (
-                <div className="panel neon-gold mb-6 flex items-center gap-4 p-4">
-                  <span className="text-4xl">🏆</span>
+                <div className="champion-card panel neon-gold mb-6 flex items-center gap-4 p-4">
+                  <span className="classic-only text-4xl">🏆</span>
+                  <img
+                    className="champion-trophy"
+                    src={stickerTrophy}
+                    alt=""
+                    aria-hidden="true"
+                  />
                   <Avatar
                     name={champion.name}
                     url={champion.logo_url}
@@ -193,11 +238,19 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                     ring="#ff6b81"
                   />
                   <div>
-                    <div className="hud text-xs text-amber">Champion</div>
-                    <div className="font-display text-2xl font-bold">
+                    <div className="champion-label hud text-xs text-amber">
+                      Champion
+                    </div>
+                    <div className="champion-name font-display text-2xl font-bold">
                       {champion.name}
                     </div>
                   </div>
+                  <img
+                    className="champion-mascot"
+                    src={mascotPlayer}
+                    alt=""
+                    aria-hidden="true"
+                  />
                 </div>
               )}
 
@@ -206,7 +259,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                   <button
                     key={v}
                     onClick={() => setView(v)}
-                    className={`hud -mb-px border-b-2 px-1 pb-2 text-xs ${shown === v ? "border-flame text-flame glow-flame" : "border-transparent text-muted hover:text-ink"}`}
+                    className={`view-tab hud -mb-px border-b-2 px-1 pb-2 text-xs ${shown === v ? "border-flame text-flame glow-flame" : "border-transparent text-muted hover:text-ink"}`}
                   >
                     {v === "players"
                       ? game?.team_size === 1
@@ -244,9 +297,9 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
                 />
               )}
               {shown === "players" && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="roster grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {teams.map((t) => (
-                    <div key={t.id} className="panel flex items-center gap-3">
+                    <div key={t.id} className="roster-card panel flex items-center gap-3">
                       <Avatar name={t.name} url={t.logo_url} size={40} />
                       <div className="min-w-0">
                         <div className="truncate font-bold">

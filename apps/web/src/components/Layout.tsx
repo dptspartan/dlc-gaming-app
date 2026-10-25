@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { ThemeSwitch } from '../lib/theme';
+import dlcLockup from '../assets/dlc/logo-lockup.png';
 
 export function Layout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const nav = ({ isActive }: { isActive: boolean }) =>
@@ -11,6 +13,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
           <Link to="/" className="font-display text-lg font-black tracking-widest">
             <span className="text-ember glow-ember">DLC</span>
             <span className="text-flame glow-flame"> GAMING CLUB</span>
+            <img className="brand-lockup" src={dlcLockup} alt="DLC Gaming Club × dubizzleLabs" />
           </Link>
           <nav className="flex items-center gap-1 sm:gap-2">
             <NavLink to="/" end className={nav}>
@@ -24,6 +27,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
             <NavLink to="/admin" className={nav}>
               Admin
             </NavLink>
+            <ThemeSwitch className="ml-1 sm:ml-3" />
           </nav>
         </div>
       </header>

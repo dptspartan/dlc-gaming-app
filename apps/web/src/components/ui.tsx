@@ -1,5 +1,6 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { countdown, elapsed, statusColor, statusLabel, type MatchStatus } from '@dlc/core';
+import mascotPlayer from '../assets/dlc/mascot-player.png';
 
 type Variant = 'primary' | 'ghost' | 'danger' | 'success';
 
@@ -15,7 +16,7 @@ export function Button({ variant = 'primary', className = '', ...props }: Button
   return (
     <button
       {...props}
-      className={`font-display rounded-lg px-4 py-2 text-xs font-bold tracking-widest uppercase transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]} ${className}`}
+      className={`btn-${variant} font-display rounded-lg px-4 py-2 text-xs font-bold tracking-widest uppercase transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]} ${className}`}
     />
   );
 }
@@ -55,6 +56,7 @@ export function StatusPill({ status }: { status: MatchStatus | string }) {
   const color = statusColor[status] ?? '#9c8f91';
   return (
     <span
+      data-status={status}
       className="hud inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] backdrop-blur"
       style={{ borderColor: color, color, background: `${color}14`, boxShadow: `0 0 12px ${color}33` }}
     >
@@ -73,10 +75,10 @@ export function Avatar({ name, url, size = 36, ring }: { name: string; url?: str
     .toUpperCase();
   const style = { width: size, height: size, boxShadow: ring ? `0 0 0 2px ${ring}, 0 0 18px ${ring}` : undefined };
   return url ? (
-    <img src={url} alt="" className="shrink-0 rounded-lg object-cover" style={style} />
+    <img src={url} alt="" className="avatar shrink-0 rounded-lg object-cover" style={style} />
   ) : (
     <div
-      className="font-display flex shrink-0 items-center justify-center rounded-lg border border-ember/30 bg-[linear-gradient(135deg,rgba(255,42,74,0.18),rgba(255,30,45,0.18))] font-bold text-ember"
+      className="avatar font-display flex shrink-0 items-center justify-center rounded-lg border border-ember/30 bg-[linear-gradient(135deg,rgba(255,42,74,0.18),rgba(255,30,45,0.18))] font-bold text-ember"
       style={{ ...style, fontSize: size * 0.36, textShadow: '0 0 10px rgba(255,42,74,0.8)' }}
     >
       {initials || '?'}
@@ -136,5 +138,11 @@ export function ErrorNote({ message }: { message: string | null }) {
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="hud py-10 text-center text-sm text-muted">// {children}</div>;
+  return (
+    <div className="empty-state hud py-10 text-center text-sm text-muted">
+      <img className="empty-mascot" src={mascotPlayer} alt="" aria-hidden="true" />
+      <span className="classic-only">// </span>
+      {children}
+    </div>
+  );
 }

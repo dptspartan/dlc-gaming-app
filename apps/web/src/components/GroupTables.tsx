@@ -39,8 +39,8 @@ export function GroupTables({
       </p>
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         {[...standings].map(([g, rows]) => (
-          <div key={g} className="panel p-0">
-            <div className="hud border-b border-line px-4 py-2 text-sm text-flame glow-flame">Group {groupLetter(g)}</div>
+          <div key={g} className="group-table panel p-0">
+            <div className="group-title hud border-b border-line px-4 py-2 text-sm text-flame glow-flame">Group {groupLetter(g)}</div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[11px] text-muted uppercase">
@@ -59,7 +59,7 @@ export function GroupTables({
                   const q = r.rank <= tg.advance_per_group;
                   const w = wildcardIds.has(r.teamId);
                   return (
-                    <tr key={r.teamId} className={`border-t border-line/60 ${q ? 'bg-ember/10' : w ? 'bg-gold/5' : ''}`}>
+                    <tr key={r.teamId} data-place={q ? 'through' : w ? 'wildcard' : undefined} className={`border-t border-line/60 ${q ? 'bg-ember/10' : w ? 'bg-gold/5' : ''}`}>
                       <td className={`py-2 pl-4 font-mono ${q ? 'text-ember' : w ? 'text-gold' : 'text-muted'}`}>{r.rank}</td>
                       <td className="py-2">
                         <span className="flex min-w-0 items-center gap-2">

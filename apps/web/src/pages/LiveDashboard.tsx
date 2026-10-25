@@ -23,6 +23,15 @@ import { Glitch, Particles } from "../components/WinnerOverlay";
 import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
 import { useTournamentId } from "../lib/useTournamentBySlug";
+import { ThemeSwitch } from "../lib/theme";
+import dlcLockup from "../assets/dlc/logo-lockup.png";
+import mascotPlayer from "../assets/dlc/mascot-player.png";
+import trophySticker from "../assets/dlc/sticker-trophy.png";
+import mascotController from "../assets/dlc/mascot-controller.png";
+import stickerBolt from "../assets/dlc/sticker-bolt.png";
+import stickerController from "../assets/dlc/sticker-controller.png";
+import stickerCrown from "../assets/dlc/sticker-crown.png";
+import stickerHeadphones from "../assets/dlc/sticker-headphones.png";
 
 const PAGE_MS = 10_000;
 /** How long a finished match stays on the board, celebrating its winner, before it pops off. */
@@ -157,14 +166,19 @@ function Board({ tournamentId }: { tournamentId?: string }) {
     Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
+    <div className="live-board flex h-screen flex-col overflow-hidden">
+      <header className="live-header flex items-center justify-between gap-4 border-b border-line bg-[#0a0a0a]/55 px-5 py-3 shadow-[0_1px_0_rgba(255,30,45,0.3)] backdrop-blur-xl">
         <Link
           to="/"
           className="font-display text-lg font-black tracking-widest"
         >
           <span className="text-ember glow-ember">DLC</span>
           <span className="text-flame glow-flame"> GAMING CLUB</span>
+          <img
+            className="brand-lockup"
+            src={dlcLockup}
+            alt="DLC Gaming Club × dubizzleLabs"
+          />
         </Link>
         <div className="hud hidden truncate text-sm text-muted md:block">
           {tournamentId
@@ -174,6 +188,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               : "No events running"}
         </div>
         <div className="flex items-center gap-4">
+          <ThemeSwitch />
           <button
             type="button"
             onClick={() => sound.setEnabled(!sound.enabled)}
@@ -198,14 +213,14 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               {calledCount} CALLED
             </span>
           )}
-          <span className="rounded-lg border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-xl tabular-nums text-ember glow-ember">
+          <span className="live-clock rounded-lg border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-xl tabular-nums text-ember glow-ember">
             {formatTime(clock, tz)}
           </span>
         </div>
       </header>
       <ErrorNote message={error} />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
+      <div className="live-stage flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
         <main className="min-h-0 flex-1">
           {live.length === 0 ? (
             <NothingLive
@@ -221,7 +236,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
           ) : (
             <LayoutGroup>
               <div
-                className="grid h-full gap-4"
+                className="live-grid grid h-full gap-4"
                 style={{
                   gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
                   gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
@@ -348,26 +363,26 @@ function LiveCard({
         transition: { duration: 0.45 },
       }}
       transition={{ type: "spring", stiffness: 220, damping: 24 }}
-      className={`panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${called ? "neon-called" : done || final ? "neon-gold" : "neon-live"}`}
+      className={`live-card panel scanlines relative flex min-h-[220px] flex-col overflow-hidden p-0 ${called ? "neon-called" : done || final ? "neon-gold" : "neon-live"}`}
     >
       {game?.cover_url && (
         <img
           src={game.cover_url}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-20 blur-[2px]"
+          className="live-card-art absolute inset-0 h-full w-full object-cover opacity-20 blur-[2px]"
         />
       )}
       <div
-        className={`relative flex items-center gap-4 overflow-hidden border-b border-line px-4 ${big ? "py-5" : compact ? "py-2" : "py-3.5"}`}
+        className={`live-card-head relative flex items-center gap-4 overflow-hidden border-b border-line px-4 ${big ? "py-5" : compact ? "py-2" : "py-3.5"}`}
       >
         {game?.cover_url && (
           <>
             <img
               src={game.cover_url}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-60"
+              className="live-card-head-art absolute inset-0 h-full w-full object-cover opacity-60"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/75 to-[#050505]/20" />
+            <div className="live-card-head-art absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/75 to-[#050505]/20" />
           </>
         )}
         <GameBadge
@@ -394,7 +409,8 @@ function LiveCard({
           </div>
         </div>
         <span
-          className={`hud relative flex shrink-0 items-center gap-2 self-start rounded-full border px-2.5 py-0.5 text-xs ${
+          data-state={done ? "done" : called ? "called" : "live"}
+          className={`live-state hud relative flex shrink-0 items-center gap-2 self-start rounded-full border px-2.5 py-0.5 text-xs ${
             done
               ? "border-gold/70 bg-gold/15 text-gold"
               : called
@@ -449,7 +465,7 @@ function LiveCard({
           <div className="flex flex-col items-center gap-2">
             {series && done ? (
               <span
-                className={`font-display font-black text-ink tabular-nums ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
+                className={`live-score font-display font-black text-ink tabular-nums ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
               >
                 {match.series_a}
                 <span className="px-2 text-flame">:</span>
@@ -457,7 +473,7 @@ function LiveCard({
               </span>
             ) : (
               <span
-                className={`glitch font-display font-black text-flame glow-flame italic ${big ? "text-7xl" : compact ? "text-2xl" : "text-5xl"}`}
+                className={`live-score live-vs glitch font-display font-black text-flame glow-flame italic ${big ? "text-7xl" : compact ? "text-2xl" : "text-5xl"}`}
                 data-text="VS"
               >
                 VS
@@ -497,11 +513,11 @@ function LiveCard({
         )}
       </AnimatePresence>
 
-      <div className="hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
+      <div className="live-card-foot hud relative flex items-center justify-between border-t border-line bg-black/25 px-4 py-2 text-xs text-muted">
         <span className="flex items-center gap-3">
           {match.station && !done && (
             <span
-              className={`rounded border border-line bg-white/10 px-2 py-0.5 text-ink ${big ? "text-base" : ""}`}
+              className={`live-station rounded border border-line bg-white/10 px-2 py-0.5 text-ink ${big ? "text-base" : ""}`}
             >
               {stationLabel(match)}
             </span>
@@ -516,19 +532,26 @@ function LiveCard({
         </span>
         {called && left != null && (
           <span
-            className={`font-mono ${left < 0 ? "text-flame glow-flame" : "text-amber"} ${big ? "text-3xl" : "text-xl"}`}
+            className={`live-timer font-mono ${left < 0 ? "text-flame glow-flame" : "text-amber"} ${big ? "text-3xl" : "text-xl"}`}
           >
             {left < 0 ? `Late ${countdown(-left)}` : countdown(left)}
           </span>
         )}
         {match.started_at && !done && !called && (
           <span
-            className={`font-mono text-ember glow-ember ${big ? "text-3xl" : "text-xl"}`}
+            className={`live-timer font-mono text-ember glow-ember ${big ? "text-3xl" : "text-xl"}`}
           >
             <Elapsed since={match.started_at} />
           </span>
         )}
       </div>
+
+      <img
+        className="live-card-sticker"
+        src={cornerSticker(match.id)}
+        alt=""
+        aria-hidden="true"
+      />
 
       <AnimatePresence>
         {done ? (
@@ -561,6 +584,20 @@ function LiveCard({
   );
 }
 
+const CORNER_STICKERS = [
+  stickerController,
+  stickerCrown,
+  stickerBolt,
+  stickerHeadphones,
+];
+
+/** One corner sticker per card, picked from the match id so it stays put between renders. */
+function cornerSticker(id: string) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return CORNER_STICKERS[Math.abs(h) % CORNER_STICKERS.length];
+}
+
 /** Called match: the players are asked to their station, with the time they have left. */
 function CallPanel({
   station,
@@ -577,7 +614,7 @@ function CallPanel({
   return (
     <div className="flex flex-col items-center gap-1 text-center">
       <motion.div
-        className={`font-display font-black uppercase text-amber ${big ? "text-4xl" : compact ? "text-sm" : "text-xl"}`}
+        className={`call-title font-display font-black uppercase text-amber ${big ? "text-4xl" : compact ? "text-sm" : "text-xl"}`}
         style={{ textShadow: "0 0 16px rgba(255,107,129,0.8)" }}
         animate={{ opacity: [1, 0.45, 1] }}
         transition={{ duration: 1.4, repeat: Infinity }}
@@ -585,7 +622,7 @@ function CallPanel({
         Players to {station || "your station"}
       </motion.div>
       <div
-        className={`font-display font-black tabular-nums ${late ? "text-flame" : "text-ink"} ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
+        className={`call-clock font-display font-black tabular-nums ${late ? "text-flame" : "text-ink"} ${big ? "text-8xl" : compact ? "text-3xl" : "text-6xl"}`}
         style={{
           textShadow: late
             ? "0 0 20px rgba(255,30,45,0.9)"
@@ -632,7 +669,7 @@ function Score({
   return (
     <div className="flex flex-col items-center gap-2">
       <div
-        className={`font-display flex items-center font-black tabular-nums ${size}`}
+        className={`live-score font-display flex items-center font-black tabular-nums ${size}`}
       >
         <Digit value={sa} />
         <span className="px-2 text-flame glow-flame">:</span>
@@ -695,7 +732,7 @@ function Digit({ value }: { value: number }) {
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.span
         key={value}
-        className="inline-block text-ink"
+        className="score-digit inline-block text-ink"
         style={{ textShadow: "0 0 18px rgba(255,42,74,0.8)" }}
         initial={{ y: -30, opacity: 0, scale: 1.6, color: "#ffc93c" }}
         animate={{ y: 0, opacity: 1, scale: 1, color: "#fff0f1" }}
@@ -738,7 +775,7 @@ function CardWinner({
   const ls = score && (winnerId === match.team_a_id ? score[1] : score[0]);
   return (
     <motion.div
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 overflow-hidden text-center backdrop-blur-md"
+      className="card-winner absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 overflow-hidden text-center backdrop-blur-md"
       style={{
         background: `radial-gradient(circle at center, ${accent}33, transparent 65%), rgba(10,4,3,0.97)`,
       }}
@@ -747,7 +784,7 @@ function CardWinner({
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="absolute inset-y-0 w-1/2"
+        className="card-winner-sweep absolute inset-y-0 w-1/2"
         style={{
           background: `linear-gradient(90deg, transparent, ${accent}40, transparent)`,
         }}
@@ -761,7 +798,7 @@ function CardWinner({
         spread={big ? 500 : compact ? 160 : 280}
       />
       <motion.div
-        className="font-display relative font-black uppercase leading-none"
+        className="card-winner-title font-display relative font-black uppercase leading-none"
         style={{
           color: accent,
           textShadow: `0 0 24px ${accent}, 0 0 50px ${accent}88`,
@@ -799,7 +836,7 @@ function CardWinner({
         />
         <div className="text-left">
           <div
-            className={`font-display font-bold ${big ? "text-5xl" : compact ? "text-base" : "text-2xl"}`}
+            className={`card-winner-name font-display font-bold ${big ? "text-5xl" : compact ? "text-base" : "text-2xl"}`}
             style={{ textShadow: `0 0 16px ${accent}aa` }}
           >
             {winner?.name ?? "Winner"}
@@ -820,7 +857,13 @@ function CardWinner({
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 1.1, type: "spring" }}
         >
-          🏆
+          <span className="card-winner-emoji">🏆</span>
+          <img
+            className="card-winner-trophy"
+            src={trophySticker}
+            alt=""
+            aria-hidden="true"
+          />
         </motion.div>
       )}
     </motion.div>
@@ -901,7 +944,7 @@ function Side({
         />
       </motion.div>
       <span
-        className={`font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        className={`live-name font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
       >
         {name}
       </span>
@@ -961,8 +1004,10 @@ function RailList({
   const name = (id: string | null) =>
     id ? (data.teams.get(id)?.name ?? "?") : "TBD";
   return (
-    <div className="panel p-4">
-      <div className="hud mb-3 text-xs text-flame glow-flame">▸ {title}</div>
+    <div className="rail-list panel p-4">
+      <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
+        ▸ {title}
+      </div>
       {matches.length === 0 && (
         <div className="text-sm text-muted">Nothing yet.</div>
       )}
@@ -1041,6 +1086,12 @@ function NothingLive({
     id ? (data.teams.get(id)?.name ?? "?") : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
+      <img
+        className="stand-by-mascot"
+        src={mascotPlayer}
+        alt=""
+        aria-hidden="true"
+      />
       <div className="hud text-sm text-muted">// stand by</div>
       {next ? (
         <>
@@ -1142,8 +1193,9 @@ function PointBurst({
       exit={{ opacity: 0, transition: { duration: 0.3 } }}
     >
       <motion.div
-        className="absolute inset-0"
+        className="point-burst-flash absolute inset-0"
         style={{
+          ["--x" as string]: x,
           background: `radial-gradient(circle at ${x} 55%, ${gold}55, rgba(255,42,74,0.25) 30%, transparent 60%)`,
         }}
         initial={{ opacity: 0 }}
@@ -1179,7 +1231,7 @@ function PointBurst({
         style={{ left: x }}
       >
         <motion.div
-          className="font-display whitespace-nowrap font-black uppercase"
+          className="point-burst-label font-display whitespace-nowrap font-black uppercase"
           style={{
             color: gold,
             textShadow: `0 0 18px ${gold}, 0 0 40px rgba(255,42,74,0.9)`,
@@ -1198,6 +1250,12 @@ function PointBurst({
           }}
         >
           +1 {label}
+          <img
+            className="point-burst-mascot"
+            src={mascotController}
+            alt=""
+            aria-hidden="true"
+          />
         </motion.div>
       </div>
     </motion.div>

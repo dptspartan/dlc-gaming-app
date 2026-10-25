@@ -7,25 +7,28 @@ import { AdminGames } from './pages/admin/AdminGames';
 import { AdminGate } from './pages/admin/AdminGate';
 import { AdminHome } from './pages/admin/AdminHome';
 import { TournamentEditor } from './pages/admin/TournamentEditor';
+import { ThemeProvider } from './lib/theme';
 
 // HashRouter keeps deep links working on GitHub Pages, which has no rewrites.
 export function App() {
   return (
-    <HashRouter>
-      <Scene />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/live" element={<LiveDashboard />} />
-        <Route path="/t/:slug" element={<TournamentPage />} />
-        <Route path="/t/:slug/live" element={<LiveDashboard />} />
-        <Route path="/t/:slug/timetable" element={<TournamentPage timetable />} />
-        <Route path="/admin" element={<AdminGate><AdminHome /></AdminGate>} />
-        <Route path="/admin/games" element={<AdminGate><AdminGames /></AdminGate>} />
-        <Route path="/admin/t/:id" element={<AdminGate><TournamentEditor /></AdminGate>} />
-      </Routes>
-      <div className="hud pointer-events-none fixed right-3 bottom-2 z-50 text-[10px] text-muted/70 select-none">
-        Powered by Claude (Employee number: GOAT5789)
-      </div>
-    </HashRouter>
+    <ThemeProvider>
+      <HashRouter>
+        <Scene />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/live" element={<LiveDashboard />} />
+          <Route path="/t/:slug" element={<TournamentPage />} />
+          <Route path="/t/:slug/live" element={<LiveDashboard />} />
+          <Route path="/t/:slug/timetable" element={<TournamentPage timetable />} />
+          <Route path="/admin" element={<AdminGate><AdminHome /></AdminGate>} />
+          <Route path="/admin/games" element={<AdminGate><AdminGames /></AdminGate>} />
+          <Route path="/admin/t/:id" element={<AdminGate><TournamentEditor /></AdminGate>} />
+        </Routes>
+        <div className="powered-by hud pointer-events-none fixed right-3 bottom-2 z-50 text-[10px] text-muted/70 select-none">
+          Powered by Claude (Employee number: GOAT5789)
+        </div>
+      </HashRouter>
+    </ThemeProvider>
   );
 }
