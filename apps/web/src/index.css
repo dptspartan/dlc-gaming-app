@@ -1591,3 +1591,41 @@ input[type="file"]::file-selector-button {
     inset: -11px -4px;
   }
 }
+
+/* Timetable on phones: each match is a stacked row (time · station · status,
+   then game, then players) instead of a 640px table behind a side scroll. */
+@media (max-width: 640px) {
+  .timetable table {
+    min-width: 0;
+  }
+  .timetable thead {
+    display: none;
+  }
+  .timetable tr {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    row-gap: 0.15rem;
+    padding: 0.65rem 0.75rem;
+  }
+  .timetable td {
+    padding: 0 !important;
+    white-space: normal !important;
+  }
+  .timetable td:nth-child(3),
+  .timetable td:nth-child(4) {
+    grid-column: 2 / 4;
+  }
+  .timetable td:nth-child(4) {
+    font-weight: 600;
+  }
+  .timetable td:nth-child(1),
+  .timetable td:nth-child(2),
+  .timetable td:nth-child(5) {
+    grid-row: 1;
+  }
+  .timetable td:nth-child(5) {
+    grid-column: 3;
+    text-align: right;
+  }
+}
