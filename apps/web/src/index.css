@@ -1628,6 +1628,10 @@ input[type="file"]::file-selector-button {
     grid-column: 3;
     text-align: right;
   }
+  .timetable td:nth-child(6) {
+    grid-column: 2 / 4;
+    padding-top: 0.35rem !important;
+  }
 }
 
 /* ------------------------------------------------------------------------

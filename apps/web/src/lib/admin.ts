@@ -5,6 +5,7 @@ import {
   groupStandings,
   knockoutFor,
   knockoutFromQualifiers,
+  moveInQueue,
   qualifiers,
   scheduleTournament,
   seriesFor,
@@ -182,6 +183,32 @@ export async function refreshTimetable(tournamentId: string): Promise<TimetableR
     supabase.from('games').select('*').then(must),
   ]);
   return reflowTournament(tournament as Tournament, tgames as TournamentGame[], matches as Match[], games as Game[]);
+}
+
+/**
+ * Move a queued match one place earlier or later in the timetable (among the
+ * matches `among` keeps, e.g. one game's), then rebuild the timetable around it.
+ * The new place is kept by later rebuilds. Throws when it can't move.
+ */
+export async function moveMatch(
+  tournament: Tournament,
+  tgames: TournamentGame[],
+  matches: Match[],
+  id: string,
+  direction: 'earlier' | 'later',
+  catalog?: Iterable<Game>,
+  among?: (m: Match) => boolean,
+): Promise<TimetableResult> {
+  const moved = moveInQueue(matches, timetableOptions(tournament, tgames, Date.now(), catalog), id, direction, among);
+  if (!moved)
+    throw new Error(
+      direction === 'earlier'
+        ? "This match can't go any earlier: it waits for its players, an earlier round, or the start time from its fixtures sheet."
+        : "This match can't go any later: nothing after it can take its place.",
+    );
+  must(await supabase.from('matches').update({ queue_key: moved.key }).eq('id', id));
+  await saveSlots(moved.result);
+  return moved.result;
 }
 
 /** How the queued matches fit, without saving anything. */

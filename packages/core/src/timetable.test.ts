@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket } from './bracket';
 import { generateGroupStage, knockoutFromQualifiers } from './groups';
-import { callSecondsLeft, scheduleTournament, stationBoard, type TimetableGame, type TimetableMatch } from './timetable';
+import { callSecondsLeft, moveInQueue, scheduleTournament, stationBoard, type TimetableGame, type TimetableMatch } from './timetable';
 
 const start = Date.UTC(2026, 0, 1, 10);
 const windows = [{ day: 1, start, end: start + 12 * 3600_000 }];
@@ -139,5 +139,57 @@ describe('stationBoard', () => {
   it('counts down the call', () => {
     const now = Date.UTC(2026, 0, 1, 10);
     expect(callSecondsLeft({ called_at: new Date(now - 60_000).toISOString() }, 5, now)).toBe(240);
+  });
+});
+
+describe('moveInQueue', () => {
+  // Eight players on two stations: four first-round matches, two at a time.
+  const setup = () => {
+    const matches = asTimetable('g', generateBracket(entrants('p', 8), { newId }));
+    const options = { windows, stations: 2, callMinutes: 5, games: new Map([['g', game()]]) };
+    const order = (ms: TimetableMatch[]) =>
+      scheduleTournament(ms, options)
+        .slots.sort((a, b) => a.start - b.start || a.station - b.station)
+        .map((s) => s.id);
+    return { matches, options, order };
+  };
+  const apply = (ms: TimetableMatch[], id: string, key: number) => ms.map((m) => (m.id === id ? { ...m, queue_key: key } : m));
+
+  it('moves a match one place earlier and the rest of the queue moves round it', () => {
+    const { matches, options, order } = setup();
+    const before = order(matches);
+    const fourth = before[3];
+    const moved = moveInQueue(matches, options, fourth, 'earlier')!;
+    const after = order(apply(matches, fourth, moved.key));
+    expect(after.slice(0, 4)).toEqual([before[0], before[1], before[3], before[2]]);
+    // Into the first wave on the next step, ahead of the second match.
+    const again = moveInQueue(apply(matches, fourth, moved.key), options, fourth, 'earlier')!;
+    expect(order(apply(matches, fourth, again.key)).slice(0, 4)).toEqual([before[0], before[3], before[1], before[2]]);
+  });
+
+  it('keeps the new place on a rebuild', () => {
+    const { matches, options, order } = setup();
+    const first = order(matches)[0];
+    const moved = moveInQueue(matches, options, first, 'later')!;
+    const saved = apply(matches, first, moved.key);
+    expect(order(saved)[1]).toBe(first);
+    expect(order(saved)).toEqual(order(saved.map((m) => ({ ...m }))));
+  });
+
+  it("won't move a match ahead of the round it waits for", () => {
+    const { matches, options, order } = setup();
+    const ids = order(matches);
+    // The final waits for both semi-finals.
+    expect(moveInQueue(matches, options, ids[6], 'earlier')).toBeNull();
+    expect(moveInQueue(matches, options, ids[0], 'earlier')).toBeNull();
+  });
+
+  it('only passes the matches it is asked to', () => {
+    const { matches, options, order } = setup();
+    const ids = order(matches);
+    // Among the odd places only, the fourth match passes the second.
+    const among = (m: TimetableMatch) => m.id === ids[1] || m.id === ids[3];
+    const moved = moveInQueue(matches, options, ids[3], 'earlier', among)!;
+    expect(order(apply(matches, ids[3], moved.key)).indexOf(ids[3])).toBeLessThan(order(apply(matches, ids[3], moved.key)).indexOf(ids[1]));
   });
 });
