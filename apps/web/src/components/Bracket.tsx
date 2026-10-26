@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, type Match, type Slot, type Team } from '@dlc/core';
+import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -189,7 +189,7 @@ function BracketMatch({
       >
         <Avatar name={team?.name ?? '?'} url={team?.logo_url} size={22} />
         <span className={`flex-1 truncate font-semibold ${won ? 'text-gold' : team ? '' : 'text-muted italic'}`}>
-          {team?.name ?? (match.is_bye ? 'Bye' : 'TBD')}
+          {sideName(match, slot, team?.name)}
         </span>
         {score != null && <span className="font-display text-sm">{score}</span>}
         {won && <span className="text-gold glow-gold">◆</span>}

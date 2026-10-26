@@ -1,5 +1,6 @@
 import {
   fixtureNotBefore,
+  fixtureOrder,
   generateGroupStage,
   groupStandings,
   knockoutFor,
@@ -113,13 +114,16 @@ export async function generateFixtures(
 }
 
 /**
- * Upload one day's fixtures for a game (see parseFixturesCsv), then rebuild
- * the timetable so matches without a time or station get one that day.
+ * Upload a fixtures sheet for a game (see parseFixturesCsv), then rebuild the
+ * timetable so matches without a time or station get one on their day.
  */
 export async function uploadDayFixtures(tournament: Tournament, tg: TournamentGame, rows: FixtureRow[]): Promise<TimetableResult> {
-  const items = rows.map((r) => ({
+  const items = [...rows].sort(fixtureOrder).map((r) => ({
     round_code: r.round_code,
     fixture_day: r.date,
+    match_code: r.match_code,
+    a_from: r.a_from,
+    b_from: r.b_from,
     team_a_id: r.team_a_id,
     team_b_id: r.team_b_id,
     station: r.station,
@@ -128,6 +132,12 @@ export async function uploadDayFixtures(tournament: Tournament, tg: TournamentGa
   }));
   await rpc('upload_day_fixtures', { p_tournament_game_id: tg.id, p_matches: items });
   return refreshTimetable(tournament.id);
+}
+
+/** Add players (or teams) to a game by name, skipping names it already has. */
+export async function addPlayers(tg: TournamentGame, names: string[]) {
+  const rows = [...new Set(names.map((n) => n.trim()).filter(Boolean))].map((name) => ({ tournament_game_id: tg.id, name, members: [] }));
+  if (rows.length) must(await supabase.from('teams').upsert(rows, { onConflict: 'tournament_game_id,name', ignoreDuplicates: true }));
 }
 
 /** Who goes through from the group tables, best first. */

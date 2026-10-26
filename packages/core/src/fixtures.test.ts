@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode } from './fixtures';
+import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, type FixtureRow } from './fixtures';
 import { isFinal, matchLabel } from './groups';
 import { planStage } from './plan';
 import { scheduleTournament, type TimetableMatch } from './timetable';
@@ -13,25 +13,41 @@ const teams = [
   { id: 'smith', name: 'Smith, J' },
 ];
 const ctx = { tournament, tg: { allowed_stations: null as number[] | null }, teams };
-const parse = (body: string, over: Partial<typeof ctx> = {}) => parseFixturesCsv(`stage,date,time,station,side_a,side_b\n${body}`, { ...ctx, ...over });
+type Options = Partial<Parameters<typeof parseFixturesCsv>[1]>;
+const parse = (body: string, over: Options = {}) => parseFixturesCsv(`stage,date,time,station,side_a,side_b\n${body}`, { ...ctx, ...over });
 
 describe('parseRoundCode', () => {
   it('reads codes and the ways organisers write them', () => {
-    expect(['PRE', 'prelims', 'Play-in', 'r32', 'Round of 32', 'last 16', 'QF', 'Quarter-finals', 'semis', 'Semi-final', 'F', 'final'].map(parseRoundCode)).toEqual([
-      'PRE', 'PRE', 'PRE', 'R32', 'R32', 'R16', 'QF', 'QF', 'SF', 'SF', 'F', 'F',
-    ]);
+    expect(
+      ['PRE', 'Preliminary / play-in', 'prelims', 'r32', 'Round of 32', 'last 16', 'QF', 'Quarterfinal', 'semis', 'Semifinal', 'F', 'Final'].map(parseRoundCode),
+    ).toEqual(['PRE', 'PRE', 'PRE', 'R32', 'R32', 'R16', 'QF', 'QF', 'SF', 'SF', 'F', 'F']);
     expect(parseRoundCode('round 3')).toBeNull();
   });
 });
 
-describe('parseFixturesCsv', () => {
-  it('reads a day of fixtures with optional time and station, TBD sides and quoted names', () => {
+const row = (over: Partial<FixtureRow>): FixtureRow => ({
+  line: 2,
+  round_code: 'R16',
+  match_code: null,
+  date: '2026-11-02',
+  time: null,
+  wave: null,
+  station: null,
+  team_a_id: null,
+  team_b_id: null,
+  a_from: null,
+  b_from: null,
+  ...over,
+});
+
+describe('parseFixturesCsv: plain CSV', () => {
+  it('reads dates, optional time and station, TBD sides and quoted names', () => {
     const r = parse(['R16,2026-11-02,18:00,1,Fury,Kilo', 'r16,2026-11-02,,,drift,"Smith, J"', 'QF,2026-11-02,9:30,,TBD,'].join('\n'));
     expect(r.errors).toEqual([]);
     expect(r.rows).toEqual([
-      { line: 2, round_code: 'R16', date: '2026-11-02', time: '18:00', station: 1, team_a_id: 'fury', team_b_id: 'kilo' },
-      { line: 3, round_code: 'R16', date: '2026-11-02', time: null, station: null, team_a_id: 'drift', team_b_id: 'smith' },
-      { line: 4, round_code: 'QF', date: '2026-11-02', time: '09:30', station: null, team_a_id: null, team_b_id: null },
+      row({ line: 2, time: '18:00', station: 1, team_a_id: 'fury', team_b_id: 'kilo' }),
+      row({ line: 3, team_a_id: 'drift', team_b_id: 'smith' }),
+      row({ line: 4, round_code: 'QF', time: '09:30' }),
     ]);
   });
 
@@ -47,16 +63,17 @@ describe('parseFixturesCsv', () => {
       ].join('\n'),
     );
     expect(r.errors.map((e) => [e.line, e.message])).toEqual([
-      [2, 'Unknown stage "R8". Use PRE, R32, R16, QF, SF or F.'],
+      [2, 'Unknown round "R8". Use Preliminary, Round of 32, Round of 16, Quarterfinal, Semifinal or Final.'],
       [3, '2026-11-09 is outside the tournament (2026-11-02 to 2026-11-03).'],
       [4, 'Time "25:00" is not HH:MM.'],
       [4, 'Station "9" does not exist (1 to 4).'],
       [4, '"Nobody" is not a player or team in this game.'],
       [5, '"Ghost" cannot play themselves.'],
-      [7, 'Kilo already plays this stage that day (line 6).'],
+      [7, 'Kilo already plays this round that day (line 6).'],
       [7, 'Station 2 already has a match at 18:00 (line 6).'],
     ]);
     expect(r.rows.map((x) => x.line)).toEqual([6]);
+    expect(r.unknownNames).toEqual(['Nobody']);
   });
 
   it('only allows the stations the game can use', () => {
@@ -64,16 +81,80 @@ describe('parseFixturesCsv', () => {
     expect(r.errors[0].message).toBe('Station 3 is not one this game can use (1, 2).');
   });
 
-  it('needs the stage, date and both side columns', () => {
-    expect(parseFixturesCsv('stage,side_a,side_b\nR16,Fury,Kilo', ctx).errors[0].message).toMatch(/^Missing column: date\./);
+  it('needs the round and both player columns', () => {
+    expect(parseFixturesCsv('stage,side_a\nR16,Fury', ctx).errors[0].message).toBe('Missing column: Player B.');
     expect(parseFixturesCsv('', ctx).errors[0].message).toBe('The file is empty.');
     expect(parseFixturesCsv('stage,date,side_a,side_b\n', ctx).errors[0].message).toBe('The file has a header but no fixtures.');
   });
+});
+
+describe('parseFixturesCsv: organisers\' sheets', () => {
+  // Columns and wording as in the club's fixtures workbook (made-up names).
+  const sheet = (header: string, body: string[], over: Options = {}) => parseFixturesCsv([header, ...body].join('\n'), { ...ctx, ...over });
+
+  it('reads Round / Match ID / Player A / Setup / Wave, with the day picked for the sheet', () => {
+    const r = sheet(
+      'Round,Match ID,Player A,Player B,Setup,Wave,Winner / score',
+      ['Preliminary / play-in,FC-PI-01,Fury,Kilo,Setup 1,Wave 1 (~15 min),', 'Preliminary / play-in,FC-PI-02,Drift,Ghost,Setup 2,Wave 1 (~15 min),'],
+      { defaultDate: '2026-11-02', tg: { allowed_stations: [3, 4] } },
+    );
+    expect(r.errors).toEqual([]);
+    expect(r.rows).toEqual([
+      row({ line: 2, round_code: 'PRE', match_code: 'FC-PI-01', wave: 1, station: 3, team_a_id: 'fury', team_b_id: 'kilo' }),
+      row({ line: 3, round_code: 'PRE', match_code: 'FC-PI-02', wave: 1, station: 4, team_a_id: 'drift', team_b_id: 'ghost' }),
+    ]);
+  });
+
+  it('links "Winner of …" to the matches it names, in this sheet or already uploaded', () => {
+    const r = sheet(
+      'Round,Match ID,Player / qualifier A,Player / qualifier B,Setup,Planned day,Wave',
+      ['Round of 32,TK-R32-01,Fury,Winner of TK-PI-01,Tekken Setup 1,Monday,Wave 1', 'Round of 16,TK-R16-01,Winner TK-R32-01,TBD,Tekken Setup 1,Tuesday (Wednesday buffer),Wave 2'],
+      { existingCodes: ['TK-PI-01'] },
+    );
+    expect(r.errors).toEqual([]);
+    expect(r.rows.map((x) => [x.match_code, x.date, x.wave, x.station, x.team_a_id, x.a_from, x.b_from])).toEqual([
+      ['TK-R32-01', '2026-11-02', 1, 1, 'fury', null, 'TK-PI-01'],
+      ['TK-R16-01', '2026-11-03', 2, 1, null, 'TK-R32-01', null],
+    ]);
+  });
+
+  it('rejects links and days that cannot work', () => {
+    const r = sheet('Round,Match ID,Player A,Player B,Setup,Planned day', [
+      'Round of 32,R32-01,Winner of PI-09,Kilo,Setup 1,Monday',
+      'Round of 16,R16-01,Winner of R32-01,Winner of R32-01,Setup 1,Monday',
+      'Round of 16,R16-02,Winner R32-01,Fury,Setup 3,Friday',
+      'Round of 32,R32-02,Winner of R16-02,Drift,Setup 1,Someday',
+      'Round of 32,R32-01,Ghost,Fury,Setup 1,Tuesday',
+    ]);
+    expect(r.errors.map((e) => [e.line, e.message])).toEqual([
+      [2, '"Winner of PI-09": there is no match PI-09 in this file or already uploaded.'],
+      [3, 'Both sides are the winner of R32-01.'],
+      [4, 'Friday is not one of the tournament days (2026-11-02 to 2026-11-03).'],
+      [5, 'Day "Someday" is not a date (YYYY-MM-DD) or a weekday.'],
+      [6, 'Match ID R32-01 is used twice (line 2).'],
+    ]);
+  });
+
+  it('names an undecided side by the match it comes from', () => {
+    expect(sideName({ a_from: 'FC-PI-03' }, 'a', null)).toBe('Winner FC-PI-03');
+    expect(sideName({ a_from: 'FC-PI-03' }, 'a', 'Fury')).toBe('Fury');
+    expect(sideName({ b_from: null }, 'b', null)).toBe('TBD');
+  });
+
+  it('needs a day for every row, from the sheet or the upload', () => {
+    const r = sheet('Round,Player A,Player B', ['Final,Fury,Kilo']);
+    expect(r.errors[0].message).toBe('No day for this match. Add a day column, or pick a day for rows without one.');
+  });
 
   it('round-trips its own template', () => {
-    const r = parseFixturesCsv(fixturesTemplate('2026-11-02', teams), ctx);
+    const r = parseFixturesCsv(fixturesTemplate(teams), ctx);
     expect(r.errors).toEqual([]);
-    expect(r.rows).toHaveLength(3);
+    expect(r.rows.map((x) => [x.round_code, x.match_code, x.a_from])).toEqual([
+      ['PRE', 'PI-01', null],
+      ['PRE', 'PI-02', null],
+      ['R32', 'R32-01', 'PI-01'],
+      ['R32', 'R32-02', 'PI-02'],
+    ]);
   });
 });
 

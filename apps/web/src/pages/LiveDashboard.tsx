@@ -14,6 +14,7 @@ import {
   matchLabel,
   paginate,
   roundsToWin,
+  sideName,
   stationLabel,
   type Game,
   type Match,
@@ -435,7 +436,7 @@ function LiveCard({
 
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side
-          name={a?.name ?? "TBD"}
+          name={sideName(match, "a", a?.name)}
           url={a?.logo_url}
           size={avatar}
           big={big}
@@ -489,7 +490,7 @@ function LiveCard({
           </div>
         )}
         <Side
-          name={b?.name ?? "TBD"}
+          name={sideName(match, "b", b?.name)}
           url={b?.logo_url}
           size={avatar}
           big={big}
@@ -1001,8 +1002,8 @@ function RailList({
   ) => { name: string; cover_url?: string | null } | undefined;
   kind: "next" | "result";
 }) {
-  const name = (id: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : "TBD";
+  const name = (id: string | null, from?: string | null) =>
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
   return (
     <div className="rail-list panel p-4">
       <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
@@ -1060,8 +1061,8 @@ function RailList({
               </div>
             ) : (
               <div className="truncate">
-                {name(m.team_a_id)} <span className="text-muted">vs</span>{" "}
-                {name(m.team_b_id)}
+                {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span>{" "}
+                {name(m.team_b_id, m.b_from)}
               </div>
             )}
           </motion.div>
@@ -1082,8 +1083,8 @@ function NothingLive({
   tz: string;
   gameName?: string;
 }) {
-  const name = (id: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : "TBD";
+  const name = (id: string | null, from?: string | null) =>
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <img
@@ -1101,8 +1102,8 @@ function NothingLive({
             </div>
           )}
           <div className="font-display text-2xl text-ember glow-ember sm:text-4xl">
-            {name(next.team_a_id)} <span className="text-flame">vs</span>{" "}
-            {name(next.team_b_id)}
+            {name(next.team_a_id, next.a_from)} <span className="text-flame">vs</span>{" "}
+            {name(next.team_b_id, next.b_from)}
           </div>
           <div className="text-lg text-muted">
             Next match at {formatTime(next.scheduled_start, tz)}

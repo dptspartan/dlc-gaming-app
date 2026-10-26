@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  addDays,
   describeGroupSetup,
   findTeamConflicts,
   fixturesTemplate,
@@ -38,6 +39,7 @@ import {
   startMatch,
   swapSlots,
   uncallMatch,
+  addPlayers,
   uploadDayFixtures,
 } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
@@ -115,7 +117,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   if (!matches.length) return <Empty>Generate the fixtures first. The control room fills up once matches are planned.</Empty>;
 
   const gameName = (m: Match) => gameOf(m.tournament_game_id)?.name ?? '';
-  const name = (id: string | null) => (id ? data.teams.get(id)?.name ?? '?' : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? data.teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
   const count = (st: Match['status']) => matches.filter((m) => m.status === st && !m.is_bye).length;
   // Any ready match this station may host, soonest planned first.
   const callable = (station: number) =>
@@ -157,7 +159,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
       <div className="mb-2 flex flex-col gap-2">
         {next ? (
           <Button disabled={busy} onClick={() => act(() => callMatch(next, s.station))} className="w-full">
-            Call {name(next.team_a_id)} v {name(next.team_b_id)}
+            Call {name(next.team_a_id, next.a_from)} v {name(next.team_b_id, next.b_from)}
           </Button>
         ) : (
           <span className="text-sm text-muted">No match ready for this station.</span>
@@ -174,7 +176,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
             <option value="">Call a different match…</option>
             {options.map((o) => (
               <option key={o.id} value={o.id}>
-                {gameName(o)}: {name(o.team_a_id)} v {name(o.team_b_id)}
+                {gameName(o)}: {name(o.team_a_id, o.a_from)} v {name(o.team_b_id, o.b_from)}
               </option>
             ))}
           </select>
@@ -834,8 +836,8 @@ function AddTeam({ tg, teamSize, onAdded }: { tg: TournamentGame; teamSize: numb
 /* ----------------------------------------------------- Fixtures & matches */
 
 /**
- * Upload one day's fixtures for a stage from a CSV: preview every row and
- * every problem first, then replace that stage's fixtures for that day.
+ * Upload a fixtures sheet (CSV) for a game: preview every row and every
+ * problem first, then replace those rounds' fixtures on those days.
  */
 function DayUpload({
   tournament,
@@ -844,6 +846,7 @@ function DayUpload({
   matches,
   busy,
   onUpload,
+  onAddPlayers,
 }: {
   tournament: Tournament;
   tg: TournamentGame;
@@ -851,22 +854,38 @@ function DayUpload({
   matches: Match[];
   busy: boolean;
   onUpload: (rows: ParsedFixtures['rows']) => Promise<boolean>;
+  onAddPlayers: (names: string[]) => Promise<boolean>;
 }) {
-  const [file, setFile] = useState<{ name: string; parsed: ParsedFixtures } | null>(null);
+  const [file, setFile] = useState<{ name: string; text: string } | null>(null);
   const [inputKey, setInputKey] = useState(0);
-  const name = (id: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : 'TBD');
+  const [defaultDate, setDefaultDate] = useState('');
+  const dates = Array.from({ length: Math.max(1, tournament.days) }, (_, i) => addDays(tournament.start_date, i));
+  const name = (id: string | null, from: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
   const day = (date: string) => formatDay(zonedToUtc(date, '12:00', tournament.timezone), tournament.timezone);
+  // Re-parsed whenever the players or the picked day change, so adding missing players clears their errors.
+  const parsed = useMemo(
+    () =>
+      file
+        ? parseFixturesCsv(file.text, {
+            tournament,
+            tg,
+            teams,
+            defaultDate: defaultDate || null,
+            existingCodes: matches.map((m) => m.match_code).filter((c): c is string => !!c),
+          })
+        : null,
+    [file, tournament, tg, teams, defaultDate, matches],
+  );
 
   const read = async (f: File | undefined) => {
-    if (!f) return;
-    setFile({ name: f.name, parsed: parseFixturesCsv(await f.text(), { tournament, tg, teams }) });
+    if (f) setFile({ name: f.name, text: await f.text() });
   };
   const reset = () => {
     setFile(null);
     setInputKey((k) => k + 1);
   };
   const template = () => {
-    const blob = new Blob([fixturesTemplate(tournament.start_date, teams)], { type: 'text/csv' });
+    const blob = new Blob([fixturesTemplate(teams)], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'fixtures-template.csv';
@@ -874,12 +893,14 @@ function DayUpload({
     URL.revokeObjectURL(a.href);
   };
 
-  const rows = file?.parsed.rows ?? [];
-  const errors = file?.parsed.errors ?? [];
+  const rows = parsed?.rows ?? [];
+  const errors = parsed?.errors ?? [];
+  const unknown = parsed?.unknownNames ?? [];
   const groups = [...new Set(rows.map((r) => `${r.round_code}|${r.date}`))].map((k) => {
     const [code, date] = k.split('|') as [keyof typeof ROUND_LABEL, string];
     return { code, date, count: rows.filter((r) => r.round_code === code && r.date === date).length, replaces: matches.filter((m) => m.round_code === code && m.fixture_day === date).length };
   });
+  const links = rows.filter((r) => r.a_from || r.b_from).length;
   const generated = matches.filter((m) => m.round_code == null).length;
 
   const upload = async () => {
@@ -890,15 +911,29 @@ function DayUpload({
   return (
     <div className="mt-3 border-t border-line pt-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="font-semibold">Upload a day</span>
+        <span className="font-semibold">Upload fixtures</span>
         <input key={inputKey} type="file" accept=".csv,text/csv" disabled={busy} onChange={(e) => void read(e.target.files?.[0])} className="max-w-xs text-sm" />
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Day for rows without one
+          <select value={defaultDate} onChange={(e) => setDefaultDate(e.target.value)} className="w-auto py-1">
+            <option value="">None</option>
+            {dates.map((d) => (
+              <option key={d} value={d}>
+                {day(d)}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button variant="ghost" onClick={template}>
           Download template
         </Button>
-        <span className="text-sm text-muted">One stage per row: PRE, R32, R16, QF, SF or F. Time and station are optional.</span>
       </div>
+      <p className="mt-2 text-sm text-muted">
+        One CSV per sheet (in Excel or Sheets: File → Download → CSV). Columns: Round, Match ID, Player A, Player B, and optionally Planned day, Setup and Wave. "Winner of FC-PI-03" moves that match&apos;s
+        winner on by itself.
+      </p>
 
-      {file && (
+      {file && parsed && (
         <div className="mt-3">
           {errors.length > 0 && (
             <div className="mb-3 rounded-lg border border-danger/60 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -906,35 +941,46 @@ function DayUpload({
                 {errors.length} problem{errors.length > 1 ? 's' : ''} in {file.name}. Fix the file and choose it again.
               </div>
               <ul className="list-disc pl-5">
-                {errors.map((e, i) => (
+                {errors.slice(0, 30).map((e, i) => (
                   <li key={i}>
                     Line {e.line}: {e.message}
                   </li>
                 ))}
+                {errors.length > 30 && <li>…and {errors.length - 30} more.</li>}
               </ul>
+              {unknown.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-ink">
+                  <Button variant="ghost" disabled={busy} onClick={() => void onAddPlayers(unknown)}>
+                    Add {unknown.length} new player{unknown.length > 1 ? 's' : ''} to this game
+                  </Button>
+                  <span className="text-muted">{unknown.join(', ')}. Check the spelling first: a typo adds a second player.</span>
+                </div>
+              )}
             </div>
           )}
           {rows.length > 0 && (
-            <div className="glass-card mb-3 overflow-x-auto">
-              <table className="w-full min-w-[36rem] text-left text-sm">
+            <div className="glass-card mb-3 max-h-96 overflow-auto">
+              <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead className="text-xs tracking-wide text-muted uppercase">
                   <tr className="border-b border-line">
-                    <th className="px-3 py-2">Stage</th>
-                    <th className="px-3 py-2">Day</th>
-                    <th className="px-3 py-2">Time</th>
-                    <th className="px-3 py-2">Station</th>
                     <th className="px-3 py-2">Match</th>
+                    <th className="px-3 py-2">Round</th>
+                    <th className="px-3 py-2">Day</th>
+                    <th className="px-3 py-2">Wave / time</th>
+                    <th className="px-3 py-2">Station</th>
+                    <th className="px-3 py-2">Players</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.line} className="border-b border-line/50 last:border-0">
+                      <td className="px-3 py-1.5 font-mono text-xs">{r.match_code ?? '—'}</td>
                       <td className="px-3 py-1.5">{ROUND_LABEL[r.round_code]}</td>
                       <td className="px-3 py-1.5">{day(r.date)}</td>
-                      <td className="px-3 py-1.5">{r.time ?? <span className="text-muted">auto</span>}</td>
+                      <td className="px-3 py-1.5">{r.time ?? (r.wave != null ? `Wave ${r.wave}` : <span className="text-muted">auto</span>)}</td>
                       <td className="px-3 py-1.5">{r.station ?? <span className="text-muted">auto</span>}</td>
                       <td className="px-3 py-1.5">
-                        {name(r.team_a_id)} <span className="text-muted">vs</span> {name(r.team_b_id)}
+                        {name(r.team_a_id, r.a_from)} <span className="text-muted">vs</span> {name(r.team_b_id, r.b_from)}
                       </td>
                     </tr>
                   ))}
@@ -953,6 +999,7 @@ function DayUpload({
               {groups
                 .map((g) => `${ROUND_LABEL[g.code]} on ${day(g.date)}: ${g.count}${g.replaces ? ` (replaces ${g.replaces})` : ''}`)
                 .join(' · ')}
+              {links ? ` · ${links} linked to earlier matches` : ''}
               {generated ? ` · Replaces the generated bracket (${generated} matches).` : ''}
             </span>
           </div>
@@ -1015,7 +1062,11 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
   const generate = () => {
     if (!tg) return;
     if (teams.length < 2) return setError('Add at least two players or teams first.');
-    if (matches.length && !confirm('Replace the current fixtures? Any edits to them will be lost.')) return;
+    const uploaded = matches.filter((m) => m.round_code != null).length;
+    const warning = uploaded
+      ? `Replace the ${uploaded} uploaded fixtures with a generated bracket? The uploaded sheets will have to be uploaded again to get them back.`
+      : 'Replace the current fixtures? Any edits to them will be lost.';
+    if (matches.length && !confirm(warning)) return;
     void act(() => generateFixtures(tournament, tgames, tg, teams, all, data.games.values()));
   };
 
@@ -1104,7 +1155,15 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
               </span>
             </div>
           )}
-          <DayUpload tournament={tournament} tg={tg} teams={teams} matches={matches} busy={busy} onUpload={(rows) => act(() => uploadDayFixtures(tournament, tg, rows))} />
+          <DayUpload
+            tournament={tournament}
+            tg={tg}
+            teams={teams}
+            matches={matches}
+            busy={busy}
+            onUpload={(rows) => act(() => uploadDayFixtures(tournament, tg, rows))}
+            onAddPlayers={(names) => act(() => addPlayers(tg, names))}
+          />
           {swapMode && <p className="mt-3 text-sm text-ember">Click one player slot, then another, to swap them. Only matches that have not started can change.</p>}
           {(result ?? fit) && <FitNote result={(result ?? fit)!} tz={tournament.timezone} />}
           {conflicts.length > 0 && (
@@ -1130,7 +1189,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
       </div>
 
       {matches.length === 0 ? (
-        <Empty>No fixtures yet. Add players, then generate fixtures or upload a day.</Empty>
+        <Empty>No fixtures yet. Add players, then generate fixtures or upload a fixtures sheet.</Empty>
       ) : shown === 'groups' && tg ? (
         <GroupTables tg={tg} teams={teams} matches={matches} onMatchClick={(m) => setOpenMatch(m.id)} />
       ) : shown === 'bracket' && hasGroups && !knockout.length ? (
