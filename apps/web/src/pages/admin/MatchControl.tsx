@@ -279,6 +279,9 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
             <Button variant="ghost" disabled={busy || !start} onClick={saveTime}>
               Save
             </Button>
+            <p className="col-span-3 text-sm text-muted">
+              The next timetable rebuild picks a new time. To play this match sooner or later for good, use Earlier / Later in the control room timetable.
+            </p>
           </div>
         )}
       </div>

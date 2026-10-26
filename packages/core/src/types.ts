@@ -132,6 +132,8 @@ export interface Match {
   called_at: string | null;
   /** Held back in the queue until this time (skipped or delayed). */
   not_before: string | null;
+  /** Set when an organizer moved the match earlier or later in the queue; it beats the usual order (see queueKey). */
+  queue_key: number | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
   started_at: string | null;

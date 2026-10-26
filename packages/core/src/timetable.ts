@@ -38,7 +38,7 @@ export type TimetableMatch = Pick<
   | 'started_at'
   | 'ended_at'
 > &
-  Partial<Pick<Match, 'best_of' | 'leg_games' | 'loser_next_match_id' | 'station_locked' | 'round_code' | 'fixture_day'>>;
+  Partial<Pick<Match, 'best_of' | 'leg_games' | 'loser_next_match_id' | 'station_locked' | 'round_code' | 'fixture_day' | 'queue_key'>>;
 
 export interface TimetableOptions {
   windows: DayWindow[];
@@ -237,7 +237,7 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
         .sort((a, b) => Math.max(stationFree[a - 1], earliest) - Math.max(stationFree[b - 1], earliest) || a - b)
         .slice(0, needed(g, m));
       const { start, overflow } = fit(Math.max(earliest, ...picks.map((s) => stationFree[s - 1])), g.matchMinutes * MINUTE);
-      if (!best || start < best.start || (start === best.start && rank(m, games) < rank(best.m, games))) best = { m, start, overflow, picks };
+      if (!best || start < best.start || (start === best.start && before(m, best.m, games))) best = { m, start, overflow, picks };
     }
     if (!best) {
       // Waiting on something that can never be placed.
@@ -263,6 +263,62 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
 function rank(m: TimetableMatch, games: Map<string, TimetableGame>): number {
   // Smaller is earlier: group stage, then round, then game, then position.
   return (m.stage === 'group' ? 0 : 1) * 1e9 + m.round * 1e6 + (games.get(m.tournament_game_id)?.order ?? 0) * 1e3 + m.position;
+}
+
+/**
+ * Which of two matches that could start at the same time goes first (smaller
+ * first): the organizer's own order when they moved it, else rank.
+ */
+export function queueKey(m: TimetableMatch, games: Map<string, TimetableGame>): number {
+  return m.queue_key ?? rank(m, games);
+}
+
+const before = (a: TimetableMatch, b: TimetableMatch, games: Map<string, TimetableGame>) =>
+  queueKey(a, games) < queueKey(b, games) || (queueKey(a, games) === queueKey(b, games) && rank(a, games) < rank(b, games));
+
+/**
+ * The queue_key that moves a match one place earlier (or later) in the
+ * timetable: just before (after) the first queued neighbour whose turn it can
+ * take, so the rest of the queue keeps its order. Null when nothing it could
+ * pass is in the way (it waits for its players, an earlier round or a start time).
+ */
+export function moveInQueue<M extends TimetableMatch>(
+  matches: M[],
+  options: TimetableOptions,
+  id: string,
+  direction: 'earlier' | 'later',
+  among: (m: M) => boolean = () => true,
+): { key: number; result: TimetableResult } | null {
+  const { games } = options;
+  const target = matches.find((m) => m.id === id);
+  if (!target) return null;
+  const base = scheduleTournament(matches, options);
+  const slotOf = (r: TimetableResult) => new Map(r.slots.map((s) => [s.id, s]));
+  const at = slotOf(base);
+  const place = (s: TimetableSlot | undefined) => (s ? s.start * 100 + s.station : Infinity);
+  const queue = matches
+    .filter((m) => at.has(m.id) && (m.id === id || among(m)))
+    .sort((a, b) => place(at.get(a.id)) - place(at.get(b.id)));
+  const i = queue.findIndex((m) => m.id === id);
+  if (i < 0) return null;
+  const own = queueKey(target, games);
+  const keys = matches.filter((m) => m.id !== id && at.has(m.id)).map((m) => queueKey(m, games));
+  const later = direction === 'later';
+  const step = later ? 1 : -1;
+  for (let j = i + step; j >= 0 && j < queue.length; j += step) {
+    const pass = queueKey(queue[j], games);
+    // Already ahead of (behind) it in the queue: something else holds the order.
+    if (later ? own > pass : own < pass) continue;
+    const next = later ? Math.min(...keys.filter((k) => k > pass)) : Math.max(...keys.filter((k) => k < pass));
+    const key = Number.isFinite(next) ? (pass + next) / 2 : pass + step;
+    const result = scheduleTournament(
+      matches.map((m) => (m.id === id ? { ...m, queue_key: key } : m)),
+      options,
+    );
+    const moved = place(slotOf(result).get(id));
+    if (later ? moved > place(at.get(id)) : moved < place(at.get(id))) return { key, result };
+  }
+  return null;
 }
 
 /** What each station is doing now and what it plays next, from a saved timetable. */

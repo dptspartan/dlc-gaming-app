@@ -35,6 +35,7 @@ import {
   callMatch,
   generateFixtures,
   groupQualifiers,
+  moveMatch,
   previewTimetable,
   refreshTimetable,
   startMatch,
@@ -100,6 +101,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   const matches = useMemo(() => [...data.matches.values()], [data.matches]);
   const [openMatch, setOpenMatch] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fit = useMemo(() => (matches.length ? safePreview(tournament, tgames, matches, data.games.values()) : null), [tournament, tgames, matches, data.games]);
 
@@ -186,6 +188,31 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
     );
   };
 
+  const queued = (m: Match) => !m.is_bye && (m.status === 'pending' || m.status === 'ready');
+  // Its own error, shown by the timetable where the buttons are.
+  const move = async (m: Match, direction: 'earlier' | 'later') => {
+    setBusy(true);
+    setMoveError(null);
+    try {
+      await moveMatch(tournament, tgames, matches, m.id, direction, data.games.values());
+    } catch (e) {
+      setMoveError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const moveButtons = (m: Match) =>
+    queued(m) && (
+      <span className="flex gap-1">
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => move(m, 'earlier')} title="Swap with the match before it">
+          ↑ Earlier
+        </Button>
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => move(m, 'later')} title="Swap with the match after it">
+          ↓ Later
+        </Button>
+      </span>
+    );
+
   const open = openMatch ? data.matches.get(openMatch) : undefined;
   const openTg = open ? data.tgames.get(open.tournament_game_id) : undefined;
 
@@ -223,8 +250,17 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         onMatchClick={(m) => setOpenMatch(m.id)}
       />
       <div>
-        <h2 className="mb-3 text-lg font-bold">Timetable</h2>
-        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} />
+        <h2 className="mb-1 text-lg font-bold">Timetable</h2>
+        <p className="mb-3 text-sm text-muted">
+          Earlier and Later swap a queued match with the one next to it; everything else moves round it, and rebuilds keep the new order. A match can't
+          go before its players are free or before the round it waits for.
+        </p>
+        {moveError && (
+          <div className="mb-3">
+            <ErrorNote message={moveError} />
+          </div>
+        )}
+        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} actions={moveButtons} />
       </div>
       {open && openTg && (
         <MatchControl

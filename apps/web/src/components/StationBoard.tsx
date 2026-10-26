@@ -107,7 +107,20 @@ function Versus({ a, b, aLogo, bLogo, score }: { a: string; b: string; aLogo?: s
 }
 
 /** Station and time for each match still to play, soonest first. */
-export function Timetable({ matches, teams, timeZone, gameName }: { matches: Match[]; teams: Map<string, Team>; timeZone: string; gameName: (m: Match) => string }) {
+export function Timetable({
+  matches,
+  teams,
+  timeZone,
+  gameName,
+  actions,
+}: {
+  matches: Match[];
+  teams: Map<string, Team>;
+  timeZone: string;
+  gameName: (m: Match) => string;
+  /** Controls at the end of each row (the admin's move earlier / later). */
+  actions?: (m: Match) => ReactNode;
+}) {
   const rounds = knockoutRounds(matches);
   const list = matches
     .filter((m) => !m.is_bye && m.status !== 'completed')
@@ -124,6 +137,7 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
             <th className="px-3 py-2 font-semibold">Game</th>
             <th className="px-3 py-2 font-semibold">Match</th>
             <th className="px-3 py-2 font-semibold">Status</th>
+            {actions && <th className="px-3 py-2 font-semibold">Order</th>}
           </tr>
         </thead>
         <tbody>
@@ -144,6 +158,7 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
               <td className={`px-3 py-2 text-sm whitespace-nowrap ${m.status === 'live' ? 'text-flame' : m.status === 'called' ? 'text-gold' : 'text-muted'}`}>
                 {m.status === 'live' ? 'Live' : m.status === 'called' ? 'Players called' : m.status === 'ready' ? 'Queued' : 'Waiting for teams'}
               </td>
+              {actions && <td className="px-3 py-2 whitespace-nowrap">{actions(m)}</td>}
             </tr>
           ))}
         </tbody>
