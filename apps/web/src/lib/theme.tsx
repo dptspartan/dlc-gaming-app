@@ -33,6 +33,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(readTheme);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    // Each theme has its own favicon; index.html sets the first one before paint.
+    const icon = document.getElementById('favicon') as HTMLLinkElement | null;
+    if (icon) {
+      icon.type = theme === 'classic' ? 'image/svg+xml' : 'image/png';
+      icon.href = theme === 'classic' ? './favicon.svg' : './favicon-dlc.png';
+    }
   }, [theme]);
   const value = useMemo(
     () => ({

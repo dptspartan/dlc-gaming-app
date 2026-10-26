@@ -2,7 +2,9 @@
 <html lang="en" data-theme="dlc-labs">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- dlc-labs (the default) shows the DLC mark; classic swaps back to its own icon below. -->
+    <link id="favicon" rel="icon" type="image/png" href="./favicon-dlc.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon-dlc.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#050505" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -10,18 +12,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <title>DLC Gaming Club</title>
     <script>
-      // Set the theme before first paint: a build-time lock wins, then a stored
-      // classic pick; dlc-labs is the default. Vite fills in the lock at build.
+      // Set the theme (and its favicon) before first paint: a build-time lock
+      // wins, then a stored classic pick; dlc-labs is the default. Vite fills in
+      // the lock at build.
       (function () {
         var lock = "%VITE_THEME_LOCK%";
-        var root = document.documentElement;
-        if (lock === "classic" || lock === "dlc-labs") {
-          root.dataset.theme = lock;
-          return;
+        var theme = "dlc-labs";
+        if (lock === "classic" || lock === "dlc-labs") theme = lock;
+        else {
+          try {
+            if (localStorage.getItem("dlc-theme-choice") === "classic") theme = "classic";
+          } catch {}
         }
-        try {
-          if (localStorage.getItem("dlc-theme-choice") === "classic") root.dataset.theme = "classic";
-        } catch {}
+        document.documentElement.dataset.theme = theme;
+        if (theme === "classic") {
+          var icon = document.getElementById("favicon");
+          icon.type = "image/svg+xml";
+          icon.href = "./favicon.svg";
+        }
       })();
     </script>
   </head>
