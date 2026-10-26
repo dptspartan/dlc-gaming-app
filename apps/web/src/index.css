@@ -1396,8 +1396,8 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .live-name {
   font-family: var(--dlc-ui);
   font-weight: 700;
-  font-size: clamp(0.9rem, 6.5cqh, 2.25rem);
-  letter-spacing: 0.04em;
+  font-size: clamp(0.85rem, 4.8cqh, 1.75rem);
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 :root[data-theme="dlc-labs"] .live-card .avatar {

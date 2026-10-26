@@ -16,6 +16,7 @@ import {
   roundsToWin,
   sideName,
   stationLabel,
+  teamShortName,
   type Game,
   type Match,
 } from "@dlc/core";
@@ -438,6 +439,7 @@ function LiveCard({
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side
           name={sideName(match, "a", a?.name)}
+          label={sideName(match, "a", a && teamShortName(a, data.teams.values()))}
           url={a?.logo_url}
           size={avatar}
           big={big}
@@ -492,6 +494,7 @@ function LiveCard({
         )}
         <Side
           name={sideName(match, "b", b?.name)}
+          label={sideName(match, "b", b && teamShortName(b, data.teams.values()))}
           url={b?.logo_url}
           size={avatar}
           big={big}
@@ -908,6 +911,7 @@ function GameBadge({
 /** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
 function Side({
   name,
+  label,
   url,
   size,
   big,
@@ -916,6 +920,8 @@ function Side({
   hit,
 }: {
   name: string;
+  /** Short form shown under the avatar; the full name stays in the tooltip. */
+  label: string;
   url?: string | null;
   size: number;
   big: boolean;
@@ -946,9 +952,10 @@ function Side({
         />
       </motion.div>
       <span
-        className={`live-name font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        className={`live-name font-display w-full truncate font-bold ${big ? "text-3xl" : compact ? "text-sm" : "text-lg"}`}
+        title={name}
       >
-        {name}
+        {label}
       </span>
     </div>
   );
@@ -1012,7 +1019,7 @@ function RailList({
               </span>
             </div>
             {kind === "result" ? (
-              <div className="truncate">
+              <div className="rail-names leading-snug break-words">
                 <span className="font-bold text-gold">{name(m.winner_id)}</span>
                 <span className="text-muted">
                   {" "}
@@ -1029,7 +1036,7 @@ function RailList({
                 )}
               </div>
             ) : (
-              <div className="truncate">
+              <div className="rail-names leading-snug break-words">
                 {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span>{" "}
                 {name(m.team_b_id, m.b_from)}
               </div>
