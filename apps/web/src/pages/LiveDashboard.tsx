@@ -20,6 +20,7 @@ import {
   type Match,
 } from "@dlc/core";
 import { Avatar, Elapsed, ErrorNote } from "../components/ui";
+import { Credits } from "../components/Credits";
 import { Glitch, Particles } from "../components/WinnerOverlay";
 import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
@@ -294,7 +295,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
             gameOf={gameOf}
             kind="result"
           />
-          <Credits />
+          <Credits inline />
         </aside>
       </div>
     </div>
@@ -949,38 +950,6 @@ function Side({
       >
         {name}
       </span>
-    </div>
-  );
-}
-
-const CREDITS = [
-  ["Shoaib Rashid", "shoaibrashid-tech"],
-  ["Afnan Hussain", "AfnanHussain10"],
-  ["Zain Malik", "zainuamalik"],
-];
-
-/** The people behind the app, always on the board. */
-function Credits() {
-  return (
-    <div className="panel neon-gold mt-auto px-4 py-3">
-      <div className="hud mb-2 text-center text-base text-flame glow-flame">
-        Powered By
-      </div>
-      <ul className="space-y-1.5">
-        {CREDITS.map(([name, handle]) => (
-          <li
-            key={handle}
-            className="flex items-baseline justify-between gap-2 leading-tight"
-          >
-            <span className="font-display text-[15px] font-bold whitespace-nowrap text-ink">
-              {name}
-            </span>
-            <span className="truncate font-mono text-xs text-ember">
-              {handle}
-            </span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

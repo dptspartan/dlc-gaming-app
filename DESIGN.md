@@ -76,3 +76,4 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-25 | Cup page: game picker cards, paper view switch, champion poster, ghost byes | The controls stacked four rows deep with red on secondary navigation, and the champion got the least design on the page. |
 | 2026-10-25 | dlc-labs is the default theme | Classic is opt-in from the switch; only an explicit pick is stored (`dlc-theme-choice`). |
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |
+| 2026-10-26 | Credits box: red "Powered by" tape and the three names, fixed bottom-right on laptops, at the end of the page on phones, in the rail on the live board | The old one-line credit was hard to read and covered content on phones. |

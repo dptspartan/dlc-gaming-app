@@ -1630,12 +1630,78 @@ input[type="file"]::file-selector-button {
   }
 }
 
-/* Phones: the credit line sits at the end of the page instead of over content. */
+/* ------------------------------------------------------------------------
+   Credits box: "Powered by" and the three names. A small fixed box in the
+   bottom-right corner on laptops and up; at the end of the page on phones,
+   so it never sits over a score or a name. The live board carries it in the
+   rail instead (.credits-inline).
+   ------------------------------------------------------------------------ */
+.credits-corner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  width: max-content;
+}
+/* Keep the last row of a page clear of the box. */
+body:has(.credits-corner) {
+  padding-bottom: 136px;
+}
+
+:root[data-theme="dlc-labs"] .credits-box {
+  background: var(--dlc-ink);
+  border: 1.5px solid rgba(241, 238, 229, 0.26) !important;
+  border-radius: 8px;
+  padding: 12px 16px 12px;
+}
+:root[data-theme="dlc-labs"] .credits-box.neon-gold {
+  box-shadow: 4px 4px 0 #000 !important;
+}
+:root[data-theme="dlc-labs"] .credits-title {
+  display: inline-block;
+  margin: -2px 0 10px -4px;
+  padding: 0.22rem 0.7rem;
+  background: var(--dlc-red);
+  color: white !important;
+  font-family: var(--dlc-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+  clip-path: polygon(2% 0, 97% 0, 100% 14%, 98% 30%, 100% 78%, 97% 100%, 3% 100%, 0 86%, 2% 70%, 0 18%);
+  transform: rotate(-1.5deg);
+}
+:root[data-theme="dlc-labs"] .credits-list > li + li {
+  margin-top: 2px;
+}
+:root[data-theme="dlc-labs"] .credits-name {
+  font-family: var(--dlc-ui) !important;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  color: var(--dlc-paper);
+}
+
 @media (max-width: 640px) {
-  .powered-by {
+  body:has(.credits-corner) {
+    padding-bottom: 0;
+  }
+  .credits-corner {
     position: static;
-    padding: 1.5rem 1rem 1rem;
+    width: auto;
+    margin: 8px 16px 24px;
     text-align: center;
+  }
+  .credits-corner .credits-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 16px;
+  }
+  .credits-corner .credits-list > li {
+    margin-top: 0 !important;
   }
 }
 
