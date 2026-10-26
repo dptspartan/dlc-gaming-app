@@ -67,7 +67,7 @@ const HEADERS = {
   stage: ['stage', 'round'],
   code: ['matchid', 'matchcode', 'match', 'id', 'code'],
   date: ['date', 'day', 'plannedday', 'targetday'],
-  time: ['time', 'start', 'starttime'],
+  time: ['time', 'start', 'starttime', 'matchstart', 'kickoff'],
   station: ['station'],
   setup: ['setup'],
   wave: ['wave', 'targetslot', 'slot'],
@@ -164,6 +164,21 @@ const firstNumber = (v: string) => {
   return m ? Number(m[0]) : null;
 };
 
+/** "17:30", "17:30:00", "5:30 PM" or "5:30:00 pm" (as spreadsheets export times) → "17:30", or null. */
+function parseClock(raw: string): string | null {
+  const t = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?m\.?)?$/i.exec(raw.trim());
+  if (!t) return null;
+  let h = Number(t[1]);
+  const m = Number(t[2]);
+  const pm = t[3]?.toLowerCase().startsWith('p');
+  if (t[3]) {
+    if (h < 1 || h > 12) return null;
+    h = (h % 12) + (pm ? 12 : 0);
+  }
+  if (h > 23 || m > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 /** The tournament date for "2026-11-02", "Monday" or "Thursday (Friday buffer)", or an error. */
 function resolveDay(raw: string, dates: string[]): { date?: string; error?: string } {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -246,9 +261,8 @@ export function parseFixturesCsv(text: string, ctx: Ctx): ParsedFixtures {
     const timeRaw = get('time');
     let time: string | null = null;
     if (timeRaw) {
-      const t = /^(\d{1,2}):(\d{2})$/.exec(timeRaw);
-      if (!t || Number(t[1]) > 23 || Number(t[2]) > 59) issues.push(`Time "${timeRaw}" is not HH:MM.`);
-      else time = `${t[1].padStart(2, '0')}:${t[2]}`;
+      time = parseClock(timeRaw);
+      if (!time) issues.push(`Time "${timeRaw}" is not a time like 17:30 or 5:30 PM.`);
     }
 
     const waveRaw = get('wave');

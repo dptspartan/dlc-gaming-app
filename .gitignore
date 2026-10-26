@@ -9,3 +9,7 @@ apps/mobile/android/
 .pnpm-store/
 supabase/.branches/
 supabase/.temp/
+
+# Real fixtures workbooks and their CSV exports contain people's names.
+*.xlsx
+fixtures-csv/

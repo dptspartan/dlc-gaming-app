@@ -65,7 +65,7 @@ describe('parseFixturesCsv: plain CSV', () => {
     expect(r.errors.map((e) => [e.line, e.message])).toEqual([
       [2, 'Unknown round "R8". Use Preliminary, Round of 32, Round of 16, Quarterfinal, Semifinal or Final.'],
       [3, '2026-11-09 is outside the tournament (2026-11-02 to 2026-11-03).'],
-      [4, 'Time "25:00" is not HH:MM.'],
+      [4, 'Time "25:00" is not a time like 17:30 or 5:30 PM.'],
       [4, 'Station "9" does not exist (1 to 4).'],
       [4, '"Nobody" is not a player or team in this game.'],
       [5, '"Ghost" cannot play themselves.'],
@@ -133,6 +133,17 @@ describe('parseFixturesCsv: organisers\' sheets', () => {
       [5, 'Day "Someday" is not a date (YYYY-MM-DD) or a weekday.'],
       [6, 'Match ID R32-01 is used twice (line 2).'],
     ]);
+  });
+
+  it('reads a Match Start column the way spreadsheets export times', () => {
+    const r = sheet('Round,Match ID,Player A,Player B,Setup,Planned day,Wave,Winner / score,Match Start', [
+      'Preliminary / play-in,FC-PI-01,Fury,Kilo,Setup 1,Monday,Wave 1 (~15 min),,17:30:00',
+      'Preliminary / play-in,FC-PI-02,Drift,Ghost,Setup 2,Monday,Wave 1 (~15 min),,5:30 PM',
+      'Preliminary / play-in,FC-PI-03,"Smith, J",TBD,Setup 1,Monday,Wave 2 (~15 min),,12:05 am',
+    ]);
+    expect(r.errors).toEqual([]);
+    expect(r.rows.map((x) => x.time)).toEqual(['17:30', '17:30', '00:05']);
+    expect(sheet('Round,Player A,Player B,Planned day,Match Start', ['Final,Fury,Kilo,Monday,13:30 PM']).errors[0].message).toBe('Time "13:30 PM" is not a time like 17:30 or 5:30 PM.');
   });
 
   it('names an undecided side by the match it comes from', () => {
