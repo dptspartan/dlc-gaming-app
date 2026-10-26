@@ -153,43 +153,66 @@ describe('moveInQueue', () => {
         .map((s) => s.id);
     return { matches, options, order };
   };
-  const apply = (ms: TimetableMatch[], id: string, key: number) => ms.map((m) => (m.id === id ? { ...m, queue_key: key } : m));
+  const ok = (r: ReturnType<typeof moveInQueue>) => {
+    if ('stuck' in r) throw new Error(`stuck: ${r.stuck.kind}`);
+    return r;
+  };
+  const apply = (ms: TimetableMatch[], id: string, r: { key: number; notBefore: Map<string, string | null> }) =>
+    ms.map((m) => ({ ...m, ...(m.id === id ? { queue_key: r.key } : {}), ...(r.notBefore.has(m.id) ? { not_before: r.notBefore.get(m.id)! } : {}) }));
 
   it('moves a match one place earlier and the rest of the queue moves round it', () => {
     const { matches, options, order } = setup();
     const before = order(matches);
     const fourth = before[3];
-    const moved = moveInQueue(matches, options, fourth, 'earlier')!;
-    const after = order(apply(matches, fourth, moved.key));
-    expect(after.slice(0, 4)).toEqual([before[0], before[1], before[3], before[2]]);
+    const once = apply(matches, fourth, ok(moveInQueue(matches, options, fourth, 'earlier')));
+    expect(order(once).slice(0, 4)).toEqual([before[0], before[1], before[3], before[2]]);
     // Into the first wave on the next step, ahead of the second match.
-    const again = moveInQueue(apply(matches, fourth, moved.key), options, fourth, 'earlier')!;
-    expect(order(apply(matches, fourth, again.key)).slice(0, 4)).toEqual([before[0], before[3], before[1], before[2]]);
+    const twice = apply(once, fourth, ok(moveInQueue(once, options, fourth, 'earlier')));
+    expect(order(twice).slice(0, 4)).toEqual([before[0], before[3], before[1], before[2]]);
   });
 
   it('keeps the new place on a rebuild', () => {
     const { matches, options, order } = setup();
     const first = order(matches)[0];
-    const moved = moveInQueue(matches, options, first, 'later')!;
-    const saved = apply(matches, first, moved.key);
+    const saved = apply(matches, first, ok(moveInQueue(matches, options, first, 'later')));
     expect(order(saved)[1]).toBe(first);
     expect(order(saved)).toEqual(order(saved.map((m) => ({ ...m }))));
   });
 
-  it("won't move a match ahead of the round it waits for", () => {
+  it("won't move a match ahead of the round it waits for, and says why", () => {
     const { matches, options, order } = setup();
     const ids = order(matches);
     // The final waits for both semi-finals.
-    expect(moveInQueue(matches, options, ids[6], 'earlier')).toBeNull();
-    expect(moveInQueue(matches, options, ids[0], 'earlier')).toBeNull();
+    expect(moveInQueue(matches, options, ids[6], 'earlier')).toEqual({ stuck: { kind: 'round' } });
+    expect(moveInQueue(matches, options, ids[0], 'earlier')).toEqual({ stuck: { kind: 'edge' } });
   });
 
   it('only passes the matches it is asked to', () => {
     const { matches, options, order } = setup();
     const ids = order(matches);
-    // Among the odd places only, the fourth match passes the second.
     const among = (m: TimetableMatch) => m.id === ids[1] || m.id === ids[3];
-    const moved = moveInQueue(matches, options, ids[3], 'earlier', among)!;
-    expect(order(apply(matches, ids[3], moved.key)).indexOf(ids[3])).toBeLessThan(order(apply(matches, ids[3], moved.key)).indexOf(ids[1]));
+    const after = order(apply(matches, ids[3], ok(moveInQueue(matches, options, ids[3], 'earlier', among))));
+    expect(after.indexOf(ids[3])).toBeLessThan(after.indexOf(ids[1]));
+  });
+
+  it('swaps sheet start times with the match it passes', () => {
+    // An uploaded day: each match has its sheet time and station, 15 minutes apart on one station.
+    const at = (min: number) => new Date(start + min * MIN).toISOString();
+    const sheet: TimetableMatch[] = [0, 15, 30].map((min, i) => ({
+      ...asTimetable('g', generateBracket(entrants(`s${i}`, 2), { newId }))[0],
+      round_code: 'PRE',
+      fixture_day: '2026-01-01',
+      station: 1,
+      stations: [1],
+      station_locked: true,
+      not_before: at(min),
+    }));
+    const options = { windows, stations: 3, callMinutes: 5, games: new Map([['g', game({ matchMinutes: 15 })]]) };
+    const r = ok(moveInQueue(sheet, options, sheet[2].id, 'earlier'));
+    expect(r.notBefore.get(sheet[2].id)).toBe(at(15));
+    expect(r.notBefore.get(sheet[1].id)).toBe(at(30));
+    const slot = new Map(r.result.slots.map((s) => [s.id, s.start]));
+    expect(slot.get(sheet[2].id)).toBe(start + 15 * MIN);
+    expect(slot.get(sheet[1].id)).toBe(start + 30 * MIN);
   });
 });

@@ -276,11 +276,27 @@ export function queueKey(m: TimetableMatch, games: Map<string, TimetableGame>): 
 const before = (a: TimetableMatch, b: TimetableMatch, games: Map<string, TimetableGame>) =>
   queueKey(a, games) < queueKey(b, games) || (queueKey(a, games) === queueKey(b, games) && rank(a, games) < rank(b, games));
 
+/** Why a match can't move: what holds it where it is. */
+export type StuckReason =
+  | { kind: 'edge' }
+  | { kind: 'round' }
+  | { kind: 'team'; teamId: string }
+  | { kind: 'station'; station: number }
+  | { kind: 'other' };
+
+/** What a move saves: the match's new queue_key and any start times (not_before) it swaps. */
+export interface QueueMove {
+  key: number;
+  notBefore: Map<string, string | null>;
+  result: TimetableResult;
+}
+
 /**
- * The queue_key that moves a match one place earlier (or later) in the
- * timetable: just before (after) the first queued neighbour whose turn it can
- * take, so the rest of the queue keeps its order. Null when nothing it could
- * pass is in the way (it waits for its players, an earlier round or a start time).
+ * Move a match one place earlier (or later) in the timetable: just before
+ * (after) the first queued neighbour whose turn it can take, so the rest of
+ * the queue keeps its order. When its start time (an uploaded sheet's time,
+ * or a skip) is what holds it, it swaps start times with that neighbour.
+ * Returns why it can't move when nothing it could pass is in the way.
  */
 export function moveInQueue<M extends TimetableMatch>(
   matches: M[],
@@ -288,10 +304,10 @@ export function moveInQueue<M extends TimetableMatch>(
   id: string,
   direction: 'earlier' | 'later',
   among: (m: M) => boolean = () => true,
-): { key: number; result: TimetableResult } | null {
+): QueueMove | { stuck: StuckReason } {
   const { games } = options;
   const target = matches.find((m) => m.id === id);
-  if (!target) return null;
+  if (!target) return { stuck: { kind: 'other' } };
   const base = scheduleTournament(matches, options);
   const slotOf = (r: TimetableResult) => new Map(r.slots.map((s) => [s.id, s]));
   const at = slotOf(base);
@@ -300,25 +316,66 @@ export function moveInQueue<M extends TimetableMatch>(
     .filter((m) => at.has(m.id) && (m.id === id || among(m)))
     .sort((a, b) => place(at.get(a.id)) - place(at.get(b.id)));
   const i = queue.findIndex((m) => m.id === id);
-  if (i < 0) return null;
+  if (i < 0) return { stuck: { kind: 'other' } };
   const own = queueKey(target, games);
   const keys = matches.filter((m) => m.id !== id && at.has(m.id)).map((m) => queueKey(m, games));
   const later = direction === 'later';
   const step = later ? 1 : -1;
+  const time = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
   for (let j = i + step; j >= 0 && j < queue.length; j += step) {
-    const pass = queueKey(queue[j], games);
-    // Already ahead of (behind) it in the queue: something else holds the order.
-    if (later ? own > pass : own < pass) continue;
+    const other = queue[j];
+    const pass = queueKey(other, games);
     const next = later ? Math.min(...keys.filter((k) => k > pass)) : Math.max(...keys.filter((k) => k < pass));
-    const key = Number.isFinite(next) ? (pass + next) / 2 : pass + step;
+    // Already ahead of (behind) it in the queue: only the start times can change places.
+    const key = (later ? own > pass : own < pass) ? own : Number.isFinite(next) ? (pass + next) / 2 : pass + step;
+    // Its own start time holds it back (forward): take the neighbour's, and give it ours when both have one.
+    const mine = time(target.not_before);
+    const theirs = time(other.not_before);
+    const notBefore = new Map<string, string | null>();
+    if (mine != null && (theirs == null || (later ? mine < theirs : mine > theirs))) {
+      notBefore.set(id, other.not_before);
+      if (theirs != null) notBefore.set(other.id, target.not_before);
+    }
+    if (key === own && notBefore.size === 0) continue;
     const result = scheduleTournament(
-      matches.map((m) => (m.id === id ? { ...m, queue_key: key } : m)),
+      matches.map((m) => (m.id === id ? { ...m, queue_key: key } : m)).map((m) => (notBefore.has(m.id) ? { ...m, not_before: notBefore.get(m.id)! } : m)),
       options,
     );
     const moved = place(slotOf(result).get(id));
-    if (later ? moved > place(at.get(id)) : moved < place(at.get(id))) return { key, result };
+    if (later ? moved > place(at.get(id)) : moved < place(at.get(id))) return { key, notBefore, result };
   }
-  return null;
+  return { stuck: stuckReason(matches, options, target, at, later, later ? i === queue.length - 1 : i === 0) };
+}
+
+function stuckReason<M extends TimetableMatch>(
+  matches: M[],
+  options: TimetableOptions,
+  target: M,
+  at: Map<string, TimetableSlot>,
+  later: boolean,
+  edge: boolean,
+): StuckReason {
+  if (later || edge) return { kind: 'edge' };
+  const feeds = matches.some(
+    (m) =>
+      m.status !== 'completed' &&
+      m.tournament_game_id === target.tournament_game_id &&
+      (m.next_match_id === target.id ||
+        m.loser_next_match_id === target.id ||
+        (!!target.round_code && m.fixture_day === target.fixture_day && !!m.round_code && m.round < target.round)),
+  );
+  if (feeds) return { kind: 'round' };
+  const start = at.get(target.id)?.start ?? Infinity;
+  for (const m of matches) {
+    if (m.id === target.id || m.is_bye || m.status === 'completed') continue;
+    const busy = m.status === 'live' || m.status === 'called' || (at.get(m.id)?.start ?? Infinity) < start;
+    if (!busy) continue;
+    const team = [target.team_a_id, target.team_b_id].find((t) => t && (t === m.team_a_id || t === m.team_b_id));
+    if (team) return { kind: 'team', teamId: team };
+  }
+  const list = matchStations(target);
+  if (target.station_locked && list.length > 0 && list.every((s) => s >= 1 && s <= options.stations)) return { kind: 'station', station: list[0] };
+  return { kind: 'other' };
 }
 
 /** What each station is doing now and what it plays next, from a saved timetable. */
