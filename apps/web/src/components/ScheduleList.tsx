@@ -27,7 +27,7 @@ export function ScheduleList({
     const key = m.scheduled_start ? formatDay(m.scheduled_start, timeZone) : 'Unscheduled';
     days.set(key, [...(days.get(key) ?? []), m]);
   }
-  const name = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,11 +50,11 @@ export function ScheduleList({
                   {m.station ? ` · Stn ${m.station}` : ''}
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
-                  <Avatar name={name(m.team_a_id)} url={m.team_a_id ? teams.get(m.team_a_id)?.logo_url : null} size={22} />
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-gold' : ''}`}>{name(m.team_a_id)}</span>
+                  <Avatar name={name(m.team_a_id, m.a_from)} url={m.team_a_id ? teams.get(m.team_a_id)?.logo_url : null} size={22} />
+                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-gold' : ''}`}>{name(m.team_a_id, m.a_from)}</span>
                   <span className="text-muted">vs</span>
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-gold' : ''}`}>{name(m.team_b_id)}</span>
-                  <Avatar name={name(m.team_b_id)} url={m.team_b_id ? teams.get(m.team_b_id)?.logo_url : null} size={22} />
+                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-gold' : ''}`}>{name(m.team_b_id, m.b_from)}</span>
+                  <Avatar name={name(m.team_b_id, m.b_from)} url={m.team_b_id ? teams.get(m.team_b_id)?.logo_url : null} size={22} />
                 </span>
                 <StatusPill status={m.status} />
               </div>

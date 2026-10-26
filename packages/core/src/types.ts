@@ -123,6 +123,11 @@ export interface Match {
   round_code: RoundCode | null;
   /** Event-local day an uploaded fixture was uploaded for. */
   fixture_day: string | null;
+  /** The uploaded sheet's match id (FC-PI-03). */
+  match_code: string | null;
+  /** Match code whose winner takes side A / B ("Winner of FC-PI-03"). */
+  a_from: string | null;
+  b_from: string | null;
   /** When the players were called to the station. */
   called_at: string | null;
   /** Held back in the queue until this time (skipped or delayed). */
