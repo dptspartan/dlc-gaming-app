@@ -5,6 +5,7 @@ import {
   describeGroupSetup,
   findTeamConflicts,
   fixturesTemplate,
+  formatClock,
   formatDay,
   formatTime,
   parseFixturesCsv,
@@ -977,7 +978,7 @@ function DayUpload({
                       <td className="px-3 py-1.5 font-mono text-xs">{r.match_code ?? '—'}</td>
                       <td className="px-3 py-1.5">{ROUND_LABEL[r.round_code]}</td>
                       <td className="px-3 py-1.5">{day(r.date)}</td>
-                      <td className="px-3 py-1.5">{r.time ?? (r.wave != null ? `Wave ${r.wave}` : <span className="text-muted">auto</span>)}</td>
+                      <td className="px-3 py-1.5">{r.time ? formatClock(r.time) : (r.wave != null ? `Wave ${r.wave}` : <span className="text-muted">auto</span>)}</td>
                       <td className="px-3 py-1.5">{r.station ?? <span className="text-muted">auto</span>}</td>
                       <td className="px-3 py-1.5">
                         {name(r.team_a_id, r.a_from)} <span className="text-muted">vs</span> {name(r.team_b_id, r.b_from)}

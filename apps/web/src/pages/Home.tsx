@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { addDays, type Tournament } from '@dlc/core';
+import { addDays, formatClock, type Tournament } from '@dlc/core';
 import { Layout } from '../components/Layout';
 import { Empty, ErrorNote, Heading } from '../components/ui';
 import { must, supabase } from '../lib/supabase';
@@ -64,7 +64,7 @@ export function Home() {
                       <div className="font-display text-lg font-bold tracking-wide group-hover:text-ember">{t.name}</div>
                       <div className="text-muted">
                         {t.start_date}
-                        {t.days > 1 ? ` → ${addDays(t.start_date, t.days - 1)}` : ''} · {t.daily_start.slice(0, 5)}–{t.daily_end.slice(0, 5)}
+                        {t.days > 1 ? ` → ${addDays(t.start_date, t.days - 1)}` : ''} · {formatClock(t.daily_start)}–{formatClock(t.daily_end)}
                       </div>
                     </div>
                     {t.status === 'live' && (

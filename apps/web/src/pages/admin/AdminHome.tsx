@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Tournament } from '@dlc/core';
+import { formatClock, type Tournament } from '@dlc/core';
 import { Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill } from '../../components/ui';
 import { slugify } from '../../lib/admin';
 import { must, supabase } from '../../lib/supabase';
@@ -33,7 +33,7 @@ export function AdminHome() {
               <div>
                 <div className="font-display font-bold">{t.name}</div>
                 <div className="text-sm text-muted">
-                  {t.start_date} · {t.days} day{t.days > 1 ? 's' : ''} · {t.daily_start.slice(0, 5)}–{t.daily_end.slice(0, 5)} · /{t.slug}
+                  {t.start_date} · {t.days} day{t.days > 1 ? 's' : ''} · {formatClock(t.daily_start)}–{formatClock(t.daily_end)} · /{t.slug}
                 </div>
               </div>
               <StatusPill status={t.status} />

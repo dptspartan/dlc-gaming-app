@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket, roundName, seedOrder, type MatchDraft } from './bracket';
 import { findTeamConflicts, scheduleMatches } from './schedule';
-import { tournamentWindows, zonedToUtc } from './time';
+import { formatClock, formatTime, tournamentWindows, zonedToUtc } from './time';
 import { gridFor } from './layout';
 import { roundsToWin, scoringLabel } from './scoring';
 
@@ -73,6 +73,9 @@ describe('generateBracket', () => {
 describe('time', () => {
   it('converts wall time in a zone to UTC', () => {
     expect(zonedToUtc('2026-10-01', '10:00', 'Asia/Karachi').toISOString()).toBe('2026-10-01T05:00:00.000Z');
+    expect(formatTime('2026-10-26T12:30:00Z', 'Asia/Karachi')).toBe('5:30 PM');
+    expect(formatTime('2026-10-26T19:05:00Z', 'Asia/Karachi')).toBe('12:05 AM');
+    expect(['17:30:00', '00:05', '12:00', '09:15'].map(formatClock)).toEqual(['5:30 PM', '12:05 AM', '12:00 PM', '9:15 AM']);
     expect(zonedToUtc('2026-07-01', '10:00', 'Europe/London').toISOString()).toBe('2026-07-01T09:00:00.000Z');
   });
 });

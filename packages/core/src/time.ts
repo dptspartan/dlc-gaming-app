@@ -58,9 +58,16 @@ export function tournamentWindows(t: {
   });
 }
 
+/** A clock time for display, 12-hour: "5:30 PM". */
 export function formatTime(iso: string | number | Date | null | undefined, timeZone: string): string {
   if (iso == null) return 'TBD';
-  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  return new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
+}
+
+/** A wall-clock "HH:MM" or "HH:MM:SS" (daily hours, a sheet's start time) for display: "5:30 PM". */
+export function formatClock(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 export function formatDay(iso: string | number | Date, timeZone: string): string {

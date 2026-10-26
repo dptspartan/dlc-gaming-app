@@ -1,4 +1,4 @@
-import type { Tournament } from '@dlc/core';
+import { formatClock, type Tournament } from '@dlc/core';
 import { Link, Redirect, Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
@@ -55,7 +55,7 @@ export default function Tournaments() {
                 <Pill status={item.status} />
               </View>
               <Text style={[styles.muted, { marginTop: 4 }]}>
-                {item.start_date} · {item.days} day{item.days > 1 ? 's' : ''} · {item.daily_start.slice(0, 5)}–{item.daily_end.slice(0, 5)}
+                {item.start_date} · {item.days} day{item.days > 1 ? 's' : ''} · {formatClock(item.daily_start)}–{formatClock(item.daily_end)}
               </Text>
             </Pressable>
           </Link>

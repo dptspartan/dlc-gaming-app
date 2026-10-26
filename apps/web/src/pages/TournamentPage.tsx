@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addDays } from "@dlc/core";
+import { addDays, formatClock } from "@dlc/core";
 import { Bracket } from "../components/Bracket";
 import { GroupTables } from "../components/GroupTables";
 import { Layout } from "../components/Layout";
@@ -118,7 +118,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
           <img className="event-sticker event-sticker-bolt" src={stickerBolt} alt="" />
         </div>
         <Heading
-          sub={`${tournament.start_date}${tournament.days > 1 ? ` → ${addDays(tournament.start_date, tournament.days - 1)}` : ""} · daily ${tournament.daily_start.slice(0, 5)}–${tournament.daily_end.slice(0, 5)} (${tournament.timezone})`}
+          sub={`${tournament.start_date}${tournament.days > 1 ? ` → ${addDays(tournament.start_date, tournament.days - 1)}` : ""} · daily ${formatClock(tournament.daily_start)}–${formatClock(tournament.daily_end)} (${tournament.timezone})`}
         >
           {tournament.name}
         </Heading>
