@@ -56,6 +56,24 @@ describe('scheduleTournament', () => {
     expect(first).toHaveLength(1);
   });
 
+  it('moves matches off a station the venue no longer has', () => {
+    const drafts = asTimetable('g', generateBracket(entrants('p', 8), { newId }));
+    // Uploaded with station 4, then the venue went down to 3 stations.
+    drafts[0] = { ...drafts[0], station: 4, stations: [4], station_locked: true };
+    drafts[1] = { ...drafts[1], station: 2, stations: [2], station_locked: true };
+    const r = scheduleTournament(drafts, { windows, stations: 3, callMinutes: 5, games: new Map([['g', game()]]) });
+    expect(r.unplaced).toEqual([]);
+    expect(r.slots.every((s) => s.station <= 3)).toBe(true);
+    expect(r.slots.find((s) => s.id === drafts[1].id)!.station).toBe(2);
+  });
+
+  it('lets a game whose only stations are gone use any station', () => {
+    const drafts = asTimetable('g', generateBracket(entrants('p', 4), { newId }));
+    const r = scheduleTournament(drafts, { windows, stations: 3, callMinutes: 5, games: new Map([['g', game({ allowedStations: [4] })]]) });
+    expect(r.unplaced).toEqual([]);
+    expect(r.slots.every((s) => s.station <= 3)).toBe(true);
+  });
+
   it('keeps called and live matches on their stations and fills the free ones', () => {
     const drafts = asTimetable('g', generateBracket(entrants('p', 8), { newId }));
     const now = start + 30 * MIN;

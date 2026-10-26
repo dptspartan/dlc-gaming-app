@@ -513,7 +513,8 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
     match_minutes: tg.match_minutes,
     buffer_minutes: tg.buffer_minutes,
     stations_required: tg.stations_required,
-    allowed_stations: tg.allowed_stations ?? [],
+    // Stations the venue no longer has drop out, so saving clears them.
+    allowed_stations: (tg.allowed_stations ?? []).filter((n) => n <= stations),
   });
   const toggleStation = (n: number) =>
     setSettings((s) => ({

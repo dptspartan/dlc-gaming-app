@@ -197,10 +197,16 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
   };
 
   const allStations = Array.from({ length: stations }, (_, i) => i + 1);
-  // An uploaded fixture with a station keeps it; everything else may use any of its game's stations.
-  const allowedFor = (g: TimetableGame, m: TimetableMatch) =>
-    (m.station_locked && matchStations(m).length ? matchStations(m) : g.allowedStations ?? allStations).filter((s) => s >= 1 && s <= stations);
-  const needed = (g: TimetableGame, m: TimetableMatch) => (m.station_locked && matchStations(m).length ? matchStations(m).length : Math.max(1, g.stationsRequired));
+  const exists = (s: number) => s >= 1 && s <= stations;
+  // A game's stations that still exist; when too few are left (the venue lost stations), any station.
+  const gameStations = (g: TimetableGame) => {
+    const list = (g.allowedStations ?? allStations).filter(exists);
+    return list.length >= Math.max(1, g.stationsRequired) ? list : allStations;
+  };
+  // An uploaded fixture with a station keeps it, unless that station is gone; everything else may use any of its game's stations.
+  const locked = (m: TimetableMatch) => m.station_locked && matchStations(m).length > 0 && matchStations(m).every(exists);
+  const allowedFor = (g: TimetableGame, m: TimetableMatch) => (locked(m) ? matchStations(m) : gameStations(g));
+  const needed = (g: TimetableGame, m: TimetableMatch) => (locked(m) ? matchStations(m).length : Math.max(1, g.stationsRequired));
   const slots: TimetableSlot[] = [];
   const unplaced: string[] = [];
   let todo = matches.filter((m) => {
