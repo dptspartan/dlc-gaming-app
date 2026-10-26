@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 
 interface Credit {
   name: string;
-  /** Employee id; 'nan' until it is known. */
+  /** Employee id. */
   employeeId: string;
   github: string;
   slack: string;
@@ -17,7 +17,7 @@ const CREDITS: Credit[] = [
   },
   {
     name: 'Afnan Hussain',
-    employeeId: 'nan',
+    employeeId: '71562',
     github: 'https://github.com/AfnanHussain10',
     slack: 'https://dubizzle.slack.com/team/U08HRQRH08J',
   },
