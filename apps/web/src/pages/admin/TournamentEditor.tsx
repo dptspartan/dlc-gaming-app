@@ -194,7 +194,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
     setBusy(true);
     setMoveError(null);
     try {
-      await moveMatch(tournament, tgames, matches, m.id, direction, data.games.values());
+      await moveMatch(tournament, tgames, matches, m.id, direction, data.games.values(), undefined, (id) => data.teams.get(id)?.name ?? 'A player');
     } catch (e) {
       setMoveError((e as Error).message);
     } finally {
@@ -253,7 +253,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         <h2 className="mb-1 text-lg font-bold">Timetable</h2>
         <p className="mb-3 text-sm text-muted">
           Earlier and Later swap a queued match with the one next to it; everything else moves round it, and rebuilds keep the new order. A match can't
-          go before its players are free or before the round it waits for.
+          go before its players are free or before the round it waits for. Swapping with a match that has a fixtures sheet time swaps the times too.
         </p>
         {moveError && (
           <div className="mb-3">

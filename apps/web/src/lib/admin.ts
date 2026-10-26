@@ -15,6 +15,7 @@ import {
   type Game,
   type Match,
   type Slot,
+  type StuckReason,
   type StageMatchDraft,
   type Team,
   type TimetableMatch,
@@ -188,7 +189,7 @@ export async function refreshTimetable(tournamentId: string): Promise<TimetableR
 /**
  * Move a queued match one place earlier or later in the timetable (among the
  * matches `among` keeps, e.g. one game's), then rebuild the timetable around it.
- * The new place is kept by later rebuilds. Throws when it can't move.
+ * The new place is kept by later rebuilds. Throws, saying why, when it can't move.
  */
 export async function moveMatch(
   tournament: Tournament,
@@ -198,17 +199,30 @@ export async function moveMatch(
   direction: 'earlier' | 'later',
   catalog?: Iterable<Game>,
   among?: (m: Match) => boolean,
+  teamName: (id: string) => string = () => 'A player',
 ): Promise<TimetableResult> {
   const moved = moveInQueue(matches, timetableOptions(tournament, tgames, Date.now(), catalog), id, direction, among);
-  if (!moved)
-    throw new Error(
-      direction === 'earlier'
-        ? "This match can't go any earlier: it waits for its players, an earlier round, or the start time from its fixtures sheet."
-        : "This match can't go any later: nothing after it can take its place.",
-    );
+  if ('stuck' in moved) throw new Error(stuckMessage(moved.stuck, direction, teamName));
   must(await supabase.from('matches').update({ queue_key: moved.key }).eq('id', id));
+  for (const [matchId, notBefore] of moved.notBefore) must(await supabase.from('matches').update({ not_before: notBefore }).eq('id', matchId));
   await saveSlots(moved.result);
   return moved.result;
+}
+
+function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamName: (id: string) => string): string {
+  const head = `This match can't go any ${direction}`;
+  switch (stuck.kind) {
+    case 'edge':
+      return direction === 'earlier' ? `${head}: it's already the first match.` : `${head}: nothing after it can take its place.`;
+    case 'round':
+      return `${head}: it waits for the earlier round of its game to finish.`;
+    case 'team':
+      return `${head}: ${teamName(stuck.teamId)} is still playing in the match before it.`;
+    case 'station':
+      return `${head}: its fixtures sheet puts it on station ${stuck.station}, which is busy until then.`;
+    default:
+      return `${head}: no other match can swap places with it.`;
+  }
 }
 
 /** How the queued matches fit, without saving anything. */
