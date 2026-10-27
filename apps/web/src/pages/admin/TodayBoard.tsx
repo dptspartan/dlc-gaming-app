@@ -151,6 +151,7 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
         <MatchControl
           match={open}
           teams={data.teams}
+          matches={data.matches}
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(openTg.game_id)}
