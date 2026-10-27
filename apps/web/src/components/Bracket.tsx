@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
+import { bracketColumns, formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -54,9 +54,7 @@ function Rounds({
 }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const flowPaths = useFlowPaths(boardRef, matches);
-  const rounds = [...new Set(matches.map((m) => m.round))]
-    .sort((a, b) => a - b)
-    .map((r) => matches.filter((m) => m.round === r).sort((a, b) => a.position - b.position));
+  const rounds = bracketColumns(matches);
   return (
     <div className="overflow-x-auto pb-4">
       <div className="bracket-board relative flex min-w-max gap-20" ref={boardRef}>

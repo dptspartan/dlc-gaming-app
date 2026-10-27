@@ -394,15 +394,24 @@ export interface WinnerLink {
   slot: Slot;
 }
 
+type LinkMatch = Pick<Match, 'id' | 'tournament_game_id' | 'round' | 'position' | 'round_code' | 'status' | 'winner_id' | 'next_match_id' | 'next_slot' | 'team_a_id' | 'team_b_id'>;
+
+/** For an uploaded match decided without a link: the game's next uploaded round that has its winner in it. */
+function inferredTarget<M extends LinkMatch>(m: M, matches: M[]): { to: M; slot: Slot } | undefined {
+  if (!m.round_code || m.next_match_id || !m.winner_id || m.status !== 'completed') return undefined;
+  const to = matches
+    .filter((t) => t.tournament_game_id === m.tournament_game_id && t.round_code && t.round > m.round && (t.team_a_id === m.winner_id || t.team_b_id === m.winner_id))
+    .sort((x, y) => x.round - y.round || x.position - y.position)[0];
+  return to && { to, slot: to.team_a_id === m.winner_id ? 'a' : 'b' };
+}
+
 /**
  * Where each decided match's winner went, for the bracket's connecting lines:
  * its next-match link, or, for uploaded sheets where the next round was
  * uploaded with the winners' names instead of "Winner of …", the game's next
  * uploaded round that has the winner in it.
  */
-export function winnerLinks(
-  matches: Pick<Match, 'id' | 'tournament_game_id' | 'round' | 'position' | 'round_code' | 'status' | 'winner_id' | 'next_match_id' | 'next_slot' | 'team_a_id' | 'team_b_id'>[],
-): WinnerLink[] {
+export function winnerLinks(matches: LinkMatch[]): WinnerLink[] {
   const out: WinnerLink[] = [];
   const taken = new Set<string>();
   for (const m of matches) {
@@ -412,15 +421,34 @@ export function winnerLinks(
     }
   }
   for (const m of matches) {
-    if (!m.round_code || m.next_match_id || !m.winner_id || m.status !== 'completed') continue;
-    const target = matches
-      .filter((t) => t.tournament_game_id === m.tournament_game_id && t.round_code && t.round > m.round && (t.team_a_id === m.winner_id || t.team_b_id === m.winner_id))
-      .sort((x, y) => x.round - y.round || x.position - y.position)[0];
-    if (!target) continue;
-    const slot: Slot = target.team_a_id === m.winner_id ? 'a' : 'b';
-    if (taken.has(`${target.id}|${slot}`)) continue;
-    taken.add(`${target.id}|${slot}`);
-    out.push({ from: m.id, to: target.id, slot });
+    const target = inferredTarget(m, matches);
+    if (!target || taken.has(`${target.to.id}|${target.slot}`)) continue;
+    taken.add(`${target.to.id}|${target.slot}`);
+    out.push({ from: m.id, to: target.to.id, slot: target.slot });
   }
   return out;
+}
+
+/**
+ * The bracket's columns, one per round. The last round keeps its order and
+ * every earlier round is sorted by where its winner goes (that match's row,
+ * then side A before B), so the connecting lines run straight across.
+ * Matches with nowhere to go yet sit at the bottom in their usual order.
+ */
+export function bracketColumns<M extends LinkMatch>(matches: M[]): M[][] {
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+  const columns = rounds.map((r) => matches.filter((m) => m.round === r).sort((a, b) => a.position - b.position));
+  const row = new Map<string, number>();
+  for (let i = columns.length - 1; i >= 0; i--) {
+    const key = (m: M) => {
+      const target = m.next_match_id && m.next_slot ? { to: byId.get(m.next_match_id), slot: m.next_slot } : inferredTarget(m, matches);
+      const at = target?.to && row.get(target.to.id);
+      return at == null ? Infinity : at * 2 + (target!.slot === 'b' ? 1 : 0);
+    };
+    // Array sort is stable: unlinked matches keep their position order.
+    if (i < columns.length - 1) columns[i] = columns[i].map((m) => [m, key(m)] as const).sort((a, b) => a[1] - b[1]).map(([m]) => m);
+    columns[i].forEach((m, at) => row.set(m.id, at));
+  }
+  return columns;
 }

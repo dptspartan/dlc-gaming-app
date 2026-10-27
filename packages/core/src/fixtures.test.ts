@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, winnerLinks, type FixtureRow } from './fixtures';
+import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, bracketColumns, winnerLinks, type FixtureRow } from './fixtures';
 import { isFinal, matchLabel } from './groups';
 import { planStage } from './plan';
 import { scheduleTournament, type TimetableMatch } from './timetable';
@@ -256,6 +256,27 @@ describe('winnerLinks', () => {
     expect(links).toEqual([
       { from: 'pi1', to: 'r1', slot: 'b' },
       { from: 'pi2', to: 'r2', slot: 'b' },
+    ]);
+  });
+});
+
+describe('bracketColumns', () => {
+  const base = { tournament_game_id: 'g', next_match_id: null, next_slot: null, winner_id: null, team_a_id: null, team_b_id: null, status: 'ready' as const, round_code: 'PRE' as const };
+  const m = (id: string, round: number, position: number, over: Partial<Parameters<typeof bracketColumns>[0][number]> = {}) => ({ ...base, id, round, position, ...over });
+
+  it('orders each round by where its winners go', () => {
+    const cols = bracketColumns([
+      m('p0', 1, 0, { winner_id: 'c', status: 'completed', team_a_id: 'c' }), // → r1 b (by name)
+      m('p1', 1, 1, { next_match_id: 'r0', next_slot: 'b' }), // → r0 b (linked, not played)
+      m('p2', 1, 2), // nowhere yet
+      m('p3', 1, 3, { next_match_id: 'r1', next_slot: 'a' }), // → r1 a
+      m('p4', 1, 4, { next_match_id: 'r0', next_slot: 'a' }), // → r0 a
+      m('r0', 2, 0, { round_code: 'R32' }),
+      m('r1', 2, 1, { round_code: 'R32', team_b_id: 'c' }),
+    ]);
+    expect(cols.map((c) => c.map((x) => x.id))).toEqual([
+      ['p4', 'p1', 'p3', 'p0', 'p2'],
+      ['r0', 'r1'],
     ]);
   });
 });
