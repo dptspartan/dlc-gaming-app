@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { RescheduleCard } from '../../components/reschedule';
 import { Avatar, Button, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
 import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/actions';
 import { supabase, uploadLocalImage } from '../../lib/supabase';
@@ -228,6 +229,7 @@ export default function MatchControl() {
         {match.status === 'live' && match.legs.length > 0 && <Button title="Undo last leg" variant="ghost" busy={busy === 'reopen'} onPress={confirmReopen} />}
         {match.status === 'completed' && !match.is_bye && <Button title="Reopen result" variant="danger" busy={busy === 'reopen'} onPress={confirmReopen} />}
         {match.status === 'pending' && <Text style={styles.muted}>Waiting for the earlier matches to finish.</Text>}
+        {(match.status === 'pending' || match.status === 'ready') && !match.is_bye && data.tournament && <RescheduleCard data={data} match={match} />}
 
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16, gap: 10 }}>
           <Text style={styles.label}>Match photo</Text>
