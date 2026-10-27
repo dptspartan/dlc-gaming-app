@@ -25,7 +25,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
   const board = stationBoard(matches, stations);
   const rounds = knockoutRounds(matches);
   const label = (m: Match) => `${gameName(m)} · ${matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}`;
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -125,7 +125,7 @@ export function Timetable({
   const list = matches
     .filter((m) => !m.is_bye && m.status !== 'completed')
     .sort((a, b) => order(a) - order(b) || (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9') || (a.station ?? 99) - (b.station ?? 99));
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
   if (list.length === 0) return <div className="py-8 text-center text-muted">Every match has been played.</div>;
   return (
     <div className="timetable glass-card overflow-x-auto">

@@ -27,7 +27,7 @@ export function ScheduleList({
     const key = m.scheduled_start ? formatDay(m.scheduled_start, timeZone) : 'Unscheduled';
     days.set(key, [...(days.get(key) ?? []), m]);
   }
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
 
   return (
     <div className="flex flex-col gap-6">

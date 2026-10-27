@@ -380,12 +380,27 @@ export const fixtureOrder = (x: FixtureRow, y: FixtureRow) =>
 /** Whether a match came from an uploaded sheet rather than a generated bracket. */
 export const isUploaded = (m: Pick<Match, 'round_code'>) => m.round_code != null;
 
-/** A side's name: the player, "Winner FC-PI-03" while a linked match is undecided, else TBD. */
+/** A side's name: the player, "Winner of FC-PI-03" while a linked match is undecided, else TBD. */
 export function sideName(m: Partial<Pick<Match, 'a_from' | 'b_from' | 'is_bye'>>, slot: 'a' | 'b', team: string | null | undefined): string {
   if (team) return team;
   const from = slot === 'a' ? m.a_from : m.b_from;
-  if (from) return `Winner ${from}`;
+  if (from) return `Winner of ${from}`;
   return m.is_bye ? 'Bye' : 'TBD';
+}
+
+type FeederMatch = Pick<Match, 'tournament_game_id' | 'match_code' | 'team_a_id' | 'team_b_id' | 'a_from' | 'b_from' | 'is_bye'>;
+
+/** The match whose winner takes a linked side (same game, its match code), while that side is still empty. */
+export function feederMatch<M extends FeederMatch>(m: Pick<Match, 'tournament_game_id' | 'a_from' | 'b_from'> & Partial<Pick<Match, 'team_a_id' | 'team_b_id'>>, slot: Slot, matches: Iterable<M>): M | undefined {
+  const from = slot === 'a' ? m.a_from : m.b_from;
+  if (!from || (slot === 'a' ? m.team_a_id : m.team_b_id)) return undefined;
+  for (const x of matches) if (x.tournament_game_id === m.tournament_game_id && x.match_code === from) return x;
+  return undefined;
+}
+
+/** Who can still take a linked side: "Fury or Kilo", from the match it waits on. */
+export function feederSides(feeder: FeederMatch, team: (id: string | null) => string | null | undefined): string {
+  return `${sideName(feeder, 'a', team(feeder.team_a_id))} or ${sideName(feeder, 'b', team(feeder.team_b_id))}`;
 }
 
 export interface WinnerLink {

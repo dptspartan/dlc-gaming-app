@@ -146,7 +146,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   if (!matches.length) return <Empty>Generate the fixtures first. The control room fills up once matches are planned.</Empty>;
 
   const gameName = (m: Match) => gameOf(m.tournament_game_id)?.name ?? '';
-  const name = (id: string | null, from?: string | null) => (id ? data.teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? data.teams.get(id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
   const count = (st: Match['status']) => matches.filter((m) => m.status === st && !m.is_bye).length;
   // Any ready match this station may host, soonest planned first.
   const callable = (station: number) =>
@@ -942,7 +942,7 @@ function DayUpload({
   const [inputKey, setInputKey] = useState(0);
   const [defaultDate, setDefaultDate] = useState('');
   const dates = Array.from({ length: Math.max(1, tournament.days) }, (_, i) => addDays(tournament.start_date, i));
-  const name = (id: string | null, from: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
   const day = (date: string) => formatDay(zonedToUtc(date, '12:00', tournament.timezone), tournament.timezone);
   // Re-parsed whenever the players or the picked day change, so adding missing players clears their errors.
   const parsed = useMemo(
