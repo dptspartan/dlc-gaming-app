@@ -100,14 +100,16 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
       <div className="today-filters sticky z-20 -mx-4 mb-2 flex flex-col gap-2 border-b border-line bg-bg/95 px-4 py-2 backdrop-blur">
         <input type="search" placeholder="Search a player or match ID" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search a player or match ID" />
         <div className="chip-row flex gap-1.5 overflow-x-auto pb-1">
-          {days.length > 1 &&
-            days.map((d) => (
-              <Chip key={d} on={d === day} onClick={() => setDay(d)}>
-                {d === today ? 'Today' : formatDay(zonedToUtc(d, '12:00', tz), tz)}
-              </Chip>
-            ))}
-        </div>
-        <div className="chip-row flex gap-1.5 overflow-x-auto pb-1">
+          {days.length > 1 && (
+            <>
+              {days.map((d) => (
+                <Chip key={d} on={d === day} onClick={() => setDay(d)}>
+                  {d === today ? 'Today' : formatDay(zonedToUtc(d, '12:00', tz), tz)}
+                </Chip>
+              ))}
+              <span className="mx-1 w-px shrink-0 bg-line" />
+            </>
+          )}
           <Chip on={tg === 'all'} onClick={() => setTg('all')}>
             All games
           </Chip>

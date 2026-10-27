@@ -73,7 +73,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
               <ul className="flex flex-col gap-1">
                 {s.queue.slice(0, upNext).map((q) => (
                   <li key={q.id} className="flex items-center gap-2 text-sm">
-                    <span className="w-16 shrink-0 font-mono whitespace-nowrap text-ember">{formatTime(q.scheduled_start, timeZone)}</span>
+                    <span className="w-[4.75rem] shrink-0 font-mono whitespace-nowrap text-ember">{formatTime(q.scheduled_start, timeZone)}</span>
                     <span className="min-w-0 flex-1 truncate" title={label(q)}>
                       <span className="text-muted">{gameName(q)}</span> {name(q.team_a_id, q.a_from)} <span className="text-muted">v</span> {name(q.team_b_id, q.b_from)}
                     </span>

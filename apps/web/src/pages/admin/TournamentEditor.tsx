@@ -95,6 +95,7 @@ export function TournamentEditor() {
       {tab === 'setup' && (
         <>
           <Tabs
+            className="setup-tabs"
             value={setup}
             onChange={setSetup}
             tabs={[
@@ -161,7 +162,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
     const m = s.current;
     if (m?.status === 'called')
       return (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="station-actions mb-2 flex flex-wrap gap-2">
           <Button disabled={busy} onClick={() => act(() => startMatch(m))}>
             Start match
           </Button>

@@ -122,7 +122,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
         <Button variant="ghost" disabled={busy || value === 0 || match.status !== 'live'} onClick={() => point(side, -1)} aria-label="Take back a point">
           −
         </Button>
-        <Button disabled={busy} onClick={() => point(side, 1)}>
+        <Button disabled={busy} onClick={() => point(side, 1)} className="whitespace-nowrap">
           {scoring === 'rounds' ? '+ Round' : '+ Goal'}
         </Button>
       </div>
@@ -145,7 +145,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
               {match.station && <span className="font-semibold">{stationLabel(match)}</span>}
             </div>
           </div>
-          <button onClick={onClose} className="text-2xl text-muted hover:text-ink" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 grid h-11 w-11 shrink-0 place-items-center text-2xl text-muted hover:text-ink" aria-label="Close">
             ×
           </button>
         </div>
@@ -209,7 +209,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
 
         <ErrorNote message={error} />
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="sheet-actions mt-5 flex flex-wrap gap-2">
           {match.status === 'ready' && match.station && a && b && (
             <Button disabled={busy} onClick={() => run(() => callMatch(match, match.station!))}>
               Call players to station {match.station}

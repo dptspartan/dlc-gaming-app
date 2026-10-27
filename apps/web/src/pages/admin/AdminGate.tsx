@@ -17,7 +17,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
   return (
     <Layout wide>
       <div className="admin">
-      <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-line pb-2 sm:mb-6 sm:gap-5 sm:pb-3">
+      <div className="admin-nav mb-4 flex flex-wrap items-center gap-1 border-b border-line pb-2 sm:mb-6 sm:gap-5 sm:pb-3">
         <NavLink to="/admin?list" end className={nav}>
           Tournaments
         </NavLink>

@@ -2010,9 +2010,11 @@ body:has(.credits-corner) {
   }
   /* Less chrome above the day's matches. */
   .editor-links a {
-    padding: 0.35rem 0.7rem !important;
+    padding: 0 0.7rem !important;
     font-size: 0.75rem !important;
-    min-height: 0 !important;
+    min-height: 44px !important;
+    display: inline-flex;
+    align-items: center;
   }
   .editor .heading h1,
   .editor h1 {
@@ -2066,7 +2068,50 @@ body:has(.credits-corner) {
   min-height: 44px;
 }
 .today-chip {
-  min-height: 36px;
+  min-height: 40px;
+}
+
+/* Admin on phones: 44px tap targets, and rows of buttons that fit the screen. */
+@media (max-width: 640px) {
+  .admin button,
+  .admin select,
+  .admin input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+    min-height: 44px;
+  }
+  .admin .today-chip {
+    min-height: 40px;
+  }
+  .admin-nav a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .admin-nav a {
+    padding-inline: 0.6rem;
+  }
+  /* Setup's four sections as a 2 × 2 grid, so none hides off the edge. */
+  .setup-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+  }
+  .setup-tabs .tab {
+    justify-content: flex-start;
+  }
+  /* Buttons share each line, so the main action spans the sheet or the card. */
+  .sheet-actions > button,
+  .station-actions > button {
+    flex: 1 1 auto;
+  }
+  /* Timetable row: Earlier · Later · Reschedule in three equal columns. */
+  .timetable td:nth-child(6) > span {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.35fr;
+  }
+  .timetable td:nth-child(6) button {
+    padding-inline: 0.4rem !important;
+    white-space: nowrap;
+  }
 }
 
 /* Phones: Today · Stations · Setup is a bottom tab bar. */
