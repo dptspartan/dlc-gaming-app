@@ -26,6 +26,8 @@ scripts/       Demo data generator
 - **Generate fixtures** builds a single-elimination bracket through the final. Byes go to the top seeds. Each match gets a station and a time slot inside the daily hours; if it doesn't fit, the admin sees by how much.
 - **Match flow** runs in database functions, so web and mobile behave the same: `start_match`, `end_match` (moves the winner into the next match and crowns the champion after the final), `reopen_match` (undo while the next match hasn't started), `swap_slots` (edit matchups before play).
 - **Reflow times from now** reschedules unplayed matches when the day runs late or early.
+- **Reschedule** gives a queued match a set start time, today or another day (`reschedule_match`). The timetable keeps it there and moves the other matches round it; a match never starts before its players are free or the round it waits for is done.
+- **End of day** in the control room (and the game master app) runs today late so the matches left play tonight, or stops today so they move to tomorrow, using per-day hours (`tournaments.day_hours`). **Add a day** covers matches with no day left.
 - On the live board, press **W** to replay the latest winner announcement.
 
 ## Running locally

@@ -11,6 +11,7 @@ import {
   seriesFor,
   timetableOptions,
   ROUND_NUMBER,
+  type DayHours,
   type FixtureRow,
   type Game,
   type Match,
@@ -220,6 +221,8 @@ function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamNa
       return `${head}: ${teamName(stuck.teamId)} is still playing in the match before it.`;
     case 'station':
       return `${head}: its fixtures sheet puts it on station ${stuck.station}, which is busy until then.`;
+    case 'set_time':
+      return `${head}: it has a set time. Use Reschedule to change or clear it.`;
     default:
       return `${head}: no other match can swap places with it.`;
   }
@@ -248,6 +251,25 @@ export const uncallMatch = (m: Pick<Match, 'id' | 'tournament_id'>, delayMinutes
   thenReflow(m.tournament_id, rpc('uncall_match', { p_match_id: m.id, p_delay_minutes: delayMinutes }));
 export const holdMatch = (m: Pick<Match, 'id' | 'tournament_id'>, until: Date | null) =>
   thenReflow(m.tournament_id, rpc('hold_match', { p_match_id: m.id, p_not_before: until?.toISOString() ?? null }));
+/** Give a queued match a set start time (null: back to the usual order); the timetable moves the other matches round it. */
+export const rescheduleMatch = (m: Pick<Match, 'id' | 'tournament_id'>, at: Date | null) =>
+  thenReflow(m.tournament_id, rpc('reschedule_match', { p_match_id: m.id, p_at: at?.toISOString() ?? null }));
+
+/** Change one day's hours (null: back to the daily hours), then rebuild the timetable so the rest of the day fits. */
+export async function setDayHours(t: Pick<Tournament, 'id' | 'day_hours'>, date: string, hours: DayHours | null) {
+  const day_hours = { ...(t.day_hours ?? {}) };
+  if (hours) day_hours[date] = hours;
+  else delete day_hours[date];
+  must(await supabase.from('tournaments').update({ day_hours }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
+/** One more tournament day, for matches that don't fit the last one. */
+export async function addTournamentDay(t: Pick<Tournament, 'id' | 'days'>) {
+  must(await supabase.from('tournaments').update({ days: t.days + 1 }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
 export const listAdmins = async () => (await rpc('list_admins', {})) as { user_id: string; email: string }[];
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;

@@ -1,4 +1,4 @@
-import { scheduleTournament, timetableOptions, type Game, type Match, type Tournament, type TournamentGame } from '@dlc/core';
+import { scheduleTournament, timetableOptions, type DayHours, type Game, type Match, type Tournament, type TournamentGame } from '@dlc/core';
 import { rpc, supabase } from './supabase';
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;
@@ -42,4 +42,16 @@ export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;
   if (out?.status === 'completed') await refreshTimetable(m.tournament_id).catch(() => undefined);
   return out;
+}
+/** Give a queued match a set start time (null: back to the usual order); the other matches move round it. */
+export const rescheduleMatch = (m: MatchRef, at: Date | null) =>
+  thenReflow(m.tournament_id, rpc('reschedule_match', { p_match_id: m.id, p_at: at?.toISOString() ?? null }));
+/** Change one day's hours (null: back to the daily hours): run it late, or stop it early so the rest moves on. */
+export async function setDayHours(t: Pick<Tournament, 'id' | 'day_hours'>, date: string, hours: DayHours | null) {
+  const day_hours = { ...(t.day_hours ?? {}) };
+  if (hours) day_hours[date] = hours;
+  else delete day_hours[date];
+  const { error } = await supabase.from('tournaments').update({ day_hours }).eq('id', t.id);
+  if (error) throw new Error(error.message);
+  await refreshTimetable(t.id);
 }

@@ -8,6 +8,7 @@ import {
   formatClock,
   formatDay,
   formatTime,
+  matchLabel,
   parseFixturesCsv,
   ROUND_LABEL,
   zonedToUtc,
@@ -48,6 +49,7 @@ import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
 import { useStationMasters } from '../../lib/useStationMasters';
 import { MatchControl } from './MatchControl';
+import { EndOfDay, RescheduleDialog } from '../../components/Reschedule';
 
 type Tab = 'control' | 'games' | 'fixtures' | 'stations' | 'details';
 
@@ -100,6 +102,8 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   const tgames = useMemo(() => [...data.tgames.values()], [data.tgames]);
   const matches = useMemo(() => [...data.matches.values()], [data.matches]);
   const [openMatch, setOpenMatch] = useState<string | null>(null);
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+  const catalog = useMemo(() => [...data.games.values()], [data.games]);
   const [error, setError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -210,10 +214,14 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => move(m, 'later')} title="Swap with the match after it">
           ↓ Later
         </Button>
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => setRescheduling(m.id)} title="Pick a new start time, today or another day">
+          Reschedule
+        </Button>
       </span>
     );
 
   const open = openMatch ? data.matches.get(openMatch) : undefined;
+  const moving = rescheduling ? data.matches.get(rescheduling) : undefined;
   const openTg = open ? data.tgames.get(open.tournament_game_id) : undefined;
 
   return (
@@ -233,6 +241,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
           </div>
         )}
       </Panel>
+      <EndOfDay tournament={tournament} tgames={tgames} matches={matches} catalog={catalog} />
       <p className="-mt-2 text-sm text-muted">
         Calling a match puts it on the live board as "Waiting for players" with a {tournament.call_minutes} minute countdown. Start it once both sides are at the station.
         Skipping sends it back to the queue and the next match takes the station.
@@ -254,6 +263,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         <p className="mb-3 text-sm text-muted">
           Earlier and Later swap a queued match with the one next to it; everything else moves round it, and rebuilds keep the new order. A match can't
           go before its players are free or before the round it waits for. Swapping with a match that has a fixtures sheet time swaps the times too.
+          Reschedule gives a match a set start time (today or another day) and moves the other matches round it.
         </p>
         {moveError && (
           <div className="mb-3">
@@ -262,6 +272,18 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         )}
         <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} actions={moveButtons} />
       </div>
+      {moving && queued(moving) && (
+        <RescheduleDialog
+          tournament={tournament}
+          tgames={tgames}
+          matches={matches}
+          catalog={catalog}
+          match={moving}
+          title={`${gameName(moving)} · ${matchLabel(moving, roundsByTg.get(moving.tournament_game_id) ?? moving.round)}`}
+          matchName={(x) => `${name(x.team_a_id, x.a_from)} v ${name(x.team_b_id, x.b_from)}`}
+          onClose={() => setRescheduling(null)}
+        />
+      )}
       {open && openTg && (
         <MatchControl
           match={open}

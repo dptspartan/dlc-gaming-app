@@ -2,6 +2,7 @@ import { formatTime, knockoutRounds, matchLabel, stationBoard, type Match } from
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, Text, View } from 'react-native';
+import { EndOfDayCard } from '../../components/reschedule';
 import { StationCard } from '../../components/station';
 import { Avatar, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
@@ -72,6 +73,7 @@ export default function TournamentHub() {
                 />
               );
             })}
+          <EndOfDayCard data={data} />
         </ScrollView>
       )}
     </Screen>
