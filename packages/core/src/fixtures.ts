@@ -1,5 +1,5 @@
 import { addDays, zonedToUtc } from './time';
-import type { Match, Team, Tournament, TournamentGame } from './types';
+import type { Match, Slot, Team, Tournament, TournamentGame } from './types';
 
 /**
  * Fixtures an organiser uploads as CSV, one sheet at a time, instead of
@@ -386,4 +386,41 @@ export function sideName(m: Partial<Pick<Match, 'a_from' | 'b_from' | 'is_bye'>>
   const from = slot === 'a' ? m.a_from : m.b_from;
   if (from) return `Winner ${from}`;
   return m.is_bye ? 'Bye' : 'TBD';
+}
+
+export interface WinnerLink {
+  from: string;
+  to: string;
+  slot: Slot;
+}
+
+/**
+ * Where each decided match's winner went, for the bracket's connecting lines:
+ * its next-match link, or, for uploaded sheets where the next round was
+ * uploaded with the winners' names instead of "Winner of …", the game's next
+ * uploaded round that has the winner in it.
+ */
+export function winnerLinks(
+  matches: Pick<Match, 'id' | 'tournament_game_id' | 'round' | 'position' | 'round_code' | 'status' | 'winner_id' | 'next_match_id' | 'next_slot' | 'team_a_id' | 'team_b_id'>[],
+): WinnerLink[] {
+  const out: WinnerLink[] = [];
+  const taken = new Set<string>();
+  for (const m of matches) {
+    if (m.winner_id && m.status !== 'pending' && m.next_match_id && m.next_slot) {
+      out.push({ from: m.id, to: m.next_match_id, slot: m.next_slot });
+      taken.add(`${m.next_match_id}|${m.next_slot}`);
+    }
+  }
+  for (const m of matches) {
+    if (!m.round_code || m.next_match_id || !m.winner_id || m.status !== 'completed') continue;
+    const target = matches
+      .filter((t) => t.tournament_game_id === m.tournament_game_id && t.round_code && t.round > m.round && (t.team_a_id === m.winner_id || t.team_b_id === m.winner_id))
+      .sort((x, y) => x.round - y.round || x.position - y.position)[0];
+    if (!target) continue;
+    const slot: Slot = target.team_a_id === m.winner_id ? 'a' : 'b';
+    if (taken.has(`${target.id}|${slot}`)) continue;
+    taken.add(`${target.id}|${slot}`);
+    out.push({ from: m.id, to: target.id, slot });
+  }
+  return out;
 }

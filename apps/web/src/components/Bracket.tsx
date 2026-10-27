@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, type Match, type Slot, type Team } from '@dlc/core';
+import { formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -111,12 +111,12 @@ function useFlowPaths(boardRef: RefObject<HTMLDivElement | null>, matches: Match
     );
 
     const next: string[] = [];
-    for (const m of matches) {
-      if (!m.winner_id || !m.next_match_id || !m.next_slot || m.status === 'pending') continue;
-      const source = cards.get(m.id);
-      const target = cards.get(m.next_match_id);
-      const winningRow = source?.querySelector<HTMLElement>(`[data-bracket-team-id="${m.winner_id}"]`);
-      const targetSlot = target?.querySelector<HTMLElement>(`[data-bracket-slot="${m.next_slot}"]`);
+    const winnerOf = new Map(matches.map((m) => [m.id, m.winner_id]));
+    for (const link of winnerLinks(matches)) {
+      const source = cards.get(link.from);
+      const target = cards.get(link.to);
+      const winningRow = source?.querySelector<HTMLElement>(`[data-bracket-team-id="${winnerOf.get(link.from)}"]`);
+      const targetSlot = target?.querySelector<HTMLElement>(`[data-bracket-slot="${link.slot}"]`);
       if (!winningRow || !targetSlot) continue;
 
       const sourceRect = winningRow.getBoundingClientRect();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, type FixtureRow } from './fixtures';
+import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, winnerLinks, type FixtureRow } from './fixtures';
 import { isFinal, matchLabel } from './groups';
 import { planStage } from './plan';
 import { scheduleTournament, type TimetableMatch } from './timetable';
@@ -233,5 +233,29 @@ describe('uploaded fixtures', () => {
     expect(at('locked').stations).toEqual([3]);
     // Without the lock the old station is just a suggestion: it takes the next free one.
     expect(at('moved').stations).not.toEqual([3]);
+  });
+});
+
+describe('winnerLinks', () => {
+  const base = { tournament_game_id: 'g', next_match_id: null, next_slot: null, winner_id: null, team_a_id: null, team_b_id: null, status: 'ready' as const };
+  const m = (over: Partial<Parameters<typeof winnerLinks>[0][number]>) => ({ ...base, id: 'x', round: 1, position: 0, round_code: 'PRE' as const, ...over });
+
+  it('follows real links, and finds the winner in the next uploaded round when there is none', () => {
+    const links = winnerLinks([
+      // Linked by "Winner of …".
+      m({ id: 'pi1', winner_id: 'a', status: 'completed', next_match_id: 'r1', next_slot: 'b' }),
+      // Next round uploaded with the winner's name: no link in the data.
+      m({ id: 'pi2', position: 1, winner_id: 'c', status: 'completed', team_a_id: 'c', team_b_id: 'd' }),
+      // Not played yet: no line.
+      m({ id: 'pi3', position: 2, team_a_id: 'e', team_b_id: 'f' }),
+      m({ id: 'r1', round: 2, round_code: 'R32', team_a_id: 'z' }),
+      m({ id: 'r2', round: 2, round_code: 'R32', position: 1, team_a_id: 'y', team_b_id: 'c' }),
+      // Same winner later on: only the next round counts.
+      m({ id: 'r16', round: 3, round_code: 'R16', team_a_id: 'c' }),
+    ]);
+    expect(links).toEqual([
+      { from: 'pi1', to: 'r1', slot: 'b' },
+      { from: 'pi2', to: 'r2', slot: 'b' },
+    ]);
   });
 });
