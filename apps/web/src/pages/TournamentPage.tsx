@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { addDays, formatClock } from "@dlc/core";
 import { Bracket } from "../components/Bracket";
+import { FindMatches } from "../components/FindMatches";
 import { GroupTables } from "../components/GroupTables";
 import { Layout } from "../components/Layout";
 import { ScheduleList } from "../components/ScheduleList";
@@ -130,6 +131,8 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
           board {liveCount > 0 && `(${liveCount})`}
         </Link>
       </div>
+
+      <FindMatches data={data} timeZone={tournament.timezone} />
 
       <div className="view-switch mb-5 flex gap-1 rounded-xl border border-line bg-white/5 p-1 backdrop-blur sm:inline-flex">
         {(

@@ -17,16 +17,19 @@ export function AdminGate({ children }: { children: ReactNode }) {
   return (
     <Layout wide>
       <div className="admin">
-      <div className="mb-6 flex flex-wrap items-center gap-5 border-b border-line pb-3">
-        <NavLink to="/admin" end className={nav}>
+      <div className="admin-nav mb-4 flex flex-wrap items-center gap-1 border-b border-line pb-2 sm:mb-6 sm:gap-5 sm:pb-3">
+        <NavLink to="/admin?list" end className={nav}>
           Tournaments
         </NavLink>
         <NavLink to="/admin/games" className={nav}>
           Game catalog
         </NavLink>
         <span className="flex-1" />
-        <span className="text-sm text-muted">{session.user.email}</span>
-        <Button variant="ghost" onClick={() => supabase.auth.signOut()}>
+        <span className="hidden text-sm text-muted sm:inline">{session.user.email}</span>
+        <button type="button" onClick={() => supabase.auth.signOut()} className="text-sm font-semibold text-muted hover:text-ink sm:hidden">
+          Sign out
+        </button>
+        <Button variant="ghost" className="max-sm:hidden" onClick={() => supabase.auth.signOut()}>
           Sign out
         </Button>
       </div>

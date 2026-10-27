@@ -1,5 +1,5 @@
 import { addDays, zonedToUtc } from './time';
-import type { Match, Team, Tournament, TournamentGame } from './types';
+import type { Match, Slot, Team, Tournament, TournamentGame } from './types';
 
 /**
  * Fixtures an organiser uploads as CSV, one sheet at a time, instead of
@@ -380,10 +380,96 @@ export const fixtureOrder = (x: FixtureRow, y: FixtureRow) =>
 /** Whether a match came from an uploaded sheet rather than a generated bracket. */
 export const isUploaded = (m: Pick<Match, 'round_code'>) => m.round_code != null;
 
-/** A side's name: the player, "Winner FC-PI-03" while a linked match is undecided, else TBD. */
+/** A side's name: the player, "Winner of FC-PI-03" while a linked match is undecided, else TBD. */
 export function sideName(m: Partial<Pick<Match, 'a_from' | 'b_from' | 'is_bye'>>, slot: 'a' | 'b', team: string | null | undefined): string {
   if (team) return team;
   const from = slot === 'a' ? m.a_from : m.b_from;
-  if (from) return `Winner ${from}`;
+  if (from) return `Winner of ${from}`;
   return m.is_bye ? 'Bye' : 'TBD';
+}
+
+type FeederMatch = Pick<Match, 'tournament_game_id' | 'match_code' | 'team_a_id' | 'team_b_id' | 'a_from' | 'b_from' | 'is_bye'>;
+
+/** The match whose winner takes a linked side (same game, its match code), while that side is still empty. */
+export function feederMatch<M extends FeederMatch>(m: Pick<Match, 'tournament_game_id' | 'a_from' | 'b_from'> & Partial<Pick<Match, 'team_a_id' | 'team_b_id'>>, slot: Slot, matches: Iterable<M>): M | undefined {
+  const from = slot === 'a' ? m.a_from : m.b_from;
+  if (!from || (slot === 'a' ? m.team_a_id : m.team_b_id)) return undefined;
+  for (const x of matches) if (x.tournament_game_id === m.tournament_game_id && x.match_code === from) return x;
+  return undefined;
+}
+
+/** Who can still take a linked side: "Fury or Kilo", from the match it waits on. */
+export function feederSides(feeder: FeederMatch, team: (id: string | null) => string | null | undefined): string {
+  return `${sideName(feeder, 'a', team(feeder.team_a_id))} or ${sideName(feeder, 'b', team(feeder.team_b_id))}`;
+}
+
+/** A side's name in a list: the player, who can still take it ("Fury or Kilo") while its match is undecided, else TBD. */
+export function sideOrContenders(m: FeederMatch, slot: Slot, matches: Iterable<FeederMatch>, team: (id: string | null) => string | null | undefined): string {
+  const feeder = feederMatch(m, slot, matches);
+  return feeder ? feederSides(feeder, team) : sideName(m, slot, team(slot === 'a' ? m.team_a_id : m.team_b_id));
+}
+
+export interface WinnerLink {
+  from: string;
+  to: string;
+  slot: Slot;
+}
+
+type LinkMatch = Pick<Match, 'id' | 'tournament_game_id' | 'round' | 'position' | 'round_code' | 'status' | 'winner_id' | 'next_match_id' | 'next_slot' | 'team_a_id' | 'team_b_id'>;
+
+/** For an uploaded match decided without a link: the game's next uploaded round that has its winner in it. */
+function inferredTarget<M extends LinkMatch>(m: M, matches: M[]): { to: M; slot: Slot } | undefined {
+  if (!m.round_code || m.next_match_id || !m.winner_id || m.status !== 'completed') return undefined;
+  const to = matches
+    .filter((t) => t.tournament_game_id === m.tournament_game_id && t.round_code && t.round > m.round && (t.team_a_id === m.winner_id || t.team_b_id === m.winner_id))
+    .sort((x, y) => x.round - y.round || x.position - y.position)[0];
+  return to && { to, slot: to.team_a_id === m.winner_id ? 'a' : 'b' };
+}
+
+/**
+ * Where each decided match's winner went, for the bracket's connecting lines:
+ * its next-match link, or, for uploaded sheets where the next round was
+ * uploaded with the winners' names instead of "Winner of …", the game's next
+ * uploaded round that has the winner in it.
+ */
+export function winnerLinks(matches: LinkMatch[]): WinnerLink[] {
+  const out: WinnerLink[] = [];
+  const taken = new Set<string>();
+  for (const m of matches) {
+    if (m.winner_id && m.status !== 'pending' && m.next_match_id && m.next_slot) {
+      out.push({ from: m.id, to: m.next_match_id, slot: m.next_slot });
+      taken.add(`${m.next_match_id}|${m.next_slot}`);
+    }
+  }
+  for (const m of matches) {
+    const target = inferredTarget(m, matches);
+    if (!target || taken.has(`${target.to.id}|${target.slot}`)) continue;
+    taken.add(`${target.to.id}|${target.slot}`);
+    out.push({ from: m.id, to: target.to.id, slot: target.slot });
+  }
+  return out;
+}
+
+/**
+ * The bracket's columns, one per round. The last round keeps its order and
+ * every earlier round is sorted by where its winner goes (that match's row,
+ * then side A before B), so the connecting lines run straight across.
+ * Matches with nowhere to go yet sit at the bottom in their usual order.
+ */
+export function bracketColumns<M extends LinkMatch>(matches: M[]): M[][] {
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+  const columns = rounds.map((r) => matches.filter((m) => m.round === r).sort((a, b) => a.position - b.position));
+  const row = new Map<string, number>();
+  for (let i = columns.length - 1; i >= 0; i--) {
+    const key = (m: M) => {
+      const target = m.next_match_id && m.next_slot ? { to: byId.get(m.next_match_id), slot: m.next_slot } : inferredTarget(m, matches);
+      const at = target?.to && row.get(target.to.id);
+      return at == null ? Infinity : at * 2 + (target!.slot === 'b' ? 1 : 0);
+    };
+    // Array sort is stable: unlinked matches keep their position order.
+    if (i < columns.length - 1) columns[i] = columns[i].map((m) => [m, key(m)] as const).sort((a, b) => a[1] - b[1]).map(([m]) => m);
+    columns[i].forEach((m, at) => row.set(m.id, at));
+  }
+  return columns;
 }

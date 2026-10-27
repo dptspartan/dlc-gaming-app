@@ -281,6 +281,9 @@ export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('star
  */
 export const endMatch = (m: MatchRef, winnerId: string | null = null, walkover = false) =>
   thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
+/** End a level goals match (or leg) on penalties: the higher shoot-out score wins. */
+export const endOnPenalties = (m: MatchRef, penA: number, penB: number) =>
+  thenReflow(m.tournament_id, rpc('end_on_penalties', { p_match_id: m.id, p_pen_a: penA, p_pen_b: penB }));
 /** A best-of match ends by itself on the deciding round; the queue moves on then. */
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;
@@ -288,6 +291,19 @@ export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   return out;
 }
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
+/**
+ * Put a player into one side of a match that has not started. A late sign-up
+ * takes the place; a player still waiting for their first match swaps with the
+ * one who was there.
+ */
+export const replacePlayer = (m: MatchRef, slot: Slot, teamId: string) =>
+  thenReflow(m.tournament_id, rpc('replace_player', { p_match_id: m.id, p_slot: slot, p_team_id: teamId }));
+/**
+ * Take a player out of a game after the fixtures are out. Their matches still
+ * to play go to the replacement, or wait with an empty side when there is none.
+ */
+export const withdrawPlayer = (tournamentId: string, teamId: string, replacementId: string | null) =>
+  thenReflow(tournamentId, rpc('withdraw_player', { p_team_id: teamId, p_replacement_id: replacementId }));
 export const swapSlots = (a: { matchId: string; slot: Slot }, b: { matchId: string; slot: Slot }) =>
   rpc('swap_slots', { p_match_a: a.matchId, p_slot_a: a.slot, p_match_b: b.matchId, p_slot_b: b.slot });
 

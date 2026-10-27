@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
@@ -16,6 +16,7 @@ import {
   matchLabel,
   paginate,
   roundsToWin,
+  scoreLine,
   sideName,
   stationLabel,
   type Game,
@@ -28,6 +29,7 @@ import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
 import { useTournamentId } from "../lib/useTournamentBySlug";
 import { ThemeSwitch } from "../lib/theme";
+import { useAuth } from "../lib/useAuth";
 import dlcLockup from "../assets/dlc/logo-lockup.png";
 import mascotPlayer from "../assets/dlc/mascot-player.png";
 import trophySticker from "../assets/dlc/sticker-trophy.png";
@@ -101,6 +103,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   const { roundsByTg, gameOf } = useLookups(data);
   const bursts = usePointBursts(data);
   const sound = useSound();
+  const { isAdmin } = useAuth();
   const [clock, setClock] = useState(Date.now());
 
   useEffect(() => {
@@ -192,6 +195,14 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               : "No events running"}
         </div>
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="admin-pill hud rounded-full border border-ember/60 px-3 py-1 text-xs text-ink"
+            >
+              Admin
+            </Link>
+          )}
           <ThemeSwitch />
           <button
             type="button"
@@ -579,6 +590,11 @@ function LiveCard({
                 ? [lastLeg.score_a, lastLeg.score_b]
                 : null
             }
+            pens={
+              lastLeg.pen_a != null && lastLeg.pen_b != null
+                ? [lastLeg.pen_a, lastLeg.pen_b]
+                : null
+            }
             big={big}
             compact={compact}
           />
@@ -760,6 +776,9 @@ function CardWinner({
   score = match.score_a != null && match.score_b != null
     ? [match.score_a, match.score_b]
     : null,
+  pens = match.pen_a != null && match.pen_b != null
+    ? [match.pen_a, match.pen_b]
+    : null,
   big,
   compact,
 }: {
@@ -769,6 +788,8 @@ function CardWinner({
   title?: string;
   winnerId?: string | null;
   score?: [number, number] | null;
+  /** Shoot-out score (side A, side B) when it went to penalties. */
+  pens?: [number, number] | null;
   big: boolean;
   compact: boolean;
 }) {
@@ -850,6 +871,8 @@ function CardWinner({
               className={`font-display text-ember ${big ? "text-3xl" : compact ? "text-sm" : "text-xl"}`}
             >
               {ws} – {ls}
+              {pens &&
+                ` (${winnerId === match.team_a_id ? pens[0] : pens[1]}–${winnerId === match.team_a_id ? pens[1] : pens[0]} pens)`}
             </div>
           )}
         </div>
@@ -907,6 +930,12 @@ function GameBadge({
   );
 }
 
+/** Long names shrink so the full name fits in two or three lines instead of being cut off. */
+function nameFit(name: string) {
+  const n = name.length;
+  return n <= 14 ? 1 : n <= 20 ? 0.85 : n <= 28 ? 0.72 : 0.62;
+}
+
 /** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
 function Side({
   name,
@@ -948,7 +977,8 @@ function Side({
         />
       </motion.div>
       <span
-        className={`live-name font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        className={`live-name font-display w-full font-bold leading-tight text-balance [overflow-wrap:anywhere] ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        style={{ "--name-fit": nameFit(name) } as CSSProperties}
       >
         {name}
       </span>
@@ -974,7 +1004,7 @@ function RailList({
   kind: "next" | "result";
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="rail-list panel p-4">
       <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
@@ -1014,7 +1044,7 @@ function RailList({
               </span>
             </div>
             {kind === "result" ? (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 <span className="font-bold text-gold">{name(m.winner_id)}</span>
                 <span className="text-muted">
                   {" "}
@@ -1025,13 +1055,12 @@ function RailList({
                 </span>
                 {m.score_a != null && m.score_b != null && (
                   <span className="font-display ml-1 text-sm text-muted">
-                    {Math.max(m.score_a, m.score_b)}–
-                    {Math.min(m.score_a, m.score_b)}
+                    {scoreLine(m, true)}
                   </span>
                 )}
               </div>
             ) : (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span>{" "}
                 {name(m.team_b_id, m.b_from)}
               </div>
@@ -1055,7 +1084,7 @@ function NothingLive({
   gameName?: string;
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <img

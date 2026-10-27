@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, type FixtureRow } from './fixtures';
+import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, feederMatch, feederSides, sideOrContenders, bracketColumns, winnerLinks, type FixtureRow } from './fixtures';
 import { isFinal, matchLabel } from './groups';
 import { planStage } from './plan';
 import { scheduleTournament, type TimetableMatch } from './timetable';
@@ -147,9 +147,26 @@ describe('parseFixturesCsv: organisers\' sheets', () => {
   });
 
   it('names an undecided side by the match it comes from', () => {
-    expect(sideName({ a_from: 'FC-PI-03' }, 'a', null)).toBe('Winner FC-PI-03');
+    expect(sideName({ a_from: 'FC-PI-03' }, 'a', null)).toBe('Winner of FC-PI-03');
     expect(sideName({ a_from: 'FC-PI-03' }, 'a', 'Fury')).toBe('Fury');
     expect(sideName({ b_from: null }, 'b', null)).toBe('TBD');
+  });
+
+  it('finds the match a linked side waits on, and who can still take it', () => {
+    const blank = { team_a_id: null as string | null, team_b_id: null as string | null, a_from: null as string | null, b_from: null as string | null, is_bye: false };
+    const pi = { ...blank, tournament_game_id: 'fc', match_code: 'FC-PI-03', team_a_id: 'fury', team_b_id: 'kilo' };
+    const other = { ...pi, tournament_game_id: 'tk' };
+    const r32 = { ...blank, tournament_game_id: 'fc', match_code: 'FC-R32-01', team_a_id: 'drift', b_from: 'FC-PI-03' };
+    const names: Record<string, string> = { fury: 'Fury', kilo: 'Kilo' };
+    expect(feederMatch(r32, 'b', [other, pi, r32])).toBe(pi);
+    expect(feederMatch(r32, 'a', [pi])).toBeUndefined();
+    expect(feederMatch({ ...r32, team_b_id: 'fury' }, 'b', [pi])).toBeUndefined();
+    expect(feederSides(pi, (id) => (id ? names[id] : null))).toBe('Fury or Kilo');
+    expect(feederSides({ ...pi, team_b_id: null, b_from: 'FC-PI-01' }, (id) => (id ? names[id] : null))).toBe('Fury or Winner of FC-PI-01');
+    const team = (id: string | null) => (id ? (names[id] ?? id) : null);
+    expect(sideOrContenders(r32, 'b', [pi, r32], team)).toBe('Fury or Kilo');
+    expect(sideOrContenders(r32, 'a', [pi, r32], team)).toBe('drift');
+    expect(sideOrContenders({ ...r32, b_from: 'FC-PI-99' }, 'b', [pi], team)).toBe('Winner of FC-PI-99');
   });
 
   it('needs a day for every row, from the sheet or the upload', () => {
@@ -233,5 +250,50 @@ describe('uploaded fixtures', () => {
     expect(at('locked').stations).toEqual([3]);
     // Without the lock the old station is just a suggestion: it takes the next free one.
     expect(at('moved').stations).not.toEqual([3]);
+  });
+});
+
+describe('winnerLinks', () => {
+  const base = { tournament_game_id: 'g', next_match_id: null, next_slot: null, winner_id: null, team_a_id: null, team_b_id: null, status: 'ready' as const };
+  const m = (over: Partial<Parameters<typeof winnerLinks>[0][number]>) => ({ ...base, id: 'x', round: 1, position: 0, round_code: 'PRE' as const, ...over });
+
+  it('follows real links, and finds the winner in the next uploaded round when there is none', () => {
+    const links = winnerLinks([
+      // Linked by "Winner of …".
+      m({ id: 'pi1', winner_id: 'a', status: 'completed', next_match_id: 'r1', next_slot: 'b' }),
+      // Next round uploaded with the winner's name: no link in the data.
+      m({ id: 'pi2', position: 1, winner_id: 'c', status: 'completed', team_a_id: 'c', team_b_id: 'd' }),
+      // Not played yet: no line.
+      m({ id: 'pi3', position: 2, team_a_id: 'e', team_b_id: 'f' }),
+      m({ id: 'r1', round: 2, round_code: 'R32', team_a_id: 'z' }),
+      m({ id: 'r2', round: 2, round_code: 'R32', position: 1, team_a_id: 'y', team_b_id: 'c' }),
+      // Same winner later on: only the next round counts.
+      m({ id: 'r16', round: 3, round_code: 'R16', team_a_id: 'c' }),
+    ]);
+    expect(links).toEqual([
+      { from: 'pi1', to: 'r1', slot: 'b' },
+      { from: 'pi2', to: 'r2', slot: 'b' },
+    ]);
+  });
+});
+
+describe('bracketColumns', () => {
+  const base = { tournament_game_id: 'g', next_match_id: null, next_slot: null, winner_id: null, team_a_id: null, team_b_id: null, status: 'ready' as const, round_code: 'PRE' as const };
+  const m = (id: string, round: number, position: number, over: Partial<Parameters<typeof bracketColumns>[0][number]> = {}) => ({ ...base, id, round, position, ...over });
+
+  it('orders each round by where its winners go', () => {
+    const cols = bracketColumns([
+      m('p0', 1, 0, { winner_id: 'c', status: 'completed', team_a_id: 'c' }), // → r1 b (by name)
+      m('p1', 1, 1, { next_match_id: 'r0', next_slot: 'b' }), // → r0 b (linked, not played)
+      m('p2', 1, 2), // nowhere yet
+      m('p3', 1, 3, { next_match_id: 'r1', next_slot: 'a' }), // → r1 a
+      m('p4', 1, 4, { next_match_id: 'r0', next_slot: 'a' }), // → r0 a
+      m('r0', 2, 0, { round_code: 'R32' }),
+      m('r1', 2, 1, { round_code: 'R32', team_b_id: 'c' }),
+    ]);
+    expect(cols.map((c) => c.map((x) => x.id))).toEqual([
+      ['p4', 'p1', 'p3', 'p0', 'p2'],
+      ['r0', 'r1'],
+    ]);
   });
 });

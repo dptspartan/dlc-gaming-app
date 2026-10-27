@@ -17,6 +17,7 @@ import {
   type ParsedFixtures,
   type Format,
   type Game,
+  placementOf,
   type Match,
   type PlanStage,
   type SeriesRule,
@@ -43,6 +44,7 @@ import {
   refreshTimetable,
   startMatch,
   swapSlots,
+  withdrawPlayer,
   uncallMatch,
   addPlayers,
   uploadDayFixtures,
@@ -51,22 +53,28 @@ import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
 import { useStationMasters } from '../../lib/useStationMasters';
 import { MatchControl } from './MatchControl';
+import { TodayBoard } from './TodayBoard';
 import { EndOfDay, RescheduleDialog } from '../../components/Reschedule';
 
-type Tab = 'control' | 'games' | 'fixtures' | 'stations' | 'details';
+type Tab = 'today' | 'stations' | 'setup';
+type SetupTab = 'games' | 'fixtures' | 'staff' | 'details';
 
 export function TournamentEditor() {
   const { id = '' } = useParams();
   const { data, error, reload } = useLiveData({ tournamentId: id });
-  const [tab, setTab] = useState<Tab>('control');
+  const [tab, setTab] = useState<Tab>('today');
+  const [setup, setSetup] = useState<SetupTab>('games');
   const tournament = data.tournaments.get(id);
   if (!tournament) return error ? <ErrorNote message={error} /> : null;
 
   return (
-    <div>
+    <div className="editor pb-20 sm:pb-0">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <Heading sub={<StatusPill status={tournament.status} />}>{tournament.name}</Heading>
-        <div className="flex gap-2">
+        <div className="editor-links flex flex-wrap gap-2">
+          <Link to="/admin?list" className="rounded-lg px-3 py-2 text-xs font-semibold text-muted hover:text-ink">
+            All events
+          </Link>
           <Link to={`/t/${tournament.slug}`} className="font-display rounded-lg border border-line bg-white/5 px-3 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur hover:border-ember">
             Public page
           </Link>
@@ -75,22 +83,38 @@ export function TournamentEditor() {
           </Link>
         </div>
       </div>
+      {/* On phones this is a bottom tab bar, within thumb reach. */}
       <Tabs
+        className="editor-tabs"
         value={tab}
         onChange={setTab}
         tabs={[
-          ['control', 'Control room'],
-          ['games', 'Games & players'],
-          ['fixtures', 'Fixtures'],
-          ['stations', 'Stations & staff'],
-          ['details', 'Details'],
+          ['today', 'Today'],
+          ['stations', 'Stations'],
+          ['setup', 'Setup'],
         ]}
       />
-      {tab === 'control' && <ControlRoom tournament={tournament} data={data} />}
-      {tab === 'stations' && <StationsPanel tournament={tournament} data={data} onSaved={reload} />}
-      {tab === 'details' && <Details tournament={tournament} onSaved={reload} />}
-      {tab === 'games' && <GamesPanel tournament={tournament} data={data} onChange={reload} />}
-      {tab === 'fixtures' && <FixturesPanel tournament={tournament} data={data} onChange={reload} />}
+      {tab === 'today' && <TodayBoard tournament={tournament} data={data} />}
+      {tab === 'stations' && <ControlRoom tournament={tournament} data={data} />}
+      {tab === 'setup' && (
+        <>
+          <Tabs
+            className="setup-tabs"
+            value={setup}
+            onChange={setSetup}
+            tabs={[
+              ['games', 'Games & players'],
+              ['fixtures', 'Fixtures'],
+              ['staff', 'Station staff'],
+              ['details', 'Details'],
+            ]}
+          />
+          {setup === 'games' && <GamesPanel tournament={tournament} data={data} onChange={reload} />}
+          {setup === 'fixtures' && <FixturesPanel tournament={tournament} data={data} onChange={reload} />}
+          {setup === 'staff' && <StationsPanel tournament={tournament} data={data} onSaved={reload} />}
+          {setup === 'details' && <Details tournament={tournament} onSaved={reload} />}
+        </>
+      )}
     </div>
   );
 }
@@ -126,7 +150,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   if (!matches.length) return <Empty>Generate the fixtures first. The control room fills up once matches are planned.</Empty>;
 
   const gameName = (m: Match) => gameOf(m.tournament_game_id)?.name ?? '';
-  const name = (id: string | null, from?: string | null) => (id ? data.teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from?: string | null) => (id ? data.teams.get(id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
   const count = (st: Match['status']) => matches.filter((m) => m.status === st && !m.is_bye).length;
   // Any ready match this station may host, soonest planned first.
   const callable = (station: number) =>
@@ -142,7 +166,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
     const m = s.current;
     if (m?.status === 'called')
       return (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="station-actions mb-2 flex flex-wrap gap-2">
           <Button disabled={busy} onClick={() => act(() => startMatch(m))}>
             Start match
           </Button>
@@ -293,6 +317,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         <MatchControl
           match={open}
           teams={data.teams}
+          matches={data.matches}
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(openTg.game_id)}
@@ -603,6 +628,8 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
     if (error) setError(error.message);
     else onChange();
   };
+  const [withdrawing, setWithdrawing] = useState<Team | null>(null);
+  const placed = (t: Team) => placementOf(t.id, tg.id, data.matches.values());
   const removeTeam = async (t: Team) => {
     if (!confirm(`Remove ${t.name}?`)) return;
     const { error } = await supabase.from('teams').delete().eq('id', t.id);
@@ -691,28 +718,53 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold">{t.name}</div>
               {t.members.length > 0 && <div className="truncate text-xs text-muted">{t.members.join(', ')}</div>}
+              {hasFixtures && placed(t).kind === 'free' && <div className="text-xs text-amber">Not in a match yet</div>}
             </div>
-            <input
-              title="Seed (optional, 1 = best)"
-              placeholder="Seed"
-              type="number"
-              min={1}
-              className="w-20"
-              defaultValue={t.seed ?? ''}
-              disabled={hasFixtures}
-              onBlur={(e) => setSeed(t, e.target.value)}
-            />
+            {hasFixtures ? (
+              t.seed != null && <span className="text-xs text-muted">Seed {t.seed}</span>
+            ) : (
+              <input
+                title="Seed (optional, 1 = best)"
+                placeholder="Seed"
+                type="number"
+                min={1}
+                className="w-20"
+                defaultValue={t.seed ?? ''}
+                onBlur={(e) => setSeed(t, e.target.value)}
+              />
+            )}
             {!hasFixtures && (
               <button className="text-muted hover:text-danger" onClick={() => removeTeam(t)} aria-label={`Remove ${t.name}`}>
                 ×
+              </button>
+            )}
+            {hasFixtures && (
+              <button className="min-h-11 px-1 text-xs font-semibold text-muted hover:text-danger" onClick={() => setWithdrawing(t)}>
+                Withdraw
               </button>
             )}
           </div>
         ))}
       </div>
       {hasFixtures ? (
-        <p className="mt-3 text-sm text-muted">Fixtures exist for this game. To change the line-up, regenerate the fixtures before any match starts.</p>
+        <p className="mt-3 text-sm text-muted">
+          Fixtures exist for this game. A player added now is not in a match yet: open a match that hasn&apos;t started and use Change players to put them in, or
+          Withdraw someone and pick them to take that player&apos;s place.
+        </p>
       ) : null}
+      {withdrawing && (
+        <WithdrawPlayer
+          team={withdrawing}
+          teams={teams}
+          matches={[...data.matches.values()]}
+          tournamentId={tg.tournament_id}
+          onClose={() => setWithdrawing(null)}
+          onDone={() => {
+            setWithdrawing(null);
+            onChange();
+          }}
+        />
+      )}
       <AddTeam tg={tg} teamSize={teamSize} onAdded={onChange} />
       <ErrorNote message={error} />
     </Panel>
@@ -722,6 +774,92 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
 const BEST_OF = [1, 3, 5, 7];
 
 /** The whole game plan: a best-of series per stage, and the games a final is played on. */
+/**
+ * Take a player out of a game whose fixtures are out. Their matches still to
+ * play go to a player not in a match yet, or wait with an empty place.
+ */
+function WithdrawPlayer({
+  team,
+  teams,
+  matches,
+  tournamentId,
+  onClose,
+  onDone,
+}: {
+  team: Team;
+  teams: Team[];
+  matches: Match[];
+  tournamentId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [replacement, setReplacement] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const at = placementOf(team.id, team.tournament_game_id, matches);
+  const free = teams.filter((t) => t.id !== team.id && placementOf(t.id, team.tournament_game_id, matches).kind === 'free');
+  const code = at.kind === 'free' ? null : at.match.match_code ?? 'their match';
+  // Byes don't count as played: whoever takes the place gets the bye.
+  const played = matches.find(
+    (m) => m.tournament_game_id === team.tournament_game_id && !m.is_bye && m.status !== 'pending' && m.status !== 'ready' && (m.team_a_id === team.id || m.team_b_id === team.id),
+  );
+  const blocked = !!played;
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await withdrawPlayer(tournamentId, team.id, replacement || null);
+      onDone();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="match-sheet-backdrop fixed inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="withdraw-sheet match-sheet panel glass-strong w-full max-w-md p-5 max-sm:rounded-b-none" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="font-display text-lg font-bold">Withdraw {team.name}</div>
+          <button onClick={onClose} className="-mr-2 grid h-11 w-11 shrink-0 place-items-center text-2xl text-muted hover:text-ink" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          {at.kind === 'free'
+            ? `${team.name} is not in a match yet, so they just leave the game.`
+            : blocked
+              ? `${team.name} has already played or is playing ${played?.match_code ?? 'a match'}, so the result needs them. To drop them from here on, end their next match as a walkover.`
+              : `${team.name} plays ${code}. Pick who takes their place there, or leave it empty and fill it later from the match.`}
+        </p>
+        {at.kind !== 'free' && !blocked && (
+          <Field label="Who takes their place">
+            <select value={replacement} onChange={(e) => setReplacement(e.target.value)} disabled={busy}>
+              <option value="">Nobody yet, leave the place empty</option>
+              {free.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <ErrorNote message={error} />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="danger" disabled={busy || blocked} onClick={submit} className="min-h-11">
+            {replacement ? `Withdraw, ${teams.find((t) => t.id === replacement)?.name} plays instead` : `Withdraw ${team.name}`}
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={onClose} className="min-h-11">
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanEditor({
   plan,
   onChange,
@@ -925,7 +1063,7 @@ function DayUpload({
   const [inputKey, setInputKey] = useState(0);
   const [defaultDate, setDefaultDate] = useState('');
   const dates = Array.from({ length: Math.max(1, tournament.days) }, (_, i) => addDays(tournament.start_date, i));
-  const name = (id: string | null, from: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const name = (id: string | null, from: string | null) => (id ? teams.find((t) => t.id === id)?.name ?? '?' : from ? `Winner of ${from}` : 'TBD');
   const day = (date: string) => formatDay(zonedToUtc(date, '12:00', tournament.timezone), tournament.timezone);
   // Re-parsed whenever the players or the picked day change, so adding missing players clears their errors.
   const parsed = useMemo(
@@ -1276,6 +1414,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
         <MatchControl
           match={open}
           teams={data.teams}
+          matches={data.matches}
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(tg.game_id)}
