@@ -14,6 +14,7 @@ import {
   matchLabel,
   paginate,
   roundsToWin,
+  scoreLine,
   sideName,
   stationLabel,
   type Game,
@@ -25,6 +26,7 @@ import { useLiveData, useLookups, type LiveData } from "../lib/useLiveData";
 import { playSfx, useSound } from "../lib/sfx";
 import { useTournamentId } from "../lib/useTournamentBySlug";
 import { ThemeSwitch } from "../lib/theme";
+import { useAuth } from "../lib/useAuth";
 import dlcLockup from "../assets/dlc/logo-lockup.png";
 import mascotPlayer from "../assets/dlc/mascot-player.png";
 import trophySticker from "../assets/dlc/sticker-trophy.png";
@@ -98,6 +100,7 @@ function Board({ tournamentId }: { tournamentId?: string }) {
   const { roundsByTg, gameOf } = useLookups(data);
   const bursts = usePointBursts(data);
   const sound = useSound();
+  const { isAdmin } = useAuth();
   const [clock, setClock] = useState(Date.now());
 
   useEffect(() => {
@@ -189,6 +192,14 @@ function Board({ tournamentId }: { tournamentId?: string }) {
               : "No events running"}
         </div>
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="admin-pill hud rounded-full border border-ember/60 px-3 py-1 text-xs text-ink"
+            >
+              Admin
+            </Link>
+          )}
           <ThemeSwitch />
           <button
             type="button"
@@ -576,6 +587,11 @@ function LiveCard({
                 ? [lastLeg.score_a, lastLeg.score_b]
                 : null
             }
+            pens={
+              lastLeg.pen_a != null && lastLeg.pen_b != null
+                ? [lastLeg.pen_a, lastLeg.pen_b]
+                : null
+            }
             big={big}
             compact={compact}
           />
@@ -757,6 +773,9 @@ function CardWinner({
   score = match.score_a != null && match.score_b != null
     ? [match.score_a, match.score_b]
     : null,
+  pens = match.pen_a != null && match.pen_b != null
+    ? [match.pen_a, match.pen_b]
+    : null,
   big,
   compact,
 }: {
@@ -766,6 +785,8 @@ function CardWinner({
   title?: string;
   winnerId?: string | null;
   score?: [number, number] | null;
+  /** Shoot-out score (side A, side B) when it went to penalties. */
+  pens?: [number, number] | null;
   big: boolean;
   compact: boolean;
 }) {
@@ -847,6 +868,8 @@ function CardWinner({
               className={`font-display text-ember ${big ? "text-3xl" : compact ? "text-sm" : "text-xl"}`}
             >
               {ws} – {ls}
+              {pens &&
+                ` (${winnerId === match.team_a_id ? pens[0] : pens[1]}–${winnerId === match.team_a_id ? pens[1] : pens[0]} pens)`}
             </div>
           )}
         </div>
@@ -1054,8 +1077,7 @@ function RailList({
                 </span>
                 {m.score_a != null && m.score_b != null && (
                   <span className="font-display ml-1 text-sm text-muted">
-                    {Math.max(m.score_a, m.score_b)}–
-                    {Math.min(m.score_a, m.score_b)}
+                    {scoreLine(m, true)}
                   </span>
                 )}
               </div>
