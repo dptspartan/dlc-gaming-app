@@ -4,8 +4,8 @@ interface Credit {
   name: string;
   /** Employee id. */
   employeeId: string;
-  github: string;
-  slack: string;
+  github?: string;
+  slack?: string;
 }
 
 const CREDITS: Credit[] = [
@@ -27,6 +27,7 @@ const CREDITS: Credit[] = [
     github: 'https://github.com/zainuamalik',
     slack: 'https://dubizzle.slack.com/team/U08K2JUEXU2',
   },
+  { name: 'Claude', employeeId: 'GOAT5789' },
 ];
 
 const githubIcon = (
@@ -56,16 +57,22 @@ export function Credits({ inline = false }: { inline?: boolean }) {
               <span className="credits-name font-display text-sm font-bold whitespace-nowrap text-ink">{c.name}</span>
               <span className="credits-id font-mono text-[10px] text-muted">#{c.employeeId}</span>
             </div>
-            <div className="credits-links mt-1 flex gap-1.5">
-              <a className="credits-link" href={c.github} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on GitHub`}>
-                {githubIcon}
-                GitHub
-              </a>
-              <a className="credits-link" href={c.slack} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on Slack`}>
-                {slackIcon}
-                Slack
-              </a>
-            </div>
+            {(c.github || c.slack) && (
+              <div className="credits-links mt-1 flex gap-1.5">
+                {c.github && (
+                  <a className="credits-link" href={c.github} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on GitHub`}>
+                    {githubIcon}
+                    GitHub
+                  </a>
+                )}
+                {c.slack && (
+                  <a className="credits-link" href={c.slack} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on Slack`}>
+                    {slackIcon}
+                    Slack
+                  </a>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>
