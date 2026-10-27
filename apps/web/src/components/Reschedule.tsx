@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   formatDay,
   formatTime,
+  formatWhen,
   MINUTE,
   previewDay,
   rescheduleInTimetable,
@@ -141,7 +142,7 @@ export function RescheduleDialog({
                   const s = preview.result.slots.find((x) => x.id === id)!;
                   return (
                     <li key={id}>
-                      {m ? matchName(m) : 'A match'}: {m?.scheduled_start ? formatTime(m.scheduled_start, tz) : 'TBD'} → {formatTime(s.start, tz)}
+                      {m ? matchName(m) : 'A match'}: {formatWhen(m?.scheduled_start, tz)} → {formatWhen(s.start, tz)}
                     </li>
                   );
                 })}

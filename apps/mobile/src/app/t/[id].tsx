@@ -1,4 +1,4 @@
-import { formatTime, knockoutRounds, matchLabel, stationBoard, type Match } from '@dlc/core';
+import { formatWhen, knockoutRounds, matchLabel, stationBoard, type Match } from '@dlc/core';
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, SectionList, Text, View } from 'react-native';
@@ -145,7 +145,7 @@ function MatchList({ id, data, loading, reload }: { id: string; data: Tournament
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text style={[styles.muted, { fontSize: 14, flex: 1 }]}>
                     {m.station ? `Station ${m.station} · ` : ''}
-                    {formatTime(m.scheduled_start, tz)} · {gameName(m.tournament_game_id)} · {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
+                    {formatWhen(m.scheduled_start, tz)} · {gameName(m.tournament_game_id)} · {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
                   </Text>
                   {m.status === 'live' && m.started_at ? (
                     <Elapsed since={m.started_at} />

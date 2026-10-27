@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { formatTime, knockoutRounds, matchLabel, stationBoard, stationLabel, type Match, type StationState, type Team } from '@dlc/core';
+import { formatWhen, knockoutRounds, matchLabel, stationBoard, stationLabel, type Match, type StationState, type Team } from '@dlc/core';
 import { Avatar, CallCountdown, Elapsed } from './ui';
 
 interface Props {
@@ -73,7 +73,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
               <ul className="flex flex-col gap-1">
                 {s.queue.slice(0, upNext).map((q) => (
                   <li key={q.id} className="flex items-center gap-2 text-sm">
-                    <span className="w-16 shrink-0 font-mono whitespace-nowrap text-ember">{formatTime(q.scheduled_start, timeZone)}</span>
+                    <span className="w-16 shrink-0 font-mono whitespace-nowrap text-ember">{formatWhen(q.scheduled_start, timeZone)}</span>
                     <span className="min-w-0 flex-1 truncate" title={label(q)}>
                       <span className="text-muted">{gameName(q)}</span> {name(q.team_a_id, q.a_from)} <span className="text-muted">v</span> {name(q.team_b_id, q.b_from)}
                     </span>
@@ -144,7 +144,7 @@ export function Timetable({
           {list.map((m) => (
             <tr key={m.id} className={`border-b border-line/50 last:border-0 ${m.status === 'live' ? 'bg-flame/5' : m.status === 'called' ? 'bg-gold/5' : ''}`}>
               <td className="px-3 py-2 font-mono whitespace-nowrap text-ember">
-                {m.status === 'live' ? 'now' : formatTime(m.scheduled_start, timeZone)}
+                {m.status === 'live' ? 'now' : formatWhen(m.scheduled_start, timeZone)}
                 {m.time_locked && (m.status === 'pending' || m.status === 'ready') && (
                   <span className="ml-1 font-sans text-xs text-gold" title="Set time: rebuilds keep it here">
                     set

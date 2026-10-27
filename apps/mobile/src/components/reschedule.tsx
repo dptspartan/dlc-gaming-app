@@ -1,4 +1,4 @@
-import { formatDay, formatTime, MINUTE, previewDay, rescheduleInTimetable, timetableOptions, todayOf, zonedClock, zonedDate, zonedToUtc, type DayHours, type Match } from '@dlc/core';
+import { formatDay, formatTime, formatWhen, MINUTE, previewDay, rescheduleInTimetable, timetableOptions, todayOf, zonedClock, zonedDate, zonedToUtc, type DayHours, type Match } from '@dlc/core';
 import { useState } from 'react';
 import { Alert, Text, TextInput, View } from 'react-native';
 import { rescheduleMatch, setDayHours } from '../lib/actions';
@@ -56,7 +56,7 @@ export function RescheduleCard({ data, match }: { data: TournamentData; match: M
     <View style={[styles.card, { gap: 10 }]}>
       <Text style={styles.label}>Reschedule</Text>
       <Text style={styles.muted}>
-        Planned for {formatTime(match.scheduled_start, tz)}
+        Planned for {formatWhen(match.scheduled_start, tz)}
         {match.time_locked ? ' (set time)' : ''}. Pick a new start and the rest of the timetable moves round it.
       </Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
