@@ -1,25 +1,31 @@
 import { useState } from 'react';
 import {
   currentLeg,
+  feederOf,
   fromZonedInput,
   isSeries,
   legGameId,
+  lineupEditable,
   matchLabel,
+  placementOf,
   roundsToWin,
   scoringLabel,
   stationLabel,
   toZonedInput,
   type Game,
   type Match,
+  type Slot,
   type Team,
 } from '@dlc/core';
 import { Avatar, Button, CallCountdown, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
-import { callMatch, endMatch, endOnPenalties, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
+import { callMatch, endMatch, endOnPenalties, reopenMatch, replacePlayer, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 
 interface Props {
   match: Match;
   teams: Map<string, Team>;
+  /** Every match, to tell who is free to come into this one. */
+  matches: Map<string, Match>;
   totalRounds: number;
   gameName: string;
   game?: Game;
@@ -33,7 +39,7 @@ interface Props {
 }
 
 /** Start, finish, correct and annotate one match. */
-export function MatchControl({ match, teams, totalRounds, gameName, game: ownGame, games, timeZone, matchMinutes, callMinutes, onClose }: Props) {
+export function MatchControl({ match, teams, matches, totalRounds, gameName, game: ownGame, games, timeZone, matchMinutes, callMinutes, onClose }: Props) {
   const a = match.team_a_id ? teams.get(match.team_a_id) : undefined;
   const b = match.team_b_id ? teams.get(match.team_b_id) : undefined;
   const [winner, setWinner] = useState<string | null>(match.winner_id);
@@ -189,7 +195,7 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
             {side(b, match.team_b_id)}
           </div>
         ) : (
-          <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
             <div className="flex flex-col">
               {side(a, match.team_a_id)}
               {scoreButtons('a', sa)}
@@ -275,6 +281,8 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
           </div>
         )}
 
+        {lineupEditable(match) && <ChangePlayers match={match} teams={teams} matches={matches} busy={busy} run={run} />}
+
         {!match.is_bye && (
           <div className="mt-6 border-t border-line pt-4">
             <Field label="Match photo">
@@ -285,9 +293,9 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
         )}
 
         {editableTime && (
-          <div className="mt-6 grid grid-cols-[1fr_6rem_auto] items-end gap-3 border-t border-line pt-4">
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)_5rem_auto] items-end gap-3 border-t border-line pt-4">
             <Field label={`Start time (${timeZone})`}>
-              <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+              <input type="datetime-local" className="w-full min-w-0" value={start} onChange={(e) => setStart(e.target.value)} />
             </Field>
             <Field label="Station">
               <input type="number" min={1} value={station} onChange={(e) => setStation(e.target.value)} />
@@ -301,6 +309,96 @@ export function MatchControl({ match, teams, totalRounds, gameName, game: ownGam
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Swap a player in a match that has not started: a late sign-up takes the
+ * place, or a player still waiting for their first match swaps with them.
+ */
+function ChangePlayers({
+  match,
+  teams,
+  matches,
+  busy,
+  run,
+}: {
+  match: Match;
+  teams: Map<string, Team>;
+  matches: Map<string, Match>;
+  busy: boolean;
+  run: (fn: () => Promise<unknown>) => Promise<void>;
+}) {
+  const [pick, setPick] = useState<Record<Slot, string>>({ a: '', b: '' });
+  const all = [...matches.values()];
+  const inMatch = [match.team_a_id, match.team_b_id];
+  const others = [...teams.values()]
+    .filter((t) => t.tournament_game_id === match.tournament_game_id && !inMatch.includes(t.id))
+    .map((t) => ({ team: t, at: placementOf(t.id, match.tournament_game_id, all) }))
+    .sort((x, y) => x.team.name.localeCompare(y.team.name));
+  const free = others.filter((o) => o.at.kind === 'free');
+  const waiting = others.filter((o) => o.at.kind === 'waiting');
+
+  const row = (slot: Slot) => {
+    const id = slot === 'a' ? match.team_a_id : match.team_b_id;
+    const name = id ? teams.get(id)?.name ?? '?' : null;
+    const feeder = feederOf(match, slot, all);
+    const chosen = others.find((o) => o.team.id === pick[slot]);
+    if (feeder) {
+      return (
+        <p key={slot} className="text-sm text-muted">
+          {name ?? 'This place'} comes from {feeder.match_code ?? 'an earlier match'}. Change the players there instead.
+        </p>
+      );
+    }
+    const replace = () => {
+      if (!chosen) return;
+      const swap = chosen.at.kind === 'waiting' ? ` ${chosen.team.name} leaves ${chosen.at.match.match_code ?? 'their match'}${name ? ` and ${name} takes their place there` : ''}.` : '';
+      if (!confirm(`Put ${chosen.team.name} in ${name ? `place of ${name}` : 'this match'}?${swap}`)) return;
+      void run(async () => {
+        await replacePlayer(match, slot, chosen.team.id);
+        setPick((p) => ({ ...p, [slot]: '' }));
+      });
+    };
+    return (
+      <div key={slot} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+        <Field label={name ? `Replace ${name} with` : 'Put in the empty place'}>
+          <select className="w-full min-w-0" value={pick[slot]} onChange={(e) => setPick((p) => ({ ...p, [slot]: e.target.value }))} disabled={busy}>
+            <option value="">Pick a player…</option>
+            {free.length > 0 && (
+              <optgroup label="Not in a match yet">
+                {free.map((o) => (
+                  <option key={o.team.id} value={o.team.id}>
+                    {o.team.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {waiting.length > 0 && (
+              <optgroup label="Swap with a player waiting to play">
+                {waiting.map((o) => (
+                  <option key={o.team.id} value={o.team.id}>
+                    {o.team.name} ({o.at.kind === 'waiting' ? o.at.match.match_code ?? 'another match' : ''})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </Field>
+        <Button variant="ghost" disabled={busy || !chosen} onClick={replace} className="min-h-11">
+          Replace
+        </Button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="change-players mt-6 flex flex-col gap-3 border-t border-line pt-4">
+      <div className="text-sm font-semibold">Change players</div>
+      {row('a')}
+      {row('b')}
+      <p className="text-sm text-muted">To take a player out of the game, use Withdraw next to their name in Setup → Games &amp; players.</p>
     </div>
   );
 }

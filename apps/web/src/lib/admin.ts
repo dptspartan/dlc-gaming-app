@@ -291,6 +291,19 @@ export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   return out;
 }
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
+/**
+ * Put a player into one side of a match that has not started. A late sign-up
+ * takes the place; a player still waiting for their first match swaps with the
+ * one who was there.
+ */
+export const replacePlayer = (m: MatchRef, slot: Slot, teamId: string) =>
+  thenReflow(m.tournament_id, rpc('replace_player', { p_match_id: m.id, p_slot: slot, p_team_id: teamId }));
+/**
+ * Take a player out of a game after the fixtures are out. Their matches still
+ * to play go to the replacement, or wait with an empty side when there is none.
+ */
+export const withdrawPlayer = (tournamentId: string, teamId: string, replacementId: string | null) =>
+  thenReflow(tournamentId, rpc('withdraw_player', { p_team_id: teamId, p_replacement_id: replacementId }));
 export const swapSlots = (a: { matchId: string; slot: Slot }, b: { matchId: string; slot: Slot }) =>
   rpc('swap_slots', { p_match_a: a.matchId, p_slot_a: a.slot, p_match_b: b.matchId, p_slot_b: b.slot });
 
