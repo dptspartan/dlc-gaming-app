@@ -48,11 +48,13 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
   const team = (id: string | null) => (id ? data.teams.get(id)?.name : undefined);
   const players = (m: Match) => [sideName(m, 'a', team(m.team_a_id)), sideName(m, 'b', team(m.team_b_id))];
 
-  // A match belongs to its uploaded day, else the day it is planned or was played, kept within the
-  // event's days (starting a match moves its time to "now", which can fall outside them).
-  // Anything running now is always shown.
+  // A match belongs to the day it was played, or for one still to play the day it is planned
+  // (a reschedule or the end of a day can move it off its uploaded day), else its uploaded day.
+  // Kept within the event's days (starting a match moves its time to "now", which can fall
+  // outside them). Anything running now is always shown.
   const dayOf = (m: Match) => {
-    const d = m.fixture_day ?? (m.scheduled_start ? localDate(m.scheduled_start, tz) : m.ended_at ? localDate(m.ended_at, tz) : days[0]);
+    const at = isDone(m) ? (m.ended_at ?? m.scheduled_start) : m.scheduled_start;
+    const d = at ? localDate(at, tz) : (m.fixture_day ?? days[0]);
     return d < days[0] ? days[0] : d > days[days.length - 1] ? days[days.length - 1] : d;
   };
   const onDay = (m: Match) => isNow(m) || dayOf(m) === day;
