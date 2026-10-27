@@ -1396,7 +1396,8 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .live-name {
   font-family: var(--dlc-ui);
   font-weight: 700;
-  font-size: clamp(0.9rem, 6.5cqh, 2.25rem);
+  font-size: calc(clamp(0.9rem, 6.5cqh, 2.25rem) * var(--name-fit, 1));
+  line-height: 1.05;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

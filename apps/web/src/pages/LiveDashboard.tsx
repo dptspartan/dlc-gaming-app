@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
@@ -928,6 +928,12 @@ function GameBadge({
   );
 }
 
+/** Long names shrink so the full name fits in two or three lines instead of being cut off. */
+function nameFit(name: string) {
+  const n = name.length;
+  return n <= 14 ? 1 : n <= 20 ? 0.85 : n <= 28 ? 0.72 : 0.62;
+}
+
 /** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
 function Side({
   name,
@@ -969,7 +975,8 @@ function Side({
         />
       </motion.div>
       <span
-        className={`live-name font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        className={`live-name font-display w-full font-bold leading-tight text-balance [overflow-wrap:anywhere] ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        style={{ "--name-fit": nameFit(name) } as CSSProperties}
       >
         {name}
       </span>
@@ -1035,7 +1042,7 @@ function RailList({
               </span>
             </div>
             {kind === "result" ? (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 <span className="font-bold text-gold">{name(m.winner_id)}</span>
                 <span className="text-muted">
                   {" "}
@@ -1051,7 +1058,7 @@ function RailList({
                 )}
               </div>
             ) : (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span>{" "}
                 {name(m.team_b_id, m.b_from)}
               </div>
