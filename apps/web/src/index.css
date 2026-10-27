@@ -1635,7 +1635,7 @@ input[type="file"]::file-selector-button {
 }
 
 /* ------------------------------------------------------------------------
-   Credits box: "Powered by" and the three names. A small fixed box in the
+   Credits box: "Powered by", the three names and Claude. A small fixed box in the
    bottom-right corner on laptops and up; at the end of the page on phones,
    so it never sits over a score or a name. The live board carries it in the
    rail instead (.credits-inline).
@@ -1649,7 +1649,7 @@ input[type="file"]::file-selector-button {
 }
 /* Keep the last row of a page clear of the box. */
 body:has(.credits-corner) {
-  padding-bottom: 290px;
+  padding-bottom: 340px;
 }
 
 /* One section per person: name and grey employee id, then GitHub and Slack. */
