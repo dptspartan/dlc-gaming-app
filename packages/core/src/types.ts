@@ -116,6 +116,9 @@ export interface Match {
   winner_id: string | null;
   score_a: number | null;
   score_b: number | null;
+  /** Shoot-out score when a level goals match was decided on penalties. */
+  pen_a: number | null;
+  pen_b: number | null;
   /** Main station (where the game master calls the players). */
   station: number | null;
   /** Every station the match takes, when a game needs more than one. */
@@ -161,6 +164,9 @@ export interface Leg {
   winner_id: string;
   score_a: number | null;
   score_b: number | null;
+  /** Shoot-out score when the leg was decided on penalties. */
+  pen_a?: number | null;
+  pen_b?: number | null;
 }
 
 /** A best-of series; a final can play each leg on a different game. */

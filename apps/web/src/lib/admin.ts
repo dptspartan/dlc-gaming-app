@@ -281,6 +281,9 @@ export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('star
  */
 export const endMatch = (m: MatchRef, winnerId: string | null = null, walkover = false) =>
   thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
+/** End a level goals match (or leg) on penalties: the higher shoot-out score wins. */
+export const endOnPenalties = (m: MatchRef, penA: number, penB: number) =>
+  thenReflow(m.tournament_id, rpc('end_on_penalties', { p_match_id: m.id, p_pen_a: penA, p_pen_b: penB }));
 /** A best-of match ends by itself on the deciding round; the queue moves on then. */
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;

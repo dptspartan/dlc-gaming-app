@@ -38,6 +38,7 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
   const hasScore = latest?.score_a != null && latest?.score_b != null;
   const winnerScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_a : latest.score_b) : null;
   const loserScore = latest ? (latest.winner_id === latest.team_a_id ? latest.score_b : latest.score_a) : null;
+  const pens = latest && latest.pen_a != null && latest.pen_b != null ? (latest.winner_id === latest.team_a_id ? [latest.pen_a, latest.pen_b] : [latest.pen_b, latest.pen_a]) : null;
 
   return (
     <AnimatePresence>
@@ -121,7 +122,8 @@ export function WinnerOverlay({ match, data, onDone }: { match: Match | null; da
               <motion.div className="text-xl text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}>
                 {hasScore ? (
                   <>
-                    <span className="font-display text-ink">{winnerScore}</span> – <span className="font-display">{loserScore}</span> vs {loser?.name}
+                    <span className="font-display text-ink">{winnerScore}</span> – <span className="font-display">{loserScore}</span>
+                    {pens ? ` (${pens[0]}–${pens[1]} pens)` : ''} vs {loser?.name}
                   </>
                 ) : (
                   <>defeated {loser?.name}</>

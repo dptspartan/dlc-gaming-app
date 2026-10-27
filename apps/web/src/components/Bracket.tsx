@@ -173,6 +173,7 @@ function BracketMatch({
     const won = match.winner_id != null && match.winner_id === teamId;
     const lost = match.winner_id != null && teamId != null && match.winner_id !== teamId;
     const score = slot === 'a' ? match.score_a : match.score_b;
+    const pen = slot === 'a' ? match.pen_a : match.pen_b;
     const selected = selectedSlot?.matchId === match.id && selectedSlot.slot === slot;
     return (
       <div
@@ -192,6 +193,7 @@ function BracketMatch({
           {sideName(match, slot, team?.name)}
         </span>
         {score != null && <span className="font-display text-sm">{score}</span>}
+        {pen != null && <span className="text-xs text-muted" title="Penalties">({pen})</span>}
         {won && <span className="text-gold glow-gold">◆</span>}
       </div>
     );

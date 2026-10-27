@@ -97,7 +97,7 @@ export function GroupTables({
                     <span className="font-mono text-[11px] text-muted">MD{m.round}</span>
                     <span className={`truncate text-right ${m.winner_id === m.team_a_id ? 'font-bold text-gold' : ''}`}>{nameOf.get(m.team_a_id ?? '')}</span>
                     <span className="font-mono text-xs text-muted">
-                      {m.status === 'completed' || m.status === 'live' ? `${m.score_a ?? '·'} – ${m.score_b ?? '·'}` : 'vs'}
+                      {m.status === 'completed' || m.status === 'live' ? `${m.score_a ?? '·'} – ${m.score_b ?? '·'}${m.pen_a != null ? ` (${m.pen_a}–${m.pen_b} p)` : ''}` : 'vs'}
                     </span>
                     <span className={`truncate ${m.winner_id === m.team_b_id ? 'font-bold text-gold' : ''}`}>{nameOf.get(m.team_b_id ?? '')}</span>
                     <span className="justify-self-end">{m.status === 'live' ? <StatusPill status="live" /> : null}</span>
