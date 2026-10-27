@@ -8,6 +8,7 @@ import {
   formatClock,
   formatDay,
   formatTime,
+  matchLabel,
   parseFixturesCsv,
   ROUND_LABEL,
   zonedToUtc,
@@ -35,6 +36,7 @@ import {
   callMatch,
   generateFixtures,
   groupQualifiers,
+  moveMatch,
   previewTimetable,
   refreshTimetable,
   startMatch,
@@ -48,6 +50,7 @@ import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
 import { useStationMasters } from '../../lib/useStationMasters';
 import { MatchControl } from './MatchControl';
 import { TodayBoard } from './TodayBoard';
+import { EndOfDay, RescheduleDialog } from '../../components/Reschedule';
 
 type Tab = 'today' | 'stations' | 'setup';
 type SetupTab = 'games' | 'fixtures' | 'staff' | 'details';
@@ -120,7 +123,10 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   const tgames = useMemo(() => [...data.tgames.values()], [data.tgames]);
   const matches = useMemo(() => [...data.matches.values()], [data.matches]);
   const [openMatch, setOpenMatch] = useState<string | null>(null);
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+  const catalog = useMemo(() => [...data.games.values()], [data.games]);
   const [error, setError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fit = useMemo(() => (matches.length ? safePreview(tournament, tgames, matches, data.games.values()) : null), [tournament, tgames, matches, data.games]);
 
@@ -207,7 +213,36 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
     );
   };
 
+  const queued = (m: Match) => !m.is_bye && (m.status === 'pending' || m.status === 'ready');
+  // Its own error, shown by the timetable where the buttons are.
+  const move = async (m: Match, direction: 'earlier' | 'later') => {
+    setBusy(true);
+    setMoveError(null);
+    try {
+      await moveMatch(tournament, tgames, matches, m.id, direction, data.games.values(), undefined, (id) => data.teams.get(id)?.name ?? 'A player');
+    } catch (e) {
+      setMoveError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const moveButtons = (m: Match) =>
+    queued(m) && (
+      <span className="flex gap-1">
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => move(m, 'earlier')} title="Swap with the match before it">
+          ↑ Earlier
+        </Button>
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => move(m, 'later')} title="Swap with the match after it">
+          ↓ Later
+        </Button>
+        <Button variant="ghost" className="px-2 py-1" disabled={busy} onClick={() => setRescheduling(m.id)} title="Pick a new start time, today or another day">
+          Reschedule
+        </Button>
+      </span>
+    );
+
   const open = openMatch ? data.matches.get(openMatch) : undefined;
+  const moving = rescheduling ? data.matches.get(rescheduling) : undefined;
   const openTg = open ? data.tgames.get(open.tournament_game_id) : undefined;
 
   return (
@@ -227,6 +262,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
           </div>
         )}
       </Panel>
+      <EndOfDay tournament={tournament} tgames={tgames} matches={matches} catalog={catalog} />
       <p className="-mt-2 text-sm text-muted">
         Calling a match puts it on the live board as "Waiting for players" with a {tournament.call_minutes} minute countdown. Start it once both sides are at the station.
         Skipping sends it back to the queue and the next match takes the station.
@@ -244,9 +280,31 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         onMatchClick={(m) => setOpenMatch(m.id)}
       />
       <div>
-        <h2 className="mb-3 text-lg font-bold">Timetable</h2>
-        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} />
+        <h2 className="mb-1 text-lg font-bold">Timetable</h2>
+        <p className="mb-3 text-sm text-muted">
+          Earlier and Later swap a queued match with the one next to it; everything else moves round it, and rebuilds keep the new order. A match can't
+          go before its players are free or before the round it waits for. Swapping with a match that has a fixtures sheet time swaps the times too.
+          Reschedule gives a match a set start time (today or another day) and moves the other matches round it.
+        </p>
+        {moveError && (
+          <div className="mb-3">
+            <ErrorNote message={moveError} />
+          </div>
+        )}
+        <Timetable matches={matches} teams={data.teams} timeZone={tournament.timezone} gameName={gameName} actions={moveButtons} />
       </div>
+      {moving && queued(moving) && (
+        <RescheduleDialog
+          tournament={tournament}
+          tgames={tgames}
+          matches={matches}
+          catalog={catalog}
+          match={moving}
+          title={`${gameName(moving)} · ${matchLabel(moving, roundsByTg.get(moving.tournament_game_id) ?? moving.round)}`}
+          matchName={(x) => `${name(x.team_a_id, x.a_from)} v ${name(x.team_b_id, x.b_from)}`}
+          onClose={() => setRescheduling(null)}
+        />
+      )}
       {open && openTg && (
         <MatchControl
           match={open}
@@ -534,7 +592,8 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
     match_minutes: tg.match_minutes,
     buffer_minutes: tg.buffer_minutes,
     stations_required: tg.stations_required,
-    allowed_stations: tg.allowed_stations ?? [],
+    // Stations the venue no longer has drop out, so saving clears them.
+    allowed_stations: (tg.allowed_stations ?? []).filter((n) => n <= stations),
   });
   const toggleStation = (n: number) =>
     setSettings((s) => ({

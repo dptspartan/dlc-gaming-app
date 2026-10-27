@@ -1,4 +1,5 @@
 import type { RoundCode } from './fixtures';
+import type { DayHours } from './time';
 export type TournamentStatus = 'draft' | 'scheduled' | 'live' | 'finished';
 export type TournamentGameStatus = 'setup' | 'fixtures_ready' | 'live' | 'finished';
 /** called: sent to a station, waiting for the players to show up. */
@@ -41,6 +42,8 @@ export interface Tournament {
   stations: number;
   /** How long called players have to show up at their station. */
   call_minutes: number;
+  /** Days whose hours differ from daily_start / daily_end, by YYYY-MM-DD (a day ended early, or run late). */
+  day_hours: Record<string, DayHours>;
   created_at: string;
 }
 
@@ -135,6 +138,10 @@ export interface Match {
   called_at: string | null;
   /** Held back in the queue until this time (skipped or delayed). */
   not_before: string | null;
+  /** Set when an organizer moved the match earlier or later in the queue; it beats the usual order (see queueKey). */
+  queue_key: number | null;
+  /** The organizer set not_before as the match's start time: the timetable keeps it there and moves other matches out of its way. */
+  time_locked: boolean;
   scheduled_start: string | null;
   scheduled_end: string | null;
   started_at: string | null;

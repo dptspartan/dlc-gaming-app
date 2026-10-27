@@ -1630,14 +1630,127 @@ input[type="file"]::file-selector-button {
     grid-column: 3;
     text-align: right;
   }
+  .timetable td:nth-child(6) {
+    grid-column: 2 / 4;
+    padding-top: 0.35rem !important;
+  }
 }
 
-/* Phones: the credit line sits at the end of the page instead of over content. */
+/* ------------------------------------------------------------------------
+   Credits box: "Powered by", the three names and Claude. A small fixed box in the
+   bottom-right corner on laptops and up; at the end of the page on phones,
+   so it never sits over a score or a name. The live board carries it in the
+   rail instead (.credits-inline).
+   ------------------------------------------------------------------------ */
+.credits-corner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  width: max-content;
+}
+/* Keep the last row of a page clear of the box. */
+body:has(.credits-corner) {
+  padding-bottom: 340px;
+}
+
+/* One section per person: name and grey employee id, then GitHub and Slack. */
+.credits-person + .credits-person {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(241, 238, 229, 0.12);
+}
+.credits-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid rgba(241, 238, 229, 0.22);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: inherit;
+  transition:
+    border-color 100ms,
+    color 100ms,
+    background-color 100ms;
+}
+.credits-link:hover,
+.credits-link:focus-visible {
+  border-color: rgba(241, 238, 229, 0.6);
+  background: rgba(241, 238, 229, 0.06);
+}
+
+:root[data-theme="dlc-labs"] .credits-box {
+  background: var(--dlc-ink);
+  border: 1.5px solid rgba(241, 238, 229, 0.26) !important;
+  border-radius: 8px;
+  padding: 12px 14px 14px;
+}
+:root[data-theme="dlc-labs"] .credits-box.neon-gold {
+  box-shadow: 4px 4px 0 #000 !important;
+}
+:root[data-theme="dlc-labs"] .credits-title {
+  display: inline-block;
+  margin: -2px 0 12px -4px;
+  padding: 0.22rem 0.7rem;
+  background: var(--dlc-red);
+  color: white !important;
+  font-family: var(--dlc-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+  clip-path: polygon(2% 0, 97% 0, 100% 14%, 98% 30%, 100% 78%, 97% 100%, 3% 100%, 0 86%, 2% 70%, 0 18%);
+  transform: rotate(-1.5deg);
+}
+:root[data-theme="dlc-labs"] .credits-name {
+  font-family: var(--dlc-ui) !important;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: var(--dlc-paper);
+}
+:root[data-theme="dlc-labs"] .credits-id {
+  font-family: var(--dlc-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #8f8c85;
+}
+:root[data-theme="dlc-labs"] .credits-link {
+  font-family: var(--dlc-ui);
+  color: #b6b3ac;
+  background: #111111;
+}
+:root[data-theme="dlc-labs"] .credits-link:hover,
+:root[data-theme="dlc-labs"] .credits-link:focus-visible {
+  color: var(--dlc-paper);
+  border-color: rgba(241, 238, 229, 0.6);
+}
+
 @media (max-width: 640px) {
-  .powered-by {
+  body:has(.credits-corner) {
+    padding-bottom: 0;
+  }
+  .credits-corner {
     position: static;
-    padding: 1.5rem 1rem 1rem;
-    text-align: center;
+    width: auto;
+    margin: 8px 16px 24px;
+  }
+  /* Phones: one row per person, name on the left and the buttons on the right. */
+  .credits-corner .credits-person {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .credits-corner .credits-links {
+    margin-top: 0;
   }
 }
 

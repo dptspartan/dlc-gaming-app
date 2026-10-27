@@ -107,7 +107,20 @@ function Versus({ a, b, aLogo, bLogo, score }: { a: string; b: string; aLogo?: s
 }
 
 /** Station and time for each match still to play, soonest first. */
-export function Timetable({ matches, teams, timeZone, gameName }: { matches: Match[]; teams: Map<string, Team>; timeZone: string; gameName: (m: Match) => string }) {
+export function Timetable({
+  matches,
+  teams,
+  timeZone,
+  gameName,
+  actions,
+}: {
+  matches: Match[];
+  teams: Map<string, Team>;
+  timeZone: string;
+  gameName: (m: Match) => string;
+  /** Controls at the end of each row (the admin's move earlier / later). */
+  actions?: (m: Match) => ReactNode;
+}) {
   const rounds = knockoutRounds(matches);
   const list = matches
     .filter((m) => !m.is_bye && m.status !== 'completed')
@@ -124,12 +137,20 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
             <th className="px-3 py-2 font-semibold">Game</th>
             <th className="px-3 py-2 font-semibold">Match</th>
             <th className="px-3 py-2 font-semibold">Status</th>
+            {actions && <th className="px-3 py-2 font-semibold">Order</th>}
           </tr>
         </thead>
         <tbody>
           {list.map((m) => (
             <tr key={m.id} className={`border-b border-line/50 last:border-0 ${m.status === 'live' ? 'bg-flame/5' : m.status === 'called' ? 'bg-gold/5' : ''}`}>
-              <td className="px-3 py-2 font-mono text-ember">{m.status === 'live' ? 'now' : formatTime(m.scheduled_start, timeZone)}</td>
+              <td className="px-3 py-2 font-mono whitespace-nowrap text-ember">
+                {m.status === 'live' ? 'now' : formatTime(m.scheduled_start, timeZone)}
+                {m.time_locked && (m.status === 'pending' || m.status === 'ready') && (
+                  <span className="ml-1 font-sans text-xs text-gold" title="Set time: rebuilds keep it here">
+                    set
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2 font-semibold whitespace-nowrap">{stationLabel(m) || '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap">
                 {gameName(m)}{' '}
@@ -144,6 +165,7 @@ export function Timetable({ matches, teams, timeZone, gameName }: { matches: Mat
               <td className={`px-3 py-2 text-sm whitespace-nowrap ${m.status === 'live' ? 'text-flame' : m.status === 'called' ? 'text-gold' : 'text-muted'}`}>
                 {m.status === 'live' ? 'Live' : m.status === 'called' ? 'Players called' : m.status === 'ready' ? 'Queued' : 'Waiting for teams'}
               </td>
+              {actions && <td className="px-3 py-2 whitespace-nowrap">{actions(m)}</td>}
             </tr>
           ))}
         </tbody>

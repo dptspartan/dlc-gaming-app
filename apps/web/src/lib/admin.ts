@@ -5,15 +5,18 @@ import {
   groupStandings,
   knockoutFor,
   knockoutFromQualifiers,
+  moveInQueue,
   qualifiers,
   scheduleTournament,
   seriesFor,
   timetableOptions,
   ROUND_NUMBER,
+  type DayHours,
   type FixtureRow,
   type Game,
   type Match,
   type Slot,
+  type StuckReason,
   type StageMatchDraft,
   type Team,
   type TimetableMatch,
@@ -184,6 +187,47 @@ export async function refreshTimetable(tournamentId: string): Promise<TimetableR
   return reflowTournament(tournament as Tournament, tgames as TournamentGame[], matches as Match[], games as Game[]);
 }
 
+/**
+ * Move a queued match one place earlier or later in the timetable (among the
+ * matches `among` keeps, e.g. one game's), then rebuild the timetable around it.
+ * The new place is kept by later rebuilds. Throws, saying why, when it can't move.
+ */
+export async function moveMatch(
+  tournament: Tournament,
+  tgames: TournamentGame[],
+  matches: Match[],
+  id: string,
+  direction: 'earlier' | 'later',
+  catalog?: Iterable<Game>,
+  among?: (m: Match) => boolean,
+  teamName: (id: string) => string = () => 'A player',
+): Promise<TimetableResult> {
+  const moved = moveInQueue(matches, timetableOptions(tournament, tgames, Date.now(), catalog), id, direction, among);
+  if ('stuck' in moved) throw new Error(stuckMessage(moved.stuck, direction, teamName));
+  must(await supabase.from('matches').update({ queue_key: moved.key }).eq('id', id));
+  for (const [matchId, notBefore] of moved.notBefore) must(await supabase.from('matches').update({ not_before: notBefore }).eq('id', matchId));
+  await saveSlots(moved.result);
+  return moved.result;
+}
+
+function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamName: (id: string) => string): string {
+  const head = `This match can't go any ${direction}`;
+  switch (stuck.kind) {
+    case 'edge':
+      return direction === 'earlier' ? `${head}: it's already the first match.` : `${head}: nothing after it can take its place.`;
+    case 'round':
+      return `${head}: it waits for the earlier round of its game to finish.`;
+    case 'team':
+      return `${head}: ${teamName(stuck.teamId)} is still playing in the match before it.`;
+    case 'station':
+      return `${head}: its fixtures sheet puts it on station ${stuck.station}, which is busy until then.`;
+    case 'set_time':
+      return `${head}: it has a set time. Use Reschedule to change or clear it.`;
+    default:
+      return `${head}: no other match can swap places with it.`;
+  }
+}
+
 /** How the queued matches fit, without saving anything. */
 export function previewTimetable(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): TimetableResult {
   return scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
@@ -207,6 +251,25 @@ export const uncallMatch = (m: Pick<Match, 'id' | 'tournament_id'>, delayMinutes
   thenReflow(m.tournament_id, rpc('uncall_match', { p_match_id: m.id, p_delay_minutes: delayMinutes }));
 export const holdMatch = (m: Pick<Match, 'id' | 'tournament_id'>, until: Date | null) =>
   thenReflow(m.tournament_id, rpc('hold_match', { p_match_id: m.id, p_not_before: until?.toISOString() ?? null }));
+/** Give a queued match a set start time (null: back to the usual order); the timetable moves the other matches round it. */
+export const rescheduleMatch = (m: Pick<Match, 'id' | 'tournament_id'>, at: Date | null) =>
+  thenReflow(m.tournament_id, rpc('reschedule_match', { p_match_id: m.id, p_at: at?.toISOString() ?? null }));
+
+/** Change one day's hours (null: back to the daily hours), then rebuild the timetable so the rest of the day fits. */
+export async function setDayHours(t: Pick<Tournament, 'id' | 'day_hours'>, date: string, hours: DayHours | null) {
+  const day_hours = { ...(t.day_hours ?? {}) };
+  if (hours) day_hours[date] = hours;
+  else delete day_hours[date];
+  must(await supabase.from('tournaments').update({ day_hours }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
+/** One more tournament day, for matches that don't fit the last one. */
+export async function addTournamentDay(t: Pick<Tournament, 'id' | 'days'>) {
+  must(await supabase.from('tournaments').update({ days: t.days + 1 }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
 export const listAdmins = async () => (await rpc('list_admins', {})) as { user_id: string; email: string }[];
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;

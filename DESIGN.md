@@ -87,3 +87,5 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-27 | Admin: Today board, phone-first, signed-in Admin pill; spectator "Find my matches"; penalties | Organisers check "what's next and where" on a phone at the venue; players need their own schedule in one tap; level FC matches had no way to finish. |
 | 2026-10-25 | dlc-labs is the default theme | Classic is opt-in from the switch; only an explicit pick is stored (`dlc-theme-choice`). |
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |
+| 2026-10-26 | Credits box: red "Powered by" tape, one section per person (name, grey employee id, GitHub and Slack buttons), fixed bottom-right on laptops, at the end of the page on phones, in the rail on the live board | The old one-line credit was hard to read and covered content on phones. |
+| 2026-10-27 | Claude (#GOAT5789) back in the credits box, as a last section with no buttons | The old "Powered by Claude" line went away when the box replaced it. |

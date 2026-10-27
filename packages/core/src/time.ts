@@ -36,8 +36,18 @@ export function addDays(date: string, days: number): string {
 
 export interface DayWindow {
   day: number;
+  /** YYYY-MM-DD in the tournament's time zone. */
+  date?: string;
   start: number;
   end: number;
+}
+
+/** Hours one day plays when they differ from the daily hours: a day that ends early or runs late. */
+export interface DayHours {
+  /** HH:MM */
+  start?: string;
+  /** HH:MM; before start means past midnight. */
+  end?: string;
 }
 
 /** Playing windows (ms since epoch) for each tournament day. */
@@ -47,15 +57,30 @@ export function tournamentWindows(t: {
   daily_start: string;
   daily_end: string;
   timezone: string;
+  /** Per-day changes, by YYYY-MM-DD. */
+  day_hours?: Record<string, DayHours> | null;
 }): DayWindow[] {
   return Array.from({ length: t.days }, (_, i) => {
     const date = addDays(t.start_date, i);
-    return {
-      day: i + 1,
-      start: zonedToUtc(date, t.daily_start, t.timezone).getTime(),
-      end: zonedToUtc(date, t.daily_end, t.timezone).getTime(),
-    };
+    const own = t.day_hours?.[date];
+    const startClock = own?.start ?? t.daily_start;
+    const endClock = own?.end ?? t.daily_end;
+    const start = zonedToUtc(date, startClock, t.timezone).getTime();
+    let end = zonedToUtc(date, endClock, t.timezone).getTime();
+    // A day that runs past midnight (an end equal to the start is a day with nothing left to play).
+    if (end < start) end = zonedToUtc(addDays(date, 1), endClock, t.timezone).getTime();
+    return { day: i + 1, date, start, end };
   });
+}
+
+/** The event-local date (YYYY-MM-DD) of an instant. */
+export function zonedDate(at: number | string | Date, timeZone: string): string {
+  return toZonedInput(new Date(at).toISOString(), timeZone).slice(0, 10);
+}
+
+/** The event-local wall clock (HH:MM) of an instant. */
+export function zonedClock(at: number | string | Date, timeZone: string): string {
+  return toZonedInput(new Date(at).toISOString(), timeZone).slice(11, 16);
 }
 
 /** A clock time for display, 12-hour: "5:30 PM". */

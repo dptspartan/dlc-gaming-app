@@ -418,6 +418,7 @@ const timetable = scheduleTournament(
       station: m.stations?.[0] ?? null,
       called_at: iso(m.called_at),
       not_before: null,
+      queue_key: null,
       started_at: iso(m.started_at),
       ended_at: iso(m.ended_at),
     })),

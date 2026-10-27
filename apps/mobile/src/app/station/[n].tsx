@@ -68,6 +68,7 @@ export default function StationScreen() {
             onPress={() => run(`hold-${q.id}`, () => holdMatch(q, new Date(Date.now() + 10 * 60_000)))}
           />
         )}
+        {actions === 'queue' && <Button title="Reschedule" variant="ghost" style={{ flex: 1 }} disabled={!!busy} onPress={() => openMatch(q)} />}
       </View>
     </View>
   );
