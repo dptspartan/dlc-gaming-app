@@ -1567,8 +1567,8 @@ input[type="file"]::file-selector-button {
 
 /* Phones: every tap target is at least 44px tall. */
 @media (max-width: 640px) {
-  header nav > a,
-  main a[href$="/live"],
+  header nav > a:not(.admin-pill),
+  main a[href$="/live"]:not(.editor-links a),
   .tab,
   .view-tab,
   .view-toggle,
@@ -1582,10 +1582,12 @@ input[type="file"]::file-selector-button {
     padding-bottom: 0;
   }
   /* The pill keeps its size; an invisible halo makes it a 44px target. */
-  .theme-switch {
+  .theme-switch,
+  .admin-pill {
     position: relative;
   }
-  .theme-switch::before {
+  .theme-switch::before,
+  .admin-pill::before {
     content: "";
     position: absolute;
     inset: -11px -4px;
@@ -1875,4 +1877,251 @@ input[type="file"]::file-selector-button {
   padding: 0.1rem 0.5rem;
   font-size: 0.6rem;
   letter-spacing: 0.08em;
+}
+
+/* ------------------------------------------------------------------------
+   Admin: Today board, bottom tabs on phones, match sheet. Works in both
+   themes; dlc-labs adds its tapes and type below.
+   ------------------------------------------------------------------------ */
+
+/* The day's filters stay in reach under the sticky site header. */
+:root {
+  --site-header: 61px;
+}
+:root[data-theme="dlc-labs"] {
+  --site-header: 88px;
+}
+@media (max-width: 640px) {
+  :root[data-theme="dlc-labs"] {
+    --site-header: 78px;
+  }
+  /* Less chrome above the day's matches. */
+  .editor-links a {
+    padding: 0.35rem 0.7rem !important;
+    font-size: 0.75rem !important;
+    min-height: 0 !important;
+  }
+  .editor .heading h1,
+  .editor h1 {
+    margin-bottom: 0;
+  }
+}
+.today-filters {
+  top: var(--site-header);
+}
+.chip-row {
+  scrollbar-width: none;
+}
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+.today-row {
+  min-height: 56px;
+}
+.today-live {
+  box-shadow: inset 4px 0 var(--color-flame);
+  background: color-mix(in srgb, var(--color-flame) 7%, transparent);
+}
+.today-called {
+  box-shadow: inset 4px 0 var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 7%, transparent);
+}
+.today-done {
+  opacity: 0.6;
+}
+.today-tape {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.today-tape-live {
+  background: var(--color-flame);
+  color: white;
+}
+.today-tape-called {
+  background: var(--color-gold);
+  color: #111;
+}
+.today-chip,
+.today-row,
+.editor-tabs .tab {
+  min-height: 44px;
+}
+.today-chip {
+  min-height: 36px;
+}
+
+/* Phones: Today · Stations · Setup is a bottom tab bar. */
+@media (max-width: 640px) {
+  .editor-tabs {
+    position: fixed;
+    z-index: 35;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0 0 env(safe-area-inset-bottom);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--color-line);
+    border-bottom: 0;
+    background: rgba(10, 10, 10, 0.97);
+  }
+  .editor-tabs .tab {
+    margin: 0;
+    border: 0;
+    border-top: 3px solid transparent;
+    min-height: 58px;
+    padding: 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .editor-tabs .tab[aria-current="page"] {
+    border-top-color: var(--color-ember);
+    color: var(--color-ink);
+  }
+}
+
+:root[data-theme="dlc-labs"] .today-time {
+  font-family: var(--dlc-display);
+  letter-spacing: 0.02em;
+}
+:root[data-theme="dlc-labs"] .today-tape {
+  border-radius: 0;
+  font-family: var(--dlc-ui);
+  clip-path: polygon(2% 0, 97% 0, 100% 14%, 98% 30%, 100% 78%, 97% 100%, 3% 100%, 0 86%, 2% 70%, 0 18%);
+}
+:root[data-theme="dlc-labs"] .today-tape-live {
+  background: var(--dlc-red);
+}
+:root[data-theme="dlc-labs"] .today-tape-called {
+  background: var(--dlc-amber);
+}
+:root[data-theme="dlc-labs"] .today-live {
+  box-shadow: inset 4px 0 var(--dlc-red) !important;
+}
+:root[data-theme="dlc-labs"] .today-called {
+  box-shadow: inset 4px 0 var(--dlc-amber) !important;
+}
+:root[data-theme="dlc-labs"] .today-station {
+  background: var(--dlc-paper);
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .today-chip[aria-pressed="true"] {
+  background: var(--dlc-paper);
+  border-color: var(--dlc-paper);
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .today-stats b {
+  font-family: var(--dlc-display);
+  font-weight: 400;
+  font-size: 1.15rem;
+  margin-right: 0.15rem;
+}
+@media (max-width: 640px) {
+  :root[data-theme="dlc-labs"] .editor-tabs {
+    background: #0a0a0a;
+    border-top-color: rgba(241, 238, 229, 0.16);
+  }
+  :root[data-theme="dlc-labs"] .editor-tabs .tab[aria-current="page"] {
+    border-top-color: var(--dlc-red);
+  }
+}
+:root[data-theme="dlc-labs"] .admin-pill {
+  border-color: var(--dlc-red);
+  font-family: var(--dlc-ui);
+  letter-spacing: 0.12em;
+}
+:root[data-theme="dlc-labs"] .match-sheet {
+  background: #161616 !important;
+}
+
+/* ------------------------------------------------------- Find my matches */
+
+.find-box {
+  min-height: 48px;
+}
+.find-box:focus-within {
+  border-color: var(--color-ember);
+}
+.find-box .find-input,
+.find-box .find-input:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0;
+}
+.find-chip {
+  min-height: 40px;
+}
+.find-ticket-sticker {
+  display: none;
+}
+
+:root[data-theme="dlc-labs"] .find-box {
+  background: var(--dlc-paper);
+  border-color: var(--dlc-paper);
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .find-box .find-input {
+  color: var(--dlc-ink) !important;
+  font-family: var(--dlc-ui);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+:root[data-theme="dlc-labs"] .find-box .find-input::placeholder {
+  color: #6b6760;
+}
+:root[data-theme="dlc-labs"] .find-box > span,
+:root[data-theme="dlc-labs"] .find-box button {
+  color: #6b6760;
+}
+:root[data-theme="dlc-labs"] .find-chip {
+  background: #171717;
+  font-family: var(--dlc-ui);
+  letter-spacing: 0.02em;
+}
+:root[data-theme="dlc-labs"] .find-ticket {
+  background: var(--dlc-paper) !important;
+  color: var(--dlc-ink);
+  border: 0 !important;
+  border-radius: 12px;
+  box-shadow: 5px 6px 0 rgba(0, 0, 0, 0.45) !important;
+  transform: rotate(-0.6deg);
+}
+:root[data-theme="dlc-labs"] .find-ticket .text-muted {
+  color: #6b6760 !important;
+}
+:root[data-theme="dlc-labs"] .find-name {
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .find-time {
+  font-size: clamp(2rem, 8vw, 3rem);
+  line-height: 1;
+  color: var(--dlc-ink);
+}
+:root[data-theme="dlc-labs"] .find-ticket-sticker {
+  display: block;
+  position: absolute;
+  right: -12px;
+  top: -22px;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  transform: rotate(10deg);
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+}
+:root[data-theme="dlc-labs"] .find-state {
+  font-family: var(--dlc-ui);
 }

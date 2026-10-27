@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { formatClock, type Tournament } from '@dlc/core';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { addDays, formatClock, localDate, type Tournament } from '@dlc/core';
 import { Button, Empty, ErrorNote, Field, Heading, Panel, StatusPill } from '../../components/ui';
 import { slugify } from '../../lib/admin';
 import { must, supabase } from '../../lib/supabase';
@@ -9,8 +9,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function AdminHome() {
-  const [list, setList] = useState<Tournament[]>([]);
+  const [list, setList] = useState<Tournament[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const load = useCallback(() => {
     supabase
       .from('tournaments')
@@ -21,14 +23,24 @@ export function AdminHome() {
   }, []);
   useEffect(load, [load]);
 
+  // During an event, open it straight away; "?list" (the Tournaments link) shows the list instead.
+  useEffect(() => {
+    if (!list || params.has('list')) return;
+    const running = list.filter((t) => {
+      const today = localDate(Date.now(), t.timezone);
+      return t.status !== 'draft' && today >= t.start_date && today <= addDays(t.start_date, t.days - 1);
+    });
+    if (running.length === 1) navigate(`/admin/t/${running[0].id}`, { replace: true });
+  }, [list, params, navigate]);
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
       <div>
         <Heading>Tournaments</Heading>
         <ErrorNote message={error} />
-        {list.length === 0 && <Empty>No tournaments yet. Create one to get started.</Empty>}
+        {list?.length === 0 && <Empty>No tournaments yet. Create one to get started.</Empty>}
         <div className="flex flex-col gap-3">
-          {list.map((t) => (
+          {(list ?? []).map((t) => (
             <Link key={t.id} to={`/admin/t/${t.id}`} className="panel flex items-center justify-between gap-4 hover:border-ember">
               <div>
                 <div className="font-display font-bold">{t.name}</div>

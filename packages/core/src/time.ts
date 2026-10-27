@@ -64,6 +64,11 @@ export function formatTime(iso: string | number | Date | null | undefined, timeZ
   return new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
 }
 
+/** The event-local calendar day (YYYY-MM-DD) of an instant. */
+export function localDate(iso: string | number | Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+}
+
 /** A wall-clock "HH:MM" or "HH:MM:SS" (daily hours, a sheet's start time) for display: "5:30 PM". */
 export function formatClock(hhmm: string): string {
   const [h, m] = hhmm.split(':').map(Number);

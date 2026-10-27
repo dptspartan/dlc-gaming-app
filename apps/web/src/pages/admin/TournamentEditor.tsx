@@ -47,21 +47,27 @@ import { supabase, uploadImage } from '../../lib/supabase';
 import { useLiveData, useLookups, type LiveData } from '../../lib/useLiveData';
 import { useStationMasters } from '../../lib/useStationMasters';
 import { MatchControl } from './MatchControl';
+import { TodayBoard } from './TodayBoard';
 
-type Tab = 'control' | 'games' | 'fixtures' | 'stations' | 'details';
+type Tab = 'today' | 'stations' | 'setup';
+type SetupTab = 'games' | 'fixtures' | 'staff' | 'details';
 
 export function TournamentEditor() {
   const { id = '' } = useParams();
   const { data, error, reload } = useLiveData({ tournamentId: id });
-  const [tab, setTab] = useState<Tab>('control');
+  const [tab, setTab] = useState<Tab>('today');
+  const [setup, setSetup] = useState<SetupTab>('games');
   const tournament = data.tournaments.get(id);
   if (!tournament) return error ? <ErrorNote message={error} /> : null;
 
   return (
-    <div>
+    <div className="editor pb-20 sm:pb-0">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <Heading sub={<StatusPill status={tournament.status} />}>{tournament.name}</Heading>
-        <div className="flex gap-2">
+        <div className="editor-links flex flex-wrap gap-2">
+          <Link to="/admin?list" className="rounded-lg px-3 py-2 text-xs font-semibold text-muted hover:text-ink">
+            All events
+          </Link>
           <Link to={`/t/${tournament.slug}`} className="font-display rounded-lg border border-line bg-white/5 px-3 py-2 text-xs font-bold tracking-widest uppercase backdrop-blur hover:border-ember">
             Public page
           </Link>
@@ -70,22 +76,37 @@ export function TournamentEditor() {
           </Link>
         </div>
       </div>
+      {/* On phones this is a bottom tab bar, within thumb reach. */}
       <Tabs
+        className="editor-tabs"
         value={tab}
         onChange={setTab}
         tabs={[
-          ['control', 'Control room'],
-          ['games', 'Games & players'],
-          ['fixtures', 'Fixtures'],
-          ['stations', 'Stations & staff'],
-          ['details', 'Details'],
+          ['today', 'Today'],
+          ['stations', 'Stations'],
+          ['setup', 'Setup'],
         ]}
       />
-      {tab === 'control' && <ControlRoom tournament={tournament} data={data} />}
-      {tab === 'stations' && <StationsPanel tournament={tournament} data={data} onSaved={reload} />}
-      {tab === 'details' && <Details tournament={tournament} onSaved={reload} />}
-      {tab === 'games' && <GamesPanel tournament={tournament} data={data} onChange={reload} />}
-      {tab === 'fixtures' && <FixturesPanel tournament={tournament} data={data} onChange={reload} />}
+      {tab === 'today' && <TodayBoard tournament={tournament} data={data} />}
+      {tab === 'stations' && <ControlRoom tournament={tournament} data={data} />}
+      {tab === 'setup' && (
+        <>
+          <Tabs
+            value={setup}
+            onChange={setSetup}
+            tabs={[
+              ['games', 'Games & players'],
+              ['fixtures', 'Fixtures'],
+              ['staff', 'Station staff'],
+              ['details', 'Details'],
+            ]}
+          />
+          {setup === 'games' && <GamesPanel tournament={tournament} data={data} onChange={reload} />}
+          {setup === 'fixtures' && <FixturesPanel tournament={tournament} data={data} onChange={reload} />}
+          {setup === 'staff' && <StationsPanel tournament={tournament} data={data} onSaved={reload} />}
+          {setup === 'details' && <Details tournament={tournament} onSaved={reload} />}
+        </>
+      )}
     </div>
   );
 }

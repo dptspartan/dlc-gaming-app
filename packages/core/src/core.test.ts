@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket, roundName, seedOrder, type MatchDraft } from './bracket';
 import { findTeamConflicts, scheduleMatches } from './schedule';
-import { formatClock, formatTime, tournamentWindows, zonedToUtc } from './time';
+import { formatClock, formatTime, localDate, tournamentWindows, zonedToUtc } from './time';
 import { gridFor } from './layout';
-import { roundsToWin, scoringLabel } from './scoring';
+import { roundsToWin, scoreLine, scoringLabel } from './scoring';
 
 const teams = (n: number) => Array.from({ length: n }, (_, i) => ({ teamId: `t${i + 1}`, seed: i + 1 }));
 let counter = 0;
@@ -76,6 +76,9 @@ describe('time', () => {
     expect(formatTime('2026-10-26T12:30:00Z', 'Asia/Karachi')).toBe('5:30 PM');
     expect(formatTime('2026-10-26T19:05:00Z', 'Asia/Karachi')).toBe('12:05 AM');
     expect(['17:30:00', '00:05', '12:00', '09:15'].map(formatClock)).toEqual(['5:30 PM', '12:05 AM', '12:00 PM', '9:15 AM']);
+    // 23:30 in Karachi is still the 26th there; 00:30 is the 27th.
+    expect(localDate('2026-10-26T18:30:00Z', 'Asia/Karachi')).toBe('2026-10-26');
+    expect(localDate('2026-10-26T19:30:00Z', 'Asia/Karachi')).toBe('2026-10-27');
     expect(zonedToUtc('2026-07-01', '10:00', 'Europe/London').toISOString()).toBe('2026-07-01T09:00:00.000Z');
   });
 });
@@ -151,5 +154,17 @@ describe('scoring', () => {
     expect(scoringLabel({ scoring: 'rounds', best_of: 5 })).toBe('Best of 5');
     expect(scoringLabel({ scoring: 'goals', best_of: null })).toBe('Live score');
     expect(scoringLabel({ scoring: 'none', best_of: null })).toBe('Winner only');
+  });
+});
+
+describe('scoreLine', () => {
+  const m = { score_a: 1, score_b: 1, pen_a: 3, pen_b: 4, winner_id: 'b', team_b_id: 'b' };
+  it('shows the shoot-out after a level score', () => {
+    expect(scoreLine(m)).toBe('1–1 (3–4 pens)');
+    expect(scoreLine(m, true)).toBe('1–1 (4–3 pens)');
+  });
+  it('puts the winner first in results lists', () => {
+    expect(scoreLine({ score_a: 1, score_b: 3, pen_a: null, pen_b: null, winner_id: 'b', team_b_id: 'b' }, true)).toBe('3–1');
+    expect(scoreLine({ score_a: null, score_b: null, pen_a: null, pen_b: null })).toBe('');
   });
 });
