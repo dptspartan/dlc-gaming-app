@@ -995,7 +995,7 @@ function RailList({
   kind: "next" | "result";
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="rail-list panel p-4">
       <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
@@ -1075,7 +1075,7 @@ function NothingLive({
   gameName?: string;
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <img

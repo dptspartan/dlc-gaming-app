@@ -1,4 +1,4 @@
-import { formatDay, formatTime, knockoutRounds, matchLabel, type Match, type Team } from '@dlc/core';
+import { feederMatch, formatDay, formatTime, knockoutRounds, matchLabel, sideOrContenders, type Match, type Slot, type Team } from '@dlc/core';
 import { Avatar, Empty, StatusPill } from './ui';
 
 export function ScheduleList({
@@ -27,7 +27,13 @@ export function ScheduleList({
     const key = m.scheduled_start ? formatDay(m.scheduled_start, timeZone) : 'Unscheduled';
     days.set(key, [...(days.get(key) ?? []), m]);
   }
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const team = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : null);
+  const name = (m: Match, slot: Slot) => sideOrContenders(m, slot, matches, team);
+  // A side still waiting on another match: muted, with that match's code on hover.
+  const side = (m: Match, slot: Slot) => {
+    const feeder = feederMatch(m, slot, matches);
+    return feeder ? { className: 'italic text-muted', title: `Winner of ${feeder.match_code}` } : {};
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,16 +51,17 @@ export function ScheduleList({
               >
                 <span className="font-mono text-sm text-ember glow-ember">{formatTime(m.scheduled_start, timeZone)}</span>
                 <span className="hidden truncate text-sm text-muted sm:block">
+                  {m.match_code ? `${m.match_code} · ` : ''}
                   {label ? `${label(m)} · ` : ''}
                   {matchLabel(m, totalByTg.get(m.tournament_game_id) ?? m.round)}
                   {m.station ? ` · Stn ${m.station}` : ''}
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
-                  <Avatar name={name(m.team_a_id, m.a_from)} url={m.team_a_id ? teams.get(m.team_a_id)?.logo_url : null} size={22} />
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-gold' : ''}`}>{name(m.team_a_id, m.a_from)}</span>
+                  <Avatar name={name(m, 'a')} url={m.team_a_id ? teams.get(m.team_a_id)?.logo_url : null} size={22} />
+                  <span {...side(m, 'a')} className={`truncate ${m.winner_id && m.winner_id === m.team_a_id ? 'text-gold' : ''} ${side(m, 'a').className ?? ''}`}>{name(m, 'a')}</span>
                   <span className="text-muted">vs</span>
-                  <span className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-gold' : ''}`}>{name(m.team_b_id, m.b_from)}</span>
-                  <Avatar name={name(m.team_b_id, m.b_from)} url={m.team_b_id ? teams.get(m.team_b_id)?.logo_url : null} size={22} />
+                  <span {...side(m, 'b')} className={`truncate ${m.winner_id && m.winner_id === m.team_b_id ? 'text-gold' : ''} ${side(m, 'b').className ?? ''}`}>{name(m, 'b')}</span>
+                  <Avatar name={name(m, 'b')} url={m.team_b_id ? teams.get(m.team_b_id)?.logo_url : null} size={22} />
                 </span>
                 <StatusPill status={m.status} />
               </div>

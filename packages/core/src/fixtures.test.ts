@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, bracketColumns, winnerLinks, type FixtureRow } from './fixtures';
+import { fixtureNotBefore, fixturesTemplate, parseFixturesCsv, parseRoundCode, sideName, feederMatch, feederSides, sideOrContenders, bracketColumns, winnerLinks, type FixtureRow } from './fixtures';
 import { isFinal, matchLabel } from './groups';
 import { planStage } from './plan';
 import { scheduleTournament, type TimetableMatch } from './timetable';
@@ -147,9 +147,26 @@ describe('parseFixturesCsv: organisers\' sheets', () => {
   });
 
   it('names an undecided side by the match it comes from', () => {
-    expect(sideName({ a_from: 'FC-PI-03' }, 'a', null)).toBe('Winner FC-PI-03');
+    expect(sideName({ a_from: 'FC-PI-03' }, 'a', null)).toBe('Winner of FC-PI-03');
     expect(sideName({ a_from: 'FC-PI-03' }, 'a', 'Fury')).toBe('Fury');
     expect(sideName({ b_from: null }, 'b', null)).toBe('TBD');
+  });
+
+  it('finds the match a linked side waits on, and who can still take it', () => {
+    const blank = { team_a_id: null as string | null, team_b_id: null as string | null, a_from: null as string | null, b_from: null as string | null, is_bye: false };
+    const pi = { ...blank, tournament_game_id: 'fc', match_code: 'FC-PI-03', team_a_id: 'fury', team_b_id: 'kilo' };
+    const other = { ...pi, tournament_game_id: 'tk' };
+    const r32 = { ...blank, tournament_game_id: 'fc', match_code: 'FC-R32-01', team_a_id: 'drift', b_from: 'FC-PI-03' };
+    const names: Record<string, string> = { fury: 'Fury', kilo: 'Kilo' };
+    expect(feederMatch(r32, 'b', [other, pi, r32])).toBe(pi);
+    expect(feederMatch(r32, 'a', [pi])).toBeUndefined();
+    expect(feederMatch({ ...r32, team_b_id: 'fury' }, 'b', [pi])).toBeUndefined();
+    expect(feederSides(pi, (id) => (id ? names[id] : null))).toBe('Fury or Kilo');
+    expect(feederSides({ ...pi, team_b_id: null, b_from: 'FC-PI-01' }, (id) => (id ? names[id] : null))).toBe('Fury or Winner of FC-PI-01');
+    const team = (id: string | null) => (id ? (names[id] ?? id) : null);
+    expect(sideOrContenders(r32, 'b', [pi, r32], team)).toBe('Fury or Kilo');
+    expect(sideOrContenders(r32, 'a', [pi, r32], team)).toBe('drift');
+    expect(sideOrContenders({ ...r32, b_from: 'FC-PI-99' }, 'b', [pi], team)).toBe('Winner of FC-PI-99');
   });
 
   it('needs a day for every row, from the sheet or the upload', () => {
