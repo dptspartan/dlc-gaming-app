@@ -8,6 +8,8 @@ import {
   formatClock,
   formatDay,
   formatTime,
+  formatWhen,
+  isLaterDay,
   matchLabel,
   parseFixturesCsv,
   ROUND_LABEL,
@@ -185,7 +187,9 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         </div>
       );
     const options = callable(s.station);
-    const next = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id) ?? options[0];
+    // A match moved to a later day isn't offered as the next call today.
+    const today = (q: Match) => !isLaterDay(q.scheduled_start, tournament.timezone);
+    const next = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && today(q)) ?? options.find(today);
     return (
       <div className="mb-2 flex flex-col gap-2">
         {next ? (
@@ -195,7 +199,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         ) : (
           <span className="text-sm text-muted">No match ready for this station.</span>
         )}
-        {options.length > 1 && (
+        {options.length > (next ? 1 : 0) && (
           <select
             value=""
             disabled={busy}
@@ -208,6 +212,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
             {options.map((o) => (
               <option key={o.id} value={o.id}>
                 {gameName(o)}: {name(o.team_a_id, o.a_from)} v {name(o.team_b_id, o.b_from)}
+                {today(o) ? '' : ` (${formatWhen(o.scheduled_start, tournament.timezone)})`}
               </option>
             ))}
           </select>

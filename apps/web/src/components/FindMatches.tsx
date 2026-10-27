@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { formatDay, formatTime, knockoutRounds, matchLabel, scoreLine, sideName, stationLabel, type Match } from '@dlc/core';
+import { formatDay, formatTime, formatWhen, knockoutRounds, matchLabel, scoreLine, sideName, stationLabel, type Match } from '@dlc/core';
 import type { LiveData } from '../lib/useLiveData';
 import stickerController from '../assets/dlc/sticker-controller.png';
 
@@ -122,7 +122,7 @@ export function FindMatches({ data, timeZone }: { data: LiveData; timeZone: stri
                 {headline.status === 'live' ? 'Playing now' : headline.status === 'called' ? 'Called to the station' : 'Next match'}
               </div>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                <span className="find-time font-display text-3xl">{headline.status === 'live' ? 'Now' : formatTime(headline.scheduled_start, timeZone)}</span>
+                <span className="find-time font-display text-3xl">{headline.status === 'live' ? 'Now' : formatWhen(headline.scheduled_start, timeZone)}</span>
                 <span className="text-sm font-semibold">
                   {stationLabel(headline) || 'Station TBD'} · {game(headline)}
                 </span>

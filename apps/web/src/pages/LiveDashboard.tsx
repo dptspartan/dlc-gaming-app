@@ -6,6 +6,8 @@ import {
   countdown,
   currentLeg,
   formatTime,
+  formatWhen,
+  isLaterDay,
   gridFor,
   isFinal,
   isSeries,
@@ -1037,7 +1039,7 @@ function RailList({
                   <span className="mr-2 text-amber">Stn {m.station}</span>
                 ) : null}
                 {kind === "next"
-                  ? formatTime(m.scheduled_start, tz)
+                  ? formatWhen(m.scheduled_start, tz)
                   : formatTime(m.ended_at, tz)}
               </span>
             </div>
@@ -1104,7 +1106,7 @@ function NothingLive({
             {name(next.team_b_id, next.b_from)}
           </div>
           <div className="text-lg text-muted">
-            Next match at {formatTime(next.scheduled_start, tz)}
+            Next match {isLaterDay(next.scheduled_start, tz) ? '' : 'at '}{formatWhen(next.scheduled_start, tz)}
           </div>
         </>
       ) : (

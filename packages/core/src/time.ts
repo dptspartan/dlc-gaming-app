@@ -100,6 +100,26 @@ export function formatClock(hhmm: string): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
+/**
+ * A start time that says its day when it isn't today: "5:30 PM",
+ * "Tomorrow 5:30 PM" or "Thu 29 Oct 5:30 PM". Matches moved to another day
+ * would otherwise look like today's.
+ */
+export function formatWhen(iso: string | number | Date | null | undefined, timeZone: string, now: number = Date.now()): string {
+  if (iso == null) return 'TBD';
+  const time = formatTime(iso, timeZone);
+  const day = zonedDate(iso, timeZone);
+  const today = zonedDate(now, timeZone);
+  if (day === today) return time;
+  if (day === addDays(today, 1)) return `Tomorrow ${time}`;
+  return `${formatDay(iso, timeZone)} ${time}`;
+}
+
+/** Whether an instant falls on a later event-local day than now. */
+export function isLaterDay(iso: string | number | Date | null | undefined, timeZone: string, now: number = Date.now()): boolean {
+  return iso != null && zonedDate(iso, timeZone) > zonedDate(now, timeZone);
+}
+
 export function formatDay(iso: string | number | Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(iso));
 }

@@ -1,8 +1,8 @@
-import { formatTime, stationBoard, stationLabel, type Match } from '@dlc/core';
+import { formatWhen, stationBoard, stationLabel, type Match } from '@dlc/core';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
-import { callableAt, describe, teamName } from '../../components/station';
+import { callableAt, describe, laterDay, teamName } from '../../components/station';
 import { Button, CallCountdown, colors, Elapsed, ErrorText, Screen, styles } from '../../components/ui';
 import { callMatch, holdMatch, startMatch, uncallMatch } from '../../lib/actions';
 import { useTournament } from '../../lib/useTournament';
@@ -23,7 +23,8 @@ export default function StationScreen() {
   const callable = callableAt(data, station);
   const plannedHere = s.queue;
   const elsewhere = callable.filter((c) => c.station !== station);
-  const next = plannedHere.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id) ?? callable[0];
+  // A match moved to a later day isn't offered as the next call today.
+  const next = plannedHere.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && !laterDay(data, q)) ?? callable.find((q) => !laterDay(data, q));
   const tz = t.timezone;
   const name = (id: string | null) => teamName(data, id);
 
@@ -46,7 +47,7 @@ export default function StationScreen() {
         <Text style={[styles.text, { fontWeight: '800', flex: 1 }]}>
           {name(q.team_a_id)} <Text style={{ color: colors.muted }}>vs</Text> {name(q.team_b_id)}
         </Text>
-        <Text style={{ color: colors.ember, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{formatTime(q.scheduled_start, tz)}</Text>
+        <Text style={{ color: colors.ember, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{formatWhen(q.scheduled_start, tz)}</Text>
       </View>
       <Text style={styles.muted}>
         {describe(data, q)}
