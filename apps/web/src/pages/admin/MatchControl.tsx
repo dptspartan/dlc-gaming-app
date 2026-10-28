@@ -18,7 +18,7 @@ import {
   type Team,
 } from '@dlc/core';
 import { Avatar, Button, CallCountdown, Elapsed, ErrorNote, Field, StatusPill } from '../../components/ui';
-import { callMatch, endMatch, endOnPenalties, reopenMatch, replacePlayer, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
+import { callMatch, endMatch, endOnPenalties, okToCall, reopenMatch, replacePlayer, scorePoint, startMatch, uncallMatch } from '../../lib/admin';
 import { supabase, uploadImage } from '../../lib/supabase';
 
 interface Props {
@@ -217,7 +217,7 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
 
         <div className="sheet-actions mt-5 flex flex-wrap gap-2">
           {match.status === 'ready' && match.station && a && b && (
-            <Button disabled={busy} onClick={() => run(() => callMatch(match, match.station!))}>
+            <Button disabled={busy} onClick={() => okToCall(match, timeZone) && run(() => callMatch(match, match.station!))}>
               Call players to station {match.station}
             </Button>
           )}

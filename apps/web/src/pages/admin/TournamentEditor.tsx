@@ -13,6 +13,7 @@ import {
   matchLabel,
   parseFixturesCsv,
   stationBoard,
+  stationLabel,
   ROUND_LABEL,
   zonedToUtc,
   type ParsedFixtures,
@@ -38,6 +39,7 @@ import {
   applyPlan,
   buildKnockout,
   callMatch,
+  okToCall,
   generateFixtures,
   groupQualifiers,
   moveMatch,
@@ -166,12 +168,14 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
   // A match moved to a later day isn't offered as the next call today.
   const today = (q: Match) => !isLaterDay(q.scheduled_start, tournament.timezone);
   // Each free station suggests its own next match, so two stations never offer the same one.
+  // A station's own queue comes first; only then does an empty station borrow another station's match.
   const suggested = new Map<number, Match>();
   const taken = new Set<string>();
-  for (const s of stationBoard(matches, tournament.stations)) {
-    if (s.current) continue;
-    const free = (q: Match) => today(q) && !taken.has(q.id);
-    const pick = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && free(q)) ?? callable(s.station).find(free);
+  const free = stationBoard(matches, tournament.stations).filter((s) => !s.current);
+  const avail = (q: Match) => today(q) && !taken.has(q.id);
+  for (const own of [true, false]) for (const s of free) {
+    if (suggested.has(s.station)) continue;
+    const pick = own ? s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && avail(q)) : callable(s.station).find(avail);
     if (pick) {
       suggested.set(s.station, pick);
       taken.add(pick.id);
@@ -209,6 +213,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         {next ? (
           <Button disabled={busy} onClick={() => act(() => callMatch(next, s.station))} className="w-full">
             Call {name(next.team_a_id, next.a_from)} v {name(next.team_b_id, next.b_from)}
+            {next.station && next.station !== s.station ? ` (moves from ${stationLabel(next)})` : ''}
           </Button>
         ) : (
           <span className="text-sm text-muted">No match ready for this station.</span>
@@ -220,14 +225,14 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
             disabled={busy}
             onChange={(e) => {
               const pick = data.matches.get(e.target.value);
-              if (pick) void act(() => callMatch(pick, s.station));
+              if (pick && okToCall(pick, tournament.timezone)) void act(() => callMatch(pick, s.station));
             }}
           >
             <option value="">Call a different match…</option>
             {options.map((o) => (
               <option key={o.id} value={o.id}>
                 {gameName(o)}: {name(o.team_a_id, o.a_from)} v {name(o.team_b_id, o.b_from)}
-                {today(o) ? '' : ` (${formatWhen(o.scheduled_start, tournament.timezone)})`}
+                {` (${formatWhen(o.scheduled_start, tournament.timezone)}${o.station && o.station !== s.station ? `, ${stationLabel(o)}` : ''})`}
               </option>
             ))}
           </select>
@@ -305,9 +310,9 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
       <div>
         <h2 className="mb-1 text-lg font-bold">Timetable</h2>
         <p className="mb-3 text-sm text-muted">
-          Earlier and Later swap a queued match with the one next to it; everything else moves round it, and rebuilds keep the new order. A match can't
-          go before its players are free or before the round it waits for. Swapping with a match that has a fixtures sheet time swaps the times too.
-          Reschedule gives a match a set start time (today or another day) and moves the other matches round it.
+          <b className="text-ink">Earlier</b> and <b className="text-ink">Later</b> swap a match with the one next to it (sheet times swap too).{' '}
+          <b className="text-ink">Reschedule</b> gives it a set time, today or another day. The other matches move round it, and no match starts
+          before its players are free.
         </p>
         {moveError && (
           <div className="mb-3">
@@ -1353,7 +1358,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
             <span className="flex-1" />
             <span className="text-sm text-muted">
               {teams.length} entrants · {tg.stations_required > 1 ? `${tg.stations_required} stations per match · ` : ''}
-              {tg.match_minutes}+{tg.buffer_minutes} min
+              {tg.match_minutes} min a match{tg.buffer_minutes ? ` + ${tg.buffer_minutes} min setup` : ''}
             </span>
           </div>
           {hasGroups && (

@@ -1,4 +1,4 @@
-import { feederMatch, formatDay, formatTime, knockoutRounds, matchLabel, sideOrContenders, type Match, type Slot, type Team } from '@dlc/core';
+import { feederMatch, feederSides, formatDay, formatTime, knockoutRounds, matchLabel, sideName, type Match, type Slot, type Team } from '@dlc/core';
 import { Avatar, Empty, StatusPill } from './ui';
 
 export function ScheduleList({
@@ -28,11 +28,11 @@ export function ScheduleList({
     days.set(key, [...(days.get(key) ?? []), m]);
   }
   const team = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : null);
-  const name = (m: Match, slot: Slot) => sideOrContenders(m, slot, matches, team);
-  // A side still waiting on another match: muted, with that match's code on hover.
+  const name = (m: Match, slot: Slot) => sideName(m, slot, team(slot === 'a' ? m.team_a_id : m.team_b_id));
+  // A side still waiting on another match: muted, with who can still take it on hover.
   const side = (m: Match, slot: Slot) => {
     const feeder = feederMatch(m, slot, matches);
-    return feeder ? { className: 'italic text-muted', title: `Winner of ${feeder.match_code}` } : {};
+    return feeder ? { className: 'italic text-muted', title: feederSides(feeder, team) } : {};
   };
 
   return (

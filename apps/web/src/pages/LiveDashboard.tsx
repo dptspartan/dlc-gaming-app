@@ -1040,7 +1040,7 @@ function RailList({
                 ) : null}
                 {kind === "next"
                   ? formatWhen(m.scheduled_start, tz)
-                  : formatTime(m.ended_at, tz)}
+                  : formatWhen(m.ended_at, tz)}
               </span>
             </div>
             {kind === "result" ? (
