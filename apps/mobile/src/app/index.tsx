@@ -1,8 +1,8 @@
 import { formatClock, type Tournament } from '@dlc/core';
-import { Link, Redirect, Stack } from 'expo-router';
+import { Link, Redirect, Stack, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { colors, ErrorText, Pill, Screen, styles } from '../components/ui';
+import { Button, colors, ErrorText, Pill, Screen, styles } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 
@@ -46,7 +46,16 @@ export default function Tournaments() {
         keyExtractor={(t) => t.id}
         contentContainerStyle={{ padding: 16, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.ember} />}
-        ListEmptyComponent={<Text style={styles.muted}>No tournaments yet. Create one on the web admin.</Text>}
+        ListEmptyComponent={<Text style={styles.muted}>No tournaments yet. Create one below.</Text>}
+        ListFooterComponent={
+          <View style={{ gap: 10, marginTop: 8 }}>
+            <Button title="New tournament" onPress={() => router.push('/new')} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button title="Game catalog" variant="ghost" style={{ flex: 1 }} onPress={() => router.push('/catalog')} />
+              <Button title="Admins" variant="ghost" style={{ flex: 1 }} onPress={() => router.push('/admins')} />
+            </View>
+          </View>
+        }
         renderItem={({ item }) => (
           <Link href={{ pathname: '/t/[id]', params: { id: item.id } }} asChild>
             <Pressable style={[styles.card, item.status === 'live' && styles.cardLive]}>

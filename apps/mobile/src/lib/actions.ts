@@ -18,6 +18,7 @@ export async function refreshTimetable(tournamentId: string) {
   const iso = (ms: number) => new Date(ms).toISOString();
   const items = result.slots.map((s) => ({ id: s.id, station: s.station, stations: s.stations, scheduled_start: iso(s.start), scheduled_end: iso(s.end) }));
   if (items.length) await rpc('update_schedule', { p_items: items });
+  return result;
 }
 
 async function thenReflow<T>(tournamentId: string, action: Promise<T>): Promise<T> {
@@ -38,6 +39,9 @@ export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('star
 /** Ends the leg being played (the match, for a single game); a walkover hands over the whole series. */
 export const endMatch = (m: MatchRef, winnerId: string | null, walkover = false) =>
   thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
+/** End a level score match (or leg) on penalties: the higher shoot-out score wins. */
+export const endOnPenalties = (m: MatchRef, penA: number, penB: number) =>
+  thenReflow(m.tournament_id, rpc('end_on_penalties', { p_match_id: m.id, p_pen_a: penA, p_pen_b: penB }));
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
 /** Any amount in a score game (+50 kills), one round at a time in a rounds game. */
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: number) {

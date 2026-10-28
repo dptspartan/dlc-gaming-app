@@ -1,12 +1,13 @@
-import { currentLeg, isSeries, knockoutRounds, leader, legGameId, matchLabel, roundsToWin, scoreSteps, scoreUnit, scoringLabel, stationLabel } from '@dlc/core';
+import { allowsPenalties, currentLeg, isSeries, lineupEditable, knockoutRounds, leader, legGameId, matchLabel, roundsToWin, scoreSteps, scoreUnit, scoringLabel, stationLabel } from '@dlc/core';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ChangePlayers, Penalties } from '../../components/lineup';
 import { RescheduleCard } from '../../components/reschedule';
 import { confirmCall } from '../../components/station';
 import { Avatar, Button, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
-import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/actions';
+import { callMatch, endMatch, endOnPenalties, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/actions';
 import { supabase, uploadLocalImage } from '../../lib/supabase';
 import { useTournament } from '../../lib/useTournament';
 
@@ -39,6 +40,7 @@ export default function MatchControl() {
   const sb = match.score_b ?? 0;
   const need = scoring === 'rounds' && game?.best_of ? roundsToWin(game.best_of) : 0;
   const ahead = game ? leader(game, sa, sb) : null;
+  const pens = allowsPenalties(game);
 
   const run = async (label: string, fn: () => Promise<unknown>, after?: () => void) => {
     setBusy(label);
@@ -156,6 +158,7 @@ export default function MatchControl() {
             {match.legs.map((l, i) => (
               <Text key={i} style={styles.muted}>
                 Leg {i + 1} · {data.games.get(l.game_id)?.name ?? ''} · {data.teams.get(l.winner_id)?.name ?? '?'} won{l.score_a != null ? ` ${l.score_a}–${l.score_b}` : ''}
+                {l.pen_a != null ? ` (${l.pen_a}–${l.pen_b} pens)` : ''}
               </Text>
             ))}
           </View>
@@ -174,6 +177,7 @@ export default function MatchControl() {
             <Text style={{ color: colors.text, fontSize: 64, fontWeight: '900', fontVariant: ['tabular-nums'], textShadowColor: colors.ember, textShadowRadius: 18 }}>
               {sa} <Text style={{ color: colors.flame }}>:</Text> {sb}
             </Text>
+            {match.pen_a != null && <Text style={[styles.muted, { fontWeight: '800', marginTop: -8 }]}>{match.pen_a}–{match.pen_b} pens</Text>}
             {canEnd && (
               <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
                 {(['a', 'b'] as const).map((sd) => {
@@ -251,11 +255,25 @@ export default function MatchControl() {
         )}
         {canEnd && scoring === 'goals' && (
           <Button
-            title={!ahead ? `Level, add the deciding ${game ? scoreUnit(game, 1).toLowerCase() : 'point'}` : series ? `End leg ${leg + 1}` : 'End match'}
+            title={
+              !ahead
+                ? `Level, add the deciding ${game ? scoreUnit(game, 1).toLowerCase() : 'point'}${pens && match.status === 'live' ? ' or use penalties' : ''}`
+                : series
+                  ? `End leg ${leg + 1}`
+                  : 'End match'
+            }
             variant="success"
             disabled={!ahead}
             busy={busy === 'end'}
             onPress={confirmEnd}
+          />
+        )}
+        {canEnd && pens && sa === sb && match.status === 'live' && (
+          <Penalties
+            names={[a!.name, b!.name]}
+            label={series ? `leg ${leg + 1}` : 'match'}
+            busy={busy === 'pens'}
+            onFinish={(pa, pb) => run('pens', () => endOnPenalties(match, pa, pb), series ? undefined : () => router.back())}
           />
         )}
         {canEnd && (
@@ -272,6 +290,7 @@ export default function MatchControl() {
         {match.status === 'completed' && !match.is_bye && <Button title="Reopen result" variant="danger" busy={busy === 'reopen'} onPress={confirmReopen} />}
         {match.status === 'pending' && <Text style={styles.muted}>Waiting for the earlier matches to finish.</Text>}
         {(match.status === 'pending' || match.status === 'ready') && !match.is_bye && data.tournament && <RescheduleCard data={data} match={match} />}
+        {lineupEditable(match) && <ChangePlayers match={match} data={data} busy={!!busy} run={run} />}
 
         <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16, gap: 10 }}>
           <Text style={styles.label}>Match photo</Text>
