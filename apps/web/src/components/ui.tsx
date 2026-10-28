@@ -114,13 +114,14 @@ export function CallCountdown({ calledAt, minutes, className = '' }: { calledAt:
 }
 
 /** A row of tabs. */
-export function Tabs<K extends string>({ tabs, value, onChange }: { tabs: [K, ReactNode][]; value: K; onChange: (k: K) => void }) {
+export function Tabs<K extends string>({ tabs, value, onChange, className = '' }: { tabs: [K, ReactNode][]; value: K; onChange: (k: K) => void; className?: string }) {
   return (
-    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
+    <div className={`mb-6 flex gap-1 overflow-x-auto border-b border-line ${className}`}>
       {tabs.map(([k, label]) => (
         <button
           key={k}
           onClick={() => onChange(k)}
+          aria-current={value === k ? 'page' : undefined}
           className={`tab -mb-px shrink-0 border-b-2 px-3 pb-2.5 text-sm font-semibold whitespace-nowrap ${
             value === k ? 'border-ember text-ink' : 'border-transparent text-muted hover:text-ink'
           }`}

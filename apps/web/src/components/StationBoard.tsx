@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { formatTime, knockoutRounds, matchLabel, stationBoard, stationLabel, type Match, type StationState, type Team } from '@dlc/core';
+import { feederMatch, feederSides, formatWhen, knockoutRounds, matchLabel, sideName, stationBoard, stationLabel, type Match, type StationState, type Team } from '@dlc/core';
 import { Avatar, CallCountdown, Elapsed } from './ui';
 
 interface Props {
@@ -25,15 +25,16 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
   const board = stationBoard(matches, stations);
   const rounds = knockoutRounds(matches);
   const label = (m: Match) => `${gameName(m)} · ${matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}`;
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const team = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : null);
+  const name = (m: Match, slot: 'a' | 'b') => sideName(m, slot, team(slot === 'a' ? m.team_a_id : m.team_b_id));
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {board.map((s) => {
         const m = s.current;
         const tone = m?.status === 'live' ? 'neon-live' : m?.status === 'called' ? 'neon-called' : '';
         return (
-          <div key={s.station} className={`station-card panel flex flex-col p-4 ${tone}`}>
+          <div key={s.station} className={`station-card panel flex min-w-0 flex-col p-4 ${tone}`}>
             <div className="mb-3 flex items-baseline justify-between gap-2">
               <div className="station-number font-display text-2xl font-black">
                 <span className="text-muted">#</span>
@@ -59,7 +60,7 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
                   {m.best_of > 1 ? ` · Bo${m.best_of} (${m.series_a}–${m.series_b})` : ''}
                   {(m.stations?.length ?? 0) > 1 ? ` · ${stationLabel(m)}` : ''}
                 </div>
-                <Versus a={name(m.team_a_id, m.a_from)} b={name(m.team_b_id, m.b_from)} aLogo={teams.get(m.team_a_id ?? '')?.logo_url} bLogo={teams.get(m.team_b_id ?? '')?.logo_url} score={m.status === 'live' && m.score_a != null ? `${m.score_a ?? 0} : ${m.score_b ?? 0}` : null} />
+                <Versus a={name(m, 'a')} b={name(m, 'b')} aLogo={teams.get(m.team_a_id ?? '')?.logo_url} bLogo={teams.get(m.team_b_id ?? '')?.logo_url} score={m.status === 'live' && m.score_a != null ? `${m.score_a ?? 0} : ${m.score_b ?? 0}` : null} />
               </button>
             ) : (
               <div className="mb-3 rounded-xl border border-dashed border-line p-3 text-center text-sm text-muted">Free</div>
@@ -73,9 +74,9 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
               <ul className="flex flex-col gap-1">
                 {s.queue.slice(0, upNext).map((q) => (
                   <li key={q.id} className="flex items-center gap-2 text-sm">
-                    <span className="w-16 shrink-0 font-mono whitespace-nowrap text-ember">{formatTime(q.scheduled_start, timeZone)}</span>
+                    <span className="min-w-[4.75rem] shrink-0 font-mono whitespace-nowrap text-ember">{formatWhen(q.scheduled_start, timeZone)}</span>
                     <span className="min-w-0 flex-1 truncate" title={label(q)}>
-                      <span className="text-muted">{gameName(q)}</span> {name(q.team_a_id, q.a_from)} <span className="text-muted">v</span> {name(q.team_b_id, q.b_from)}
+                      <span className="text-muted">{gameName(q)}</span> {name(q, 'a')} <span className="text-muted">v</span> {name(q, 'b')}
                     </span>
                     {queueActions?.(q, s)}
                   </li>
@@ -125,7 +126,8 @@ export function Timetable({
   const list = matches
     .filter((m) => !m.is_bye && m.status !== 'completed')
     .sort((a, b) => order(a) - order(b) || (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9') || (a.station ?? 99) - (b.station ?? 99));
-  const name = (id: string | null, from?: string | null) => (id ? teams.get(id)?.name ?? '?' : from ? `Winner ${from}` : 'TBD');
+  const team = (id: string | null) => (id ? teams.get(id)?.name ?? '?' : null);
+  const name = (m: Match, slot: 'a' | 'b') => sideName(m, slot, team(slot === 'a' ? m.team_a_id : m.team_b_id));
   if (list.length === 0) return <div className="py-8 text-center text-muted">Every match has been played.</div>;
   return (
     <div className="timetable glass-card overflow-x-auto">
@@ -137,26 +139,33 @@ export function Timetable({
             <th className="px-3 py-2 font-semibold">Game</th>
             <th className="px-3 py-2 font-semibold">Match</th>
             <th className="px-3 py-2 font-semibold">Status</th>
-            {actions && <th className="px-3 py-2 font-semibold">Order</th>}
+            {actions && <th className="px-3 py-2 font-semibold">Move</th>}
           </tr>
         </thead>
         <tbody>
           {list.map((m) => (
             <tr key={m.id} className={`border-b border-line/50 last:border-0 ${m.status === 'live' ? 'bg-flame/5' : m.status === 'called' ? 'bg-gold/5' : ''}`}>
-              <td className="px-3 py-2 font-mono text-ember">{m.status === 'live' ? 'now' : formatTime(m.scheduled_start, timeZone)}</td>
+              <td className="px-3 py-2 font-mono whitespace-nowrap text-ember">
+                {m.status === 'live' ? 'now' : formatWhen(m.scheduled_start, timeZone)}
+                {actions && m.time_locked && (m.status === 'pending' || m.status === 'ready') && (
+                  <span className="ml-1 font-sans text-xs text-gold" title="Set with Reschedule: rebuilds keep it at this time">
+                    set time
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2 font-semibold whitespace-nowrap">{stationLabel(m) || '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap">
                 {gameName(m)}{' '}
                 <span className="text-sm text-muted">
-                  · {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
+                  {m.match_code ? `· ${m.match_code} ` : ''}· {matchLabel(m, rounds.get(m.tournament_game_id) ?? m.round)}
                   {m.best_of > 1 ? ` · best of ${m.best_of}` : ''}
                 </span>
               </td>
               <td className="px-3 py-2">
-                {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span> {name(m.team_b_id, m.b_from)}
+                <Side m={m} slot="a" matches={matches} name={name} team={team} /> <span className="text-muted">vs</span> <Side m={m} slot="b" matches={matches} name={name} team={team} />
               </td>
               <td className={`px-3 py-2 text-sm whitespace-nowrap ${m.status === 'live' ? 'text-flame' : m.status === 'called' ? 'text-gold' : 'text-muted'}`}>
-                {m.status === 'live' ? 'Live' : m.status === 'called' ? 'Players called' : m.status === 'ready' ? 'Queued' : 'Waiting for teams'}
+                {m.status === 'live' ? 'Live' : m.status === 'called' ? 'Players called' : m.status === 'ready' ? 'Ready' : 'Waiting for teams'}
               </td>
               {actions && <td className="px-3 py-2 whitespace-nowrap">{actions(m)}</td>}
             </tr>
@@ -168,3 +177,14 @@ export function Timetable({
 }
 
 const order = (m: Match) => (m.status === 'live' ? 0 : m.status === 'called' ? 1 : 2);
+
+/** A timetable side; one still waiting on another match is muted, with who can still take it on hover. */
+function Side({ m, slot, matches, name, team }: { m: Match; slot: 'a' | 'b'; matches: Match[]; name: (m: Match, slot: 'a' | 'b') => string; team: (id: string | null) => string | null }) {
+  const feeder = feederMatch(m, slot, matches);
+  if (!feeder) return <>{name(m, slot)}</>;
+  return (
+    <span className="text-muted italic" title={feederSides(feeder, team)}>
+      {name(m, slot)}
+    </span>
+  );
+}

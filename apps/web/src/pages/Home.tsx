@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addDays, formatClock, type Tournament } from '@dlc/core';
 import { Layout } from '../components/Layout';
+import { FindMatches } from '../components/FindMatches';
 import { Empty, ErrorNote, Heading } from '../components/ui';
+import { useLiveData } from '../lib/useLiveData';
 import { must, supabase } from '../lib/supabase';
 
 export function Home() {
@@ -18,6 +20,9 @@ export function Home() {
       .then((r) => setList(must(r) as Tournament[]))
       .then(undefined, (e: Error) => setError(e.message));
   }, []);
+
+  // The event players are looking for: the live one, else the next to start.
+  const current = list?.find((t) => t.status === 'live') ?? list?.filter((t) => t.status === 'scheduled').sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
 
   const groups: [string, Tournament[]][] = [
     ['Live now', list?.filter((t) => t.status === 'live') ?? []],
@@ -45,6 +50,7 @@ export function Home() {
           <span className="live-dot" /> Watch live
         </Link>
       </section>
+      {current && <HomeFind tournament={current} />}
       <ErrorNote message={error} />
       {list && list.length === 0 && <Empty>No tournaments yet. Check back soon.</Empty>}
       {groups.map(
@@ -79,5 +85,16 @@ export function Home() {
           ),
       )}
     </Layout>
+  );
+}
+
+/** Search the current event's fixtures from the home page. */
+function HomeFind({ tournament }: { tournament: Tournament }) {
+  const { data } = useLiveData({ tournamentId: tournament.id });
+  return (
+    <section className="mb-10">
+      <h2 className="mb-3 text-sm font-semibold tracking-wider text-muted uppercase">Find your matches · {tournament.name}</h2>
+      <FindMatches data={data} timeZone={tournament.timezone} />
+    </section>
   );
 }

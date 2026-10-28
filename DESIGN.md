@@ -50,8 +50,18 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 - **Meta chips:** outlined pills in Barlow Condensed for format, duration, stations and player count.
 - **Champion poster:** a cream paper banner with a red CHAMPION tape, the name in big Anton, the trophy sticker on the left and the mascot on the right.
 - **Byes:** a faint dashed slot with no paper header. A bye is a placeholder, not a match.
+- **Find my matches** (event page and home): a search box (cream in dlc-labs), name chips as you type, then a cream "ticket" with the player's name in Anton and their live or next match big (time, station, game, opponent). Their other matches follow in time order, with results ("Won 1–1 (4–3 pens)") and the matches they reach if they win. The pick is kept in the URL (`?player=`) so it can be shared.
+- **Results:** a score reads "3–1", or "1–1 (4–3 pens)" when it went to penalties (`scoreLine` in core). Bracket rows show each side's penalties in brackets after its score.
 - **Buttons:** primary is solid red; secondary is surface with a line border; ghost is text-only. 6px radius. No gradients.
 - **Badges:** pill with a 1.5px border. LIVE is a solid red fill with a white dot.
+
+## Admin
+- **Who and where:** organisers, mostly on a phone at the venue. Phone-first: one column, 44px+ tap targets, actions in thumb reach; desktop gets the same layout, wider.
+- **Getting there:** the public never sees an admin link. An organiser signed in on the device gets an **Admin** pill in the site header and on the live board; everyone else gets a quiet **Organisers** footer link to sign-in. During an event, `/admin` opens the running event directly (`?list` shows all events).
+- **Navigation:** **Today · Stations · Setup**, a bottom tab bar on phones. Setup holds Games & players, Fixtures, Station staff and Details.
+- **Today board:** every match of the picked day across all games: **Now** (live, then called), **Up next** (by time) and **Done** (latest first). Sticky search (player or match ID), day chips, game chips and status chips. A row: time in Anton, a paper station chip, game and round, both players, and a tape (Live + score, Called + countdown, Ready, Waiting) or the result. Tapping a row opens the match sheet.
+- **Match sheet:** a bottom sheet on phones, a dialog on desktop. A level goals match can be finished on penalties: both shoot-out scores, the higher one wins and moves on.
+- **Type:** Inter for admin text (readable at a glance), Anton for times and big numbers; red only for live and actions.
 
 ## Spacing
 - **Base unit:** 4px. **Density:** comfortable on web, spacious on the live board.
@@ -74,6 +84,9 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-25 | Anton + Barlow Condensed, loaded from Google Fonts | Impact and Arial Narrow aren't on most phones, and the Orbitron / Share Tech Mono leftovers from classic read as sci-fi rather than the zine brand. |
 | 2026-10-25 | Live board sized to the viewport | Scores were about 40px on a 1080p TV, too small to read across the venue. |
 | 2026-10-25 | Cup page: game picker cards, paper view switch, champion poster, ghost byes | The controls stacked four rows deep with red on secondary navigation, and the champion got the least design on the page. |
+| 2026-10-27 | Admin: Today board, phone-first, signed-in Admin pill; spectator "Find my matches"; penalties | Organisers check "what's next and where" on a phone at the venue; players need their own schedule in one tap; level FC matches had no way to finish. |
 | 2026-10-25 | dlc-labs is the default theme | Classic is opt-in from the switch; only an explicit pick is stored (`dlc-theme-choice`). |
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |
 | 2026-10-26 | Credits box: red "Powered by" tape, one section per person (name, grey employee id, GitHub and Slack buttons), fixed bottom-right on laptops, at the end of the page on phones, in the rail on the live board | The old one-line credit was hard to read and covered content on phones. |
+| 2026-10-27 | Claude (#GOAT5789) back in the credits box, as a last section with no buttons | The old "Powered by Claude" line went away when the box replaced it. |
+| 2026-10-28 | Credits box: public pages keep it fixed bottom-right, with a right gutter on the page content so nothing sits under it; admin pages put it at the end of the page | On laptops the fixed box covered names, statuses and controls. Approved by shoaib. |

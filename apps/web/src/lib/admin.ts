@@ -1,5 +1,7 @@
 import {
   fixtureNotBefore,
+  formatWhen,
+  isLaterDay,
   fixtureOrder,
   generateGroupStage,
   groupStandings,
@@ -7,10 +9,11 @@ import {
   knockoutFromQualifiers,
   moveInQueue,
   qualifiers,
-  scheduleTournament,
+  tournamentTimetable,
   seriesFor,
   timetableOptions,
   ROUND_NUMBER,
+  type DayHours,
   type FixtureRow,
   type Game,
   type Match,
@@ -109,7 +112,7 @@ export async function generateFixtures(
     drafts = knockoutFor(entrants, { double: tg.plan?.double_elim });
   }
   const rows = queued(tg, drafts);
-  const result = scheduleTournament([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_groups: groups ?? null });
   await saveSlots(result, new Set(others.map((m) => m.id)));
   return result;
@@ -162,7 +165,7 @@ export async function buildKnockout(
   if (through.length < 2) throw new Error('At least two teams need to go through to play a knockout');
   const rows = queued(tg, knockoutFromQualifiers(through, { double: tg.plan?.double_elim }));
   const keep = allMatches.filter((m) => m.tournament_game_id !== tg.id || m.stage === 'group');
-  const result = scheduleTournament([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_stage: 'knockout' });
   await saveSlots(result, new Set(keep.map((m) => m.id)));
   return result;
@@ -170,7 +173,7 @@ export async function buildKnockout(
 
 /** Rebuild the whole timetable from now: every queued match gets a station and a time. */
 export async function reflowTournament(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): Promise<TimetableResult> {
-  const result = scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable(matches, timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await saveSlots(result);
   return result;
 }
@@ -220,6 +223,8 @@ function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamNa
       return `${head}: ${teamName(stuck.teamId)} is still playing in the match before it.`;
     case 'station':
       return `${head}: its fixtures sheet puts it on station ${stuck.station}, which is busy until then.`;
+    case 'set_time':
+      return `${head}: it has a set time. Use Reschedule to change or clear it.`;
     default:
       return `${head}: no other match can swap places with it.`;
   }
@@ -227,7 +232,7 @@ function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamNa
 
 /** How the queued matches fit, without saving anything. */
 export function previewTimetable(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): TimetableResult {
-  return scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
+  return tournamentTimetable(matches, timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
 }
 
 /** Run a match action, then rebuild the timetable so the queue moves on. */
@@ -241,6 +246,10 @@ async function thenReflow<T>(tournamentId: string, action: Promise<T>): Promise<
   return out;
 }
 
+/** Calling a match planned for a later day is allowed, but asks first so it isn't done by mistake. */
+export const okToCall = (m: Pick<Match, 'scheduled_start'>, timeZone: string) =>
+  !isLaterDay(m.scheduled_start, timeZone) || confirm(`This match is planned for ${formatWhen(m.scheduled_start, timeZone)}. Call it now anyway?`);
+
 export const callMatch = (m: Pick<Match, 'id' | 'tournament_id'>, station: number) =>
   thenReflow(m.tournament_id, rpc('call_match', { p_match_id: m.id, p_station: station }));
 /** Back to the queue; a delay keeps it out of the way so the next match goes first. */
@@ -248,6 +257,25 @@ export const uncallMatch = (m: Pick<Match, 'id' | 'tournament_id'>, delayMinutes
   thenReflow(m.tournament_id, rpc('uncall_match', { p_match_id: m.id, p_delay_minutes: delayMinutes }));
 export const holdMatch = (m: Pick<Match, 'id' | 'tournament_id'>, until: Date | null) =>
   thenReflow(m.tournament_id, rpc('hold_match', { p_match_id: m.id, p_not_before: until?.toISOString() ?? null }));
+/** Give a queued match a set start time (null: back to the usual order); the timetable moves the other matches round it. */
+export const rescheduleMatch = (m: Pick<Match, 'id' | 'tournament_id'>, at: Date | null) =>
+  thenReflow(m.tournament_id, rpc('reschedule_match', { p_match_id: m.id, p_at: at?.toISOString() ?? null }));
+
+/** Change one day's hours (null: back to the daily hours), then rebuild the timetable so the rest of the day fits. */
+export async function setDayHours(t: Pick<Tournament, 'id' | 'day_hours'>, date: string, hours: DayHours | null) {
+  const day_hours = { ...(t.day_hours ?? {}) };
+  if (hours) day_hours[date] = hours;
+  else delete day_hours[date];
+  must(await supabase.from('tournaments').update({ day_hours }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
+/** One more tournament day, for matches that don't fit the last one. */
+export async function addTournamentDay(t: Pick<Tournament, 'id' | 'days'>) {
+  must(await supabase.from('tournaments').update({ days: t.days + 1 }).eq('id', t.id));
+  return refreshTimetable(t.id);
+}
+
 export const listAdmins = async () => (await rpc('list_admins', {})) as { user_id: string; email: string }[];
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;
@@ -259,6 +287,9 @@ export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('star
  */
 export const endMatch = (m: MatchRef, winnerId: string | null = null, walkover = false) =>
   thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
+/** End a level goals match (or leg) on penalties: the higher shoot-out score wins. */
+export const endOnPenalties = (m: MatchRef, penA: number, penB: number) =>
+  thenReflow(m.tournament_id, rpc('end_on_penalties', { p_match_id: m.id, p_pen_a: penA, p_pen_b: penB }));
 /** A best-of match ends by itself on the deciding round; the queue moves on then. */
 export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;
@@ -266,6 +297,19 @@ export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
   return out;
 }
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
+/**
+ * Put a player into one side of a match that has not started. A late sign-up
+ * takes the place; a player still waiting for their first match swaps with the
+ * one who was there.
+ */
+export const replacePlayer = (m: MatchRef, slot: Slot, teamId: string) =>
+  thenReflow(m.tournament_id, rpc('replace_player', { p_match_id: m.id, p_slot: slot, p_team_id: teamId }));
+/**
+ * Take a player out of a game after the fixtures are out. Their matches still
+ * to play go to the replacement, or wait with an empty side when there is none.
+ */
+export const withdrawPlayer = (tournamentId: string, teamId: string, replacementId: string | null) =>
+  thenReflow(tournamentId, rpc('withdraw_player', { p_team_id: teamId, p_replacement_id: replacementId }));
 export const swapSlots = (a: { matchId: string; slot: Slot }, b: { matchId: string; slot: Slot }) =>
   rpc('swap_slots', { p_match_a: a.matchId, p_slot_a: a.slot, p_match_b: b.matchId, p_slot_b: b.slot });
 

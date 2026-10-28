@@ -4,8 +4,8 @@ interface Credit {
   name: string;
   /** Employee id. */
   employeeId: string;
-  github: string;
-  slack: string;
+  github?: string;
+  slack?: string;
 }
 
 const CREDITS: Credit[] = [
@@ -27,6 +27,7 @@ const CREDITS: Credit[] = [
     github: 'https://github.com/zainuamalik',
     slack: 'https://dubizzle.slack.com/team/U08K2JUEXU2',
   },
+  { name: 'Claude', employeeId: 'GOAT5789' },
 ];
 
 const githubIcon = (
@@ -41,12 +42,12 @@ const slackIcon = (
   </svg>
 );
 
-/** The people behind the app. `inline` sits in a layout (the live board rail); otherwise it is the corner box. */
-export function Credits({ inline = false }: { inline?: boolean }) {
+/** The people behind the app. `inline` sits in a layout (the live board rail), `end` closes the page (admin); otherwise it is the corner box. */
+export function Credits({ inline = false, end = false }: { inline?: boolean; end?: boolean }) {
   return (
     <aside
       aria-label="Powered by"
-      className={`credits-box panel neon-gold px-4 py-3 ${inline ? 'credits-inline mt-auto' : 'credits-corner'}`}
+      className={`credits-box panel neon-gold px-4 py-3 ${inline ? 'credits-inline mt-auto' : end ? 'credits-end' : 'credits-corner'}`}
     >
       <div className="credits-title hud mb-2 text-xs text-flame glow-flame">Powered by</div>
       <ul className="credits-list">
@@ -56,16 +57,22 @@ export function Credits({ inline = false }: { inline?: boolean }) {
               <span className="credits-name font-display text-sm font-bold whitespace-nowrap text-ink">{c.name}</span>
               <span className="credits-id font-mono text-[10px] text-muted">#{c.employeeId}</span>
             </div>
-            <div className="credits-links mt-1 flex gap-1.5">
-              <a className="credits-link" href={c.github} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on GitHub`}>
-                {githubIcon}
-                GitHub
-              </a>
-              <a className="credits-link" href={c.slack} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on Slack`}>
-                {slackIcon}
-                Slack
-              </a>
-            </div>
+            {(c.github || c.slack) && (
+              <div className="credits-links mt-1 flex gap-1.5">
+                {c.github && (
+                  <a className="credits-link" href={c.github} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on GitHub`}>
+                    {githubIcon}
+                    GitHub
+                  </a>
+                )}
+                {c.slack && (
+                  <a className="credits-link" href={c.slack} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} on Slack`}>
+                    {slackIcon}
+                    Slack
+                  </a>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -73,9 +80,18 @@ export function Credits({ inline = false }: { inline?: boolean }) {
   );
 }
 
-/** The corner box on every page except the live board, which carries the credits in its own rail. */
+/**
+ * The corner box on the public pages; admin pages put it at the end of the
+ * page so it never covers a control. The live board carries it in its own rail.
+ */
 export function CornerCredits() {
   const { pathname } = useLocation();
   if (pathname === '/live' || pathname.endsWith('/live')) return null;
+  if (pathname.startsWith('/admin'))
+    return (
+      <div className="mx-auto flex max-w-[1600px] justify-end px-4 pb-8">
+        <Credits end />
+      </div>
+    );
   return <Credits />;
 }

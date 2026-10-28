@@ -10,4 +10,5 @@ export * from './timetable';
 export * from './plan';
 export * from './double';
 export * from './fixtures';
+export * from './lineup';
 export * from './names';
