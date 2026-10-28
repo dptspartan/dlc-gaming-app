@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateBracket } from './bracket';
 import { generateGroupStage, knockoutFromQualifiers } from './groups';
-import { callSecondsLeft, moveInQueue, previewDay, rescheduleInTimetable, todayOf, scheduleTournament, splitAtClose, stationBoard, type TimetableGame, type TimetableMatch } from './timetable';
+import { callSecondsLeft, moveInQueue, previewDay, rescheduleInTimetable, todayOf, scheduleTournament, splitAtClose, stationBoard, tournamentTimetable, type TimetableGame, type TimetableMatch } from './timetable';
 import { formatWhen, isLaterDay, tournamentWindows } from './time';
 
 const start = Date.UTC(2026, 0, 1, 10);
@@ -215,6 +215,37 @@ describe('moveInQueue', () => {
     const slot = new Map(r.result.slots.map((s) => [s.id, s.start]));
     expect(slot.get(sheet[2].id)).toBe(start + 15 * MIN);
     expect(slot.get(sheet[1].id)).toBe(start + 30 * MIN);
+  });
+});
+
+describe('tournamentTimetable (automatic time changes off)', () => {
+  const opts = { windows, stations: 1, callMinutes: 5, games: new Map([['g', game({ matchMinutes: 10 })]]) };
+  // Two matches planned 10 minutes apart on station 1; the first is still live 15 minutes in.
+  const planned = () => {
+    const [a, b] = asTimetable('g', generateBracket(entrants('p', 4), { newId })).filter((m) => m.round === 1);
+    return [
+      { ...a, status: 'live' as const, station: 1, stations: [1], started_at: new Date(start).toISOString() },
+      { ...b, station: 1, stations: [1], not_before: new Date(start + 10 * MIN).toISOString() },
+    ];
+  };
+  const late = { ...opts, now: start + 15 * MIN };
+
+  it('moves the next match back when the one before runs late', () => {
+    const ms = planned();
+    const slot = tournamentTimetable(ms, late).slots.find((s) => s.id === ms[1].id)!;
+    expect(slot.start).toBeGreaterThanOrEqual(start + 15 * MIN);
+  });
+
+  it('keeps the planned time and station when automatic changes are off', () => {
+    const ms = planned();
+    const slot = tournamentTimetable(ms, late, false).slots.find((s) => s.id === ms[1].id)!;
+    expect(slot).toMatchObject({ start: start + 10 * MIN, end: start + 20 * MIN, station: 1, stations: [1] });
+  });
+
+  it('still places a match that has no planned time', () => {
+    const [a, b] = planned();
+    const r = tournamentTimetable([a, { ...b, not_before: null }], late, false);
+    expect(r.slots.find((s) => s.id === b.id)?.start).toBeGreaterThanOrEqual(start + 15 * MIN);
   });
 });
 

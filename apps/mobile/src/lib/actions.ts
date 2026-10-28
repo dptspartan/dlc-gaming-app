@@ -1,4 +1,4 @@
-import { scheduleTournament, timetableOptions, type DayHours, type Game, type Match, type Tournament, type TournamentGame } from '@dlc/core';
+import { timetableOptions, tournamentTimetable, type DayHours, type Game, type Match, type Tournament, type TournamentGame } from '@dlc/core';
 import { rpc, supabase } from './supabase';
 
 type MatchRef = Pick<Match, 'id' | 'tournament_id'>;
@@ -13,7 +13,8 @@ export async function refreshTimetable(tournamentId: string) {
   ]);
   const err = t.error ?? tg.error ?? m.error ?? g.error;
   if (err) throw new Error(err.message);
-  const result = scheduleTournament(m.data as Match[], timetableOptions(t.data as Tournament, tg.data as TournamentGame[], Date.now(), g.data as Game[]));
+  const tournament = t.data as Tournament;
+  const result = tournamentTimetable(m.data as Match[], timetableOptions(tournament, tg.data as TournamentGame[], Date.now(), g.data as Game[]), tournament.auto_times);
   const iso = (ms: number) => new Date(ms).toISOString();
   const items = result.slots.map((s) => ({ id: s.id, station: s.station, stations: s.stations, scheduled_start: iso(s.start), scheduled_end: iso(s.end) }));
   if (items.length) await rpc('update_schedule', { p_items: items });
