@@ -302,8 +302,13 @@ export const endMatch = (m: MatchRef, winnerId: string | null = null, walkover =
 /** End a level goals match (or leg) on penalties: the higher shoot-out score wins. */
 export const endOnPenalties = (m: MatchRef, penA: number, penB: number) =>
   thenReflow(m.tournament_id, rpc('end_on_penalties', { p_match_id: m.id, p_pen_a: penA, p_pen_b: penB }));
-/** A best-of match ends by itself on the deciding round; the queue moves on then. */
-export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
+/**
+ * Add to (or, negative, take from) one side's score. A score game takes any
+ * amount (+50 kills), a rounds game one round at a time. A best-of match ends
+ * by itself on the deciding round, a score game with a target when a side
+ * reaches it; the queue moves on then.
+ */
+export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: number) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;
   if (out?.status === 'completed') await refreshTimetable(m.tournament_id).catch(() => undefined);
   return out;

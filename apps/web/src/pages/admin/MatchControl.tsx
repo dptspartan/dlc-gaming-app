@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import {
+  allowsPenalties,
   currentLeg,
   feederOf,
   fromZonedInput,
   isSeries,
+  leader,
   legGameId,
   lineupEditable,
   matchLabel,
   placementOf,
   roundsToWin,
+  scoreSteps,
+  scoreUnit,
   scoringLabel,
   stationLabel,
   toZonedInput,
@@ -53,7 +57,7 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
   const [station, setStation] = useState(match.station?.toString() ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pens, setPens] = useState({ a: '', b: '' });
+  const [shootout, setShootout] = useState({ a: '', b: '' });
 
   const run = async (fn: () => Promise<unknown>, close = false) => {
     setBusy(true);
@@ -73,7 +77,9 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
   const canEnd = (match.status === 'live' || match.status === 'ready' || match.status === 'called') && a && b;
   const sa = match.score_a ?? 0;
   const sb = match.score_b ?? 0;
-  const point = (side: 'a' | 'b', delta: 1 | -1) => run(() => scorePoint(match, side, delta));
+  const point = (side: 'a' | 'b', delta: number) => run(() => scorePoint(match, side, delta));
+  const ahead = game ? leader(game, sa, sb) : null;
+  const pens = game && allowsPenalties(game);
   const editableTime = match.status === 'pending' || match.status === 'ready';
 
   const saveTime = () =>
@@ -123,16 +129,29 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
   };
 
   const scoreButtons = (side: 'a' | 'b', value: number) =>
-    canEnd && (
+    canEnd &&
+    game &&
+    (scoring === 'rounds' ? (
       <div className="mt-2 flex items-center justify-center gap-2">
-        <Button variant="ghost" disabled={busy || value === 0 || match.status !== 'live'} onClick={() => point(side, -1)} aria-label="Take back a point">
+        <Button variant="ghost" disabled={busy || value === 0 || match.status !== 'live'} onClick={() => point(side, -1)} aria-label="Take back a round">
           −
         </Button>
         <Button disabled={busy} onClick={() => point(side, 1)} className="whitespace-nowrap">
-          {scoring === 'rounds' ? '+ Round' : '+ Goal'}
+          + {scoreUnit(game, 1)}
         </Button>
       </div>
-    );
+    ) : (
+      <ScoreAdder side={side} value={value} game={game} busy={busy} live={match.status === 'live'} onAdd={(n) => point(side, n)} />
+    ));
+
+  const rule =
+    scoring === 'rounds' && game?.best_of
+      ? ` · first to ${roundsToWin(game.best_of)} wins, the ${series ? 'leg' : 'match'} ends by itself`
+      : scoring === 'goals' && game
+        ? game.score_target
+          ? ` · the ${series ? 'leg' : 'match'} ends when a side reaches ${game.score_target}`
+          : ` · ending the ${series ? 'leg' : 'match'} picks the ${game.low_wins ? 'lower' : 'higher'} score`
+        : '';
 
   return (
     <div className="match-sheet-backdrop fixed inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
@@ -183,8 +202,7 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
         {game && (
           <div className="hud mb-3 text-xs text-muted">
             {scoringLabel(game)}
-            {scoring === 'rounds' && game.best_of ? ` · first to ${roundsToWin(game.best_of)} wins, the ${series ? 'leg' : 'match'} ends by itself` : ''}
-            {scoring === 'goals' ? ` · ending the ${series ? 'leg' : 'match'} picks the higher score` : ''}
+            {rule}
           </div>
         )}
 
@@ -195,10 +213,11 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
             {side(b, match.team_b_id)}
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
             <div className="flex flex-col">
               {side(a, match.team_a_id)}
-              {scoreButtons('a', sa)}
+              {scoring === 'rounds' && scoreButtons('a', sa)}
             </div>
             <div className="font-display self-center pt-2 text-center text-5xl font-black tabular-nums text-ember glow-ember">
               {sa}
@@ -208,9 +227,17 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
             </div>
             <div className="flex flex-col">
               {side(b, match.team_b_id)}
-              {scoreButtons('b', sb)}
+              {scoring === 'rounds' && scoreButtons('b', sb)}
             </div>
           </div>
+          {/* Score buttons get the full width under the players: a kills game has several per side. */}
+          {scoring === 'goals' && canEnd && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {scoreButtons('a', sa)}
+              {scoreButtons('b', sb)}
+            </div>
+          )}
+          </>
         )}
 
         <ErrorNote message={error} />
@@ -242,8 +269,10 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
             </Button>
           )}
           {canEnd && scoring === 'goals' && (
-            <Button variant="success" disabled={busy || sa === sb} onClick={() => run(() => endMatch(match), !series)}>
-              {sa === sb ? 'Level: add a goal, or decide on penalties' : `End ${series ? `leg ${leg + 1}` : 'match'}, ${sa > sb ? a?.name : b?.name} wins`}
+            <Button variant="success" disabled={busy || !ahead} onClick={() => run(() => endMatch(match), !series)}>
+              {!ahead
+                ? `Level: add the deciding ${scoreUnit(game!, 1).toLowerCase()}${pens ? ', or decide on penalties' : ''}`
+                : `End ${series ? `leg ${leg + 1}` : 'match'}, ${ahead === 'a' ? a?.name : b?.name} wins`}
             </Button>
           )}
           {match.status === 'completed' && !match.is_bye && (
@@ -259,11 +288,11 @@ export function MatchControl({ match, teams, matches, totalRounds, gameName, gam
           {match.status === 'pending' && <span className="text-muted">Waiting for earlier matches to finish.</span>}
         </div>
 
-        {canEnd && scoring === 'goals' && sa === sb && match.status === 'live' && (
+        {canEnd && pens && sa === sb && match.status === 'live' && (
           <PenaltyShootout
             names={[a!.name, b!.name]}
-            value={pens}
-            onChange={setPens}
+            value={shootout}
+            onChange={setShootout}
             busy={busy}
             label={series ? `leg ${leg + 1}` : 'match'}
             onFinish={(pa, pb) => run(() => endOnPenalties(match, pa, pb), !series)}
@@ -399,6 +428,79 @@ function ChangePlayers({
       {row('a')}
       {row('b')}
       <p className="text-sm text-muted">To take a player out of the game, use Withdraw next to their name in Setup → Games &amp; players.</p>
+    </div>
+  );
+}
+
+/**
+ * One side's score buttons in a score game: a button per quick-add amount
+ * ("+1 Kill", "+5", "+10") and a box for any other amount, which "−" takes off.
+ */
+function ScoreAdder({
+  side,
+  value,
+  game,
+  busy,
+  live,
+  onAdd,
+}: {
+  side: 'a' | 'b';
+  value: number;
+  game: Game;
+  busy: boolean;
+  live: boolean;
+  onAdd: (n: number) => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const steps = scoreSteps(game);
+  const n = Number(amount);
+  const valid = amount.trim() !== '' && Number.isInteger(n) && n >= 1 && n <= 9999;
+  const add = (delta: number) => {
+    onAdd(delta);
+    setAmount('');
+  };
+  return (
+    <div className="score-adder flex min-w-0 flex-col gap-2">
+      {steps.map((step, i) =>
+        i === 0 ? (
+          <Button key={step} disabled={busy} onClick={() => onAdd(step)} className="min-h-11 w-full whitespace-nowrap px-2">
+            +{step} {scoreUnit(game, step)}
+          </Button>
+        ) : null,
+      )}
+      {steps.length > 1 && (
+        <div className="flex gap-2">
+          {steps.slice(1).map((step) => (
+            <Button key={step} variant="ghost" disabled={busy} onClick={() => onAdd(step)} className="min-h-11 flex-1 px-0">
+              +{step}
+            </Button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-1.5">
+        <input
+          inputMode="numeric"
+          maxLength={4}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
+          onKeyDown={(e) => e.key === 'Enter' && valid && add(n)}
+          placeholder="Any"
+          aria-label={`Amount for side ${side.toUpperCase()}`}
+          className="w-full min-w-0 px-2"
+        />
+        <Button variant="ghost" disabled={busy || !valid} onClick={() => add(n)} aria-label="Add the amount" className="min-h-11 px-0 text-base">
+          +
+        </Button>
+        <Button
+          variant="ghost"
+          disabled={busy || !live || value === 0 || (valid && n > value)}
+          onClick={() => add(valid ? -n : -1)}
+          aria-label={valid ? 'Take the amount off' : 'Take one off'}
+          className="min-h-11 px-0 text-base"
+        >
+          −
+        </Button>
+      </div>
     </div>
   );
 }

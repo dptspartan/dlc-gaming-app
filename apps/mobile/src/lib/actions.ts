@@ -39,7 +39,8 @@ export const startMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('star
 export const endMatch = (m: MatchRef, winnerId: string | null, walkover = false) =>
   thenReflow(m.tournament_id, rpc('end_match', { p_match_id: m.id, p_winner_id: winnerId, p_walkover: walkover }));
 export const reopenMatch = (m: MatchRef) => thenReflow(m.tournament_id, rpc('reopen_match', { p_match_id: m.id }));
-export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: 1 | -1) {
+/** Any amount in a score game (+50 kills), one round at a time in a rounds game. */
+export async function scorePoint(m: MatchRef, side: 'a' | 'b', delta: number) {
   const out = (await rpc('score_point', { p_match_id: m.id, p_side: side, p_delta: delta })) as Match;
   if (out?.status === 'completed') await refreshTimetable(m.tournament_id).catch(() => undefined);
   return out;

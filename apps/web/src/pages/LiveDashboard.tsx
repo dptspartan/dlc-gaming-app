@@ -17,6 +17,7 @@ import {
   paginate,
   roundsToWin,
   scoreLine,
+  scoreUnit,
   sideName,
   stationLabel,
   teamShortName,
@@ -53,7 +54,8 @@ const POLL_MS = 20_000;
 
 /** A point just scored in a live match: which side, and when (also the animation key). */
 /** `leg`: the point won a leg of a series. */
-type Burst = { side: "a" | "b"; at: number; leg?: boolean };
+/** amount: points the side just got, e.g. 50 for "+50 kills". */
+type Burst = { side: "a" | "b"; at: number; leg?: boolean; amount?: number };
 
 /** /live shows every running tournament; /t/:slug/live shows one. */
 export function LiveDashboard() {
@@ -523,7 +525,11 @@ function LiveCard({
             key={hit.at}
             side={hit.side}
             label={
-              hit.leg ? "Leg" : legGame.scoring === "rounds" ? "Round" : "Goal"
+              hit.leg
+                ? "Leg"
+                : (hit.amount ?? 1) > 1
+                  ? `+${hit.amount} ${scoreUnit(legGame, hit.amount)}`
+                  : scoreUnit(legGame, 1)
             }
             big={big}
             compact={compact}
@@ -677,7 +683,25 @@ function Score({
   const sb = match.score_b ?? 0;
   const need =
     game.scoring === "rounds" && game.best_of ? roundsToWin(game.best_of) : 0;
-  const size = big ? "text-8xl" : compact ? "text-3xl" : "text-6xl";
+  // Kills and points run into three digits: a step smaller keeps them on the card.
+  const long = Math.max(sa, sb) >= 100;
+  const size = big
+    ? long
+      ? "text-7xl"
+      : "text-8xl"
+    : compact
+      ? long
+        ? "text-2xl"
+        : "text-3xl"
+      : long
+        ? "text-5xl"
+        : "text-6xl";
+  const unit = game.scoring === "goals" ? scoreUnit(game) : "";
+  const caption =
+    game.scoring === "goals" &&
+    (unit !== "Goals" || game.score_target || game.low_wins)
+      ? `${unit}${game.score_target ? ` · first to ${game.score_target}` : game.low_wins ? " · lowest wins" : ""}`
+      : "";
   const pips = (won: number) =>
     need > 0 && (
       <div className="flex gap-1">
@@ -704,6 +728,13 @@ function Score({
           <span className="hud text-[10px] text-muted">FIRST TO {need}</span>
           {pips(sb)}
         </div>
+      )}
+      {caption && (
+        <span
+          className={`live-score-unit hud text-muted ${big ? "text-xl" : compact ? "text-[10px]" : "text-sm"}`}
+        >
+          {caption}
+        </span>
       )}
     </div>
   );
@@ -1170,9 +1201,15 @@ function usePointBursts(data: LiveData) {
         )
           hits.push([m.id, { side: legA ? "a" : "b", at, leg: true }]);
       } else if ((m.score_a ?? 0) > (before.score_a ?? 0))
-        hits.push([m.id, { side: "a", at }]);
+        hits.push([
+          m.id,
+          { side: "a", at, amount: (m.score_a ?? 0) - (before.score_a ?? 0) },
+        ]);
       else if ((m.score_b ?? 0) > (before.score_b ?? 0))
-        hits.push([m.id, { side: "b", at }]);
+        hits.push([
+          m.id,
+          { side: "b", at, amount: (m.score_b ?? 0) - (before.score_b ?? 0) },
+        ]);
     }
     if (hits.length === 0) return;
     playSfx(hits.some(([, h]) => h.leg) ? "win" : "point");

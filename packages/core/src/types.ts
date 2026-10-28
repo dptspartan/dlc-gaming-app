@@ -18,10 +18,20 @@ export interface Game {
   default_match_minutes: number;
   /** Players on each side: 1 = solo, 2 = duo, 5 = five-a-side, ... */
   team_size: number;
-  /** none: pick the winner; goals: tally points, higher wins; rounds: best-of-N, ends itself. */
+  /** none: pick the winner; goals: a tallied score (goals, kills, points...); rounds: best-of-N, ends itself. */
   scoring: Scoring;
   /** Rounds in a best-of match (odd); only set when scoring is 'rounds'. */
   best_of: number | null;
+  /** What a point is called, e.g. "Goals", "Kills", "Maps". Null: "Goals" or "Rounds". */
+  score_label?: string | null;
+  /** Amounts the score buttons add in one tap, e.g. [1, 5, 10]. Null: [1]. */
+  score_steps?: number[] | null;
+  /** Score mode: the first side to reach this wins and the leg ends by itself (first to 100 kills). */
+  score_target?: number | null;
+  /** Score mode: the lower score wins (times, strokes, deaths). */
+  low_wins?: boolean;
+  /** Score mode: a level score can be settled on penalties. Off: play on for a deciding point. */
+  penalties?: boolean;
   created_at: string;
 }
 

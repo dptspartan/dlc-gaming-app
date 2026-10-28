@@ -3,7 +3,7 @@ import { generateBracket, roundName, seedOrder, type MatchDraft } from './bracke
 import { findTeamConflicts, scheduleMatches } from './schedule';
 import { formatClock, formatTime, localDate, tournamentWindows, zonedToUtc } from './time';
 import { gridFor } from './layout';
-import { roundsToWin, scoreLine, scoringLabel } from './scoring';
+import { allowsPenalties, leader, roundsToWin, scoreLine, scoreSteps, scoreUnit, scoringLabel } from './scoring';
 
 const teams = (n: number) => Array.from({ length: n }, (_, i) => ({ teamId: `t${i + 1}`, seed: i + 1 }));
 let counter = 0;
@@ -152,8 +152,34 @@ describe('scoring', () => {
   });
   it('labels each scoring mode', () => {
     expect(scoringLabel({ scoring: 'rounds', best_of: 5 })).toBe('Best of 5');
-    expect(scoringLabel({ scoring: 'goals', best_of: null })).toBe('Live score');
+    expect(scoringLabel({ scoring: 'goals', best_of: null })).toBe('Goals');
     expect(scoringLabel({ scoring: 'none', best_of: null })).toBe('Winner only');
+    expect(scoringLabel({ scoring: 'goals', best_of: null, score_label: 'Kills', score_target: 100 })).toBe('Kills · first to 100');
+    expect(scoringLabel({ scoring: 'goals', best_of: null, score_label: 'Seconds', low_wins: true })).toBe('Seconds · lowest wins');
+    expect(scoringLabel({ scoring: 'rounds', best_of: 3, score_label: 'Maps' })).toBe('Best of 3 maps');
+  });
+  it('names a point after the game', () => {
+    expect(scoreUnit({ scoring: 'goals', best_of: null })).toBe('Goals');
+    expect(scoreUnit({ scoring: 'goals', best_of: null }, 1)).toBe('Goal');
+    expect(scoreUnit({ scoring: 'goals', best_of: null, score_label: 'Kills' }, 1)).toBe('Kill');
+    expect(scoreUnit({ scoring: 'goals', best_of: null, score_label: 'Kills' }, 50)).toBe('Kills');
+    expect(scoreUnit({ scoring: 'goals', best_of: null, score_label: 'Pass' }, 1)).toBe('Pass');
+    expect(scoreUnit({ scoring: 'rounds', best_of: 5 }, 1)).toBe('Round');
+  });
+  it('offers the game\'s step amounts, one at a time by default', () => {
+    expect(scoreSteps({ scoring: 'goals', best_of: null })).toEqual([1]);
+    expect(scoreSteps({ scoring: 'goals', best_of: null, score_steps: [10, 1, 5, 5, 0] })).toEqual([1, 5, 10]);
+    expect(scoreSteps({ scoring: 'rounds', best_of: 5, score_steps: [5] })).toEqual([1]);
+  });
+  it('picks the leader, lowest first when lower wins', () => {
+    expect(leader({ scoring: 'goals', best_of: null }, 3, 1)).toBe('a');
+    expect(leader({ scoring: 'goals', best_of: null, low_wins: true }, 3, 1)).toBe('b');
+    expect(leader({ scoring: 'goals', best_of: null }, 2, 2)).toBeNull();
+  });
+  it('keeps penalties on for score games unless turned off', () => {
+    expect(allowsPenalties({ scoring: 'goals', best_of: null })).toBe(true);
+    expect(allowsPenalties({ scoring: 'goals', best_of: null, penalties: false })).toBe(false);
+    expect(allowsPenalties({ scoring: 'rounds', best_of: 5 })).toBe(false);
   });
 });
 
