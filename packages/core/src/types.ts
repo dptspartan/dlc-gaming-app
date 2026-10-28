@@ -187,6 +187,8 @@ export interface StagePlan {
   final?: SeriesRule;
   /** Loser bracket matches (double elimination); falls back to the knockout rule. */
   losers?: SeriesRule;
+  /** One knockout or loser bracket round's own rule, by roundKey (QF, R16, L2...); missing rounds follow their stage. */
+  rounds?: Record<string, SeriesRule>;
   /** Double elimination: first-time losers drop to a loser bracket whose winner meets the upper bracket winner in the final. */
   double_elim?: boolean;
 }
