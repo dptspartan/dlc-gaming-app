@@ -546,10 +546,16 @@ input[type="file"]::file-selector-button {
 }
 
 :root[data-theme="dlc-labs"] .event-collage {
+  /* The free space between the title and the Live Board button, so a long
+     tournament name pushes the stickers right instead of running under them. */
   display: block;
-  position: absolute;
+  position: relative;
   z-index: 0;
-  inset: 0;
+  flex: 1 1 0;
+  align-self: stretch;
+  min-width: 0;
+  max-width: 560px;
+  container-type: inline-size;
   pointer-events: none;
 }
 
@@ -564,7 +570,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-mascot {
   z-index: 1;
   top: -15px;
-  left: 48%;
+  left: 11%;
   width: 146px;
   height: 140px;
   transform: rotate(-5deg);
@@ -573,7 +579,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-mascot-controller {
   z-index: 3;
   top: 4px;
-  left: 43%;
+  left: 0;
   width: 96px;
   height: 120px;
   transform: rotate(-7deg);
@@ -582,7 +588,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-crown {
   z-index: 3;
   top: -2px;
-  left: 58%;
+  left: 33%;
   width: 62px;
   height: 60px;
   transform: rotate(12deg);
@@ -591,7 +597,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-game-on {
   z-index: 2;
   top: -12px;
-  left: 71%;
+  left: 62%;
   width: 142px;
   height: 112px;
   transform: rotate(6deg);
@@ -600,7 +606,7 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .event-sticker-better-games {
   z-index: 3;
   top: -5px;
-  left: 62%;
+  left: 42%;
   width: 88px;
   height: 82px;
   transform: rotate(-7deg);
@@ -608,7 +614,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-controller {
   z-index: 4;
-  left: 55.5%;
+  left: 28%;
   bottom: -7px;
   width: 120px;
   height: 112px;
@@ -617,7 +623,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-headphones {
   z-index: 4;
-  left: 77%;
+  left: 75%;
   bottom: -4px;
   width: 100px;
   height: 96px;
@@ -626,7 +632,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-keyboard {
   z-index: 4;
-  left: 64%;
+  left: 47%;
   bottom: 2px;
   width: 130px;
   height: 84px;
@@ -635,7 +641,7 @@ input[type="file"]::file-selector-button {
 
 :root[data-theme="dlc-labs"] .event-sticker-bolt {
   z-index: 5;
-  left: 67%;
+  left: 53%;
   bottom: -30px;
   width: 54px;
   height: 66px;
@@ -982,22 +988,30 @@ input[type="file"]::file-selector-button {
   }
 }
 
-@media (min-width: 721px) and (max-width: 900px) {
-  :root[data-theme="dlc-labs"] .event-sticker-mascot,
-  :root[data-theme="dlc-labs"] .event-sticker-mascot-controller,
-  :root[data-theme="dlc-labs"] .event-sticker-crown,
-  :root[data-theme="dlc-labs"] .event-sticker-bolt,
-  :root[data-theme="dlc-labs"] .event-sticker-better-games,
-  :root[data-theme="dlc-labs"] .event-sticker-headphones {
+/* A narrow gap keeps only the two big stickers; too narrow, none. */
+@container (max-width: 420px) {
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-mascot,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-mascot-controller,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-crown,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-bolt,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-better-games,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-headphones,
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-keyboard {
     display: none;
   }
-  :root[data-theme="dlc-labs"] .event-sticker-game-on {
-    left: 58%;
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-game-on {
+    left: 45%;
     width: 118px;
   }
-  :root[data-theme="dlc-labs"] .event-sticker-controller {
-    left: 56%;
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker-controller {
+    left: 5%;
     width: 88px;
+  }
+}
+
+@container (max-width: 240px) {
+  :root[data-theme="dlc-labs"] .event-collage .event-sticker {
+    display: none;
   }
 }
 
