@@ -19,6 +19,7 @@ import {
   scoreLine,
   sideName,
   stationLabel,
+  teamShortName,
   type Game,
   type Match,
 } from "@dlc/core";
@@ -451,6 +452,7 @@ function LiveCard({
       <div className="relative flex flex-1 items-center justify-around gap-2 px-3">
         <Side
           name={sideName(match, "a", a?.name)}
+          label={sideName(match, "a", a && teamShortName(a, data.teams.values()))}
           url={a?.logo_url}
           size={avatar}
           big={big}
@@ -505,6 +507,7 @@ function LiveCard({
         )}
         <Side
           name={sideName(match, "b", b?.name)}
+          label={sideName(match, "b", b && teamShortName(b, data.teams.values()))}
           url={b?.logo_url}
           size={avatar}
           big={big}
@@ -939,6 +942,7 @@ function nameFit(name: string) {
 /** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
 function Side({
   name,
+  label,
   url,
   size,
   big,
@@ -947,6 +951,8 @@ function Side({
   hit,
 }: {
   name: string;
+  /** Short form shown under the avatar; the full name stays in the tooltip. */
+  label: string;
   url?: string | null;
   size: number;
   big: boolean;
@@ -977,10 +983,11 @@ function Side({
         />
       </motion.div>
       <span
-        className={`live-name font-display w-full font-bold leading-tight text-balance [overflow-wrap:anywhere] ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
-        style={{ "--name-fit": nameFit(name) } as CSSProperties}
+        className={`live-name font-display w-full font-bold leading-tight text-balance [overflow-wrap:anywhere] ${big ? "text-3xl" : compact ? "text-sm" : "text-lg"}`}
+        style={{ "--name-fit": nameFit(label) } as CSSProperties}
+        title={name}
       >
-        {name}
+        {label}
       </span>
     </div>
   );

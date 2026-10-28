@@ -1410,9 +1410,9 @@ input[type="file"]::file-selector-button {
 :root[data-theme="dlc-labs"] .live-name {
   font-family: var(--dlc-ui);
   font-weight: 700;
-  font-size: calc(clamp(0.9rem, 6.5cqh, 2.25rem) * var(--name-fit, 1));
+  font-size: calc(clamp(0.8rem, 4.2cqh, 1.5rem) * var(--name-fit, 1));
   line-height: 1.05;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 :root[data-theme="dlc-labs"] .live-card .avatar {
