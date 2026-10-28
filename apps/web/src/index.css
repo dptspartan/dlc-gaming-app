@@ -1666,10 +1666,6 @@ input[type="file"]::file-selector-button {
   z-index: 40;
   width: max-content;
 }
-/* Keep the last row of a page clear of the box. */
-body:has(.credits-corner) {
-  padding-bottom: 340px;
-}
 /* Wider than a phone: the page content keeps a gutter on the right for the
    box, so it never sits over a name, a status or a button while scrolling.
    The gutter only takes what the page's own side margin doesn't already give. */
@@ -1770,9 +1766,6 @@ body:has(.credits-corner) {
 }
 
 @media (max-width: 640px) {
-  body:has(.credits-corner) {
-    padding-bottom: 0;
-  }
   .credits-corner {
     position: static;
     width: auto;
