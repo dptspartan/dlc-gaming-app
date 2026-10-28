@@ -28,12 +28,12 @@ export function StationBoard({ matches, stations, teams, timeZone, callMinutes, 
   const name = (m: Match, slot: 'a' | 'b') => sideOrContenders(m, slot, matches, (id) => (id ? teams.get(id)?.name ?? '?' : null));
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {board.map((s) => {
         const m = s.current;
         const tone = m?.status === 'live' ? 'neon-live' : m?.status === 'called' ? 'neon-called' : '';
         return (
-          <div key={s.station} className={`station-card panel flex flex-col p-4 ${tone}`}>
+          <div key={s.station} className={`station-card panel flex min-w-0 flex-col p-4 ${tone}`}>
             <div className="mb-3 flex items-baseline justify-between gap-2">
               <div className="station-number font-display text-2xl font-black">
                 <span className="text-muted">#</span>

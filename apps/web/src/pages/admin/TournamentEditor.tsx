@@ -12,6 +12,7 @@ import {
   isLaterDay,
   matchLabel,
   parseFixturesCsv,
+  stationBoard,
   ROUND_LABEL,
   zonedToUtc,
   type ParsedFixtures,
@@ -162,6 +163,21 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
       })
       .sort((a, b) => (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9'));
 
+  // A match moved to a later day isn't offered as the next call today.
+  const today = (q: Match) => !isLaterDay(q.scheduled_start, tournament.timezone);
+  // Each free station suggests its own next match, so two stations never offer the same one.
+  const suggested = new Map<number, Match>();
+  const taken = new Set<string>();
+  for (const s of stationBoard(matches, tournament.stations)) {
+    if (s.current) continue;
+    const free = (q: Match) => today(q) && !taken.has(q.id);
+    const pick = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && free(q)) ?? callable(s.station).find(free);
+    if (pick) {
+      suggested.set(s.station, pick);
+      taken.add(pick.id);
+    }
+  }
+
   const actions = (s: StationState<Match>) => {
     const m = s.current;
     if (m?.status === 'called')
@@ -187,9 +203,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         </div>
       );
     const options = callable(s.station);
-    // A match moved to a later day isn't offered as the next call today.
-    const today = (q: Match) => !isLaterDay(q.scheduled_start, tournament.timezone);
-    const next = s.queue.find((q) => q.status === 'ready' && q.team_a_id && q.team_b_id && today(q)) ?? options.find(today);
+    const next = suggested.get(s.station);
     return (
       <div className="mb-2 flex flex-col gap-2">
         {next ? (
@@ -201,6 +215,7 @@ function ControlRoom({ tournament, data }: { tournament: Tournament; data: LiveD
         )}
         {options.length > (next ? 1 : 0) && (
           <select
+            className="w-full min-w-0"
             value=""
             disabled={busy}
             onChange={(e) => {

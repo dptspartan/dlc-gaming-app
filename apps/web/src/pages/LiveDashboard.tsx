@@ -1093,7 +1093,7 @@ function NothingLive({
         alt=""
         aria-hidden="true"
       />
-      <div className="hud text-sm text-muted">// stand by</div>
+      <div className="hud text-sm text-muted">stand by</div>
       {next ? (
         <>
           {gameName && (

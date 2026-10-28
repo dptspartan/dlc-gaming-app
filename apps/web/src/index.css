@@ -1606,7 +1606,8 @@ input[type="file"]::file-selector-button {
   }
   .timetable tr {
     display: grid;
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    /* Wide enough for "Tomorrow" on a match moved to another day. */
+    grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr) auto;
     column-gap: 0.75rem;
     row-gap: 0.15rem;
     padding: 0.65rem 0.75rem;
@@ -1632,7 +1633,7 @@ input[type="file"]::file-selector-button {
     text-align: right;
   }
   .timetable td:nth-child(6) {
-    grid-column: 2 / 4;
+    grid-column: 1 / 4;
     padding-top: 0.35rem !important;
   }
 }
@@ -2107,7 +2108,7 @@ body:has(.credits-corner) {
   /* Timetable row: Earlier · Later · Reschedule in three equal columns. */
   .timetable td:nth-child(6) > span {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.35fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
   }
   .timetable td:nth-child(6) button {
     padding-inline: 0.4rem !important;
