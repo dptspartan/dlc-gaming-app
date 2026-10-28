@@ -4,6 +4,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { RescheduleCard } from '../../components/reschedule';
+import { confirmCall } from '../../components/station';
 import { Avatar, Button, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
 import { callMatch, endMatch, reopenMatch, scorePoint, startMatch, uncallMatch } from '../../lib/actions';
 import { supabase, uploadLocalImage } from '../../lib/supabase';
@@ -187,7 +188,7 @@ export default function MatchControl() {
         <ErrorText message={error} />
 
         {match.status === 'ready' && match.station && a && b && (
-          <Button title={`Call players to station ${match.station}`} busy={busy === 'call'} disabled={!!busy} onPress={() => run('call', () => callMatch(match, match.station!))} />
+          <Button title={`Call players to station ${match.station}`} busy={busy === 'call'} disabled={!!busy} onPress={() => confirmCall(data, match, () => run('call', () => callMatch(match, match.station!)))} />
         )}
         {(match.status === 'ready' || match.status === 'called') && (
           <Button title="Start match" variant={match.status === 'called' ? 'primary' : 'ghost'} busy={busy === 'start'} disabled={!!busy} onPress={() => run('start', () => startMatch(match))} />

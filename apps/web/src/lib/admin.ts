@@ -1,5 +1,7 @@
 import {
   fixtureNotBefore,
+  formatWhen,
+  isLaterDay,
   fixtureOrder,
   generateGroupStage,
   groupStandings,
@@ -243,6 +245,10 @@ async function thenReflow<T>(tournamentId: string, action: Promise<T>): Promise<
   }
   return out;
 }
+
+/** Calling a match planned for a later day is allowed, but asks first so it isn't done by mistake. */
+export const okToCall = (m: Pick<Match, 'scheduled_start'>, timeZone: string) =>
+  !isLaterDay(m.scheduled_start, timeZone) || confirm(`This match is planned for ${formatWhen(m.scheduled_start, timeZone)}. Call it now anyway?`);
 
 export const callMatch = (m: Pick<Match, 'id' | 'tournament_id'>, station: number) =>
   thenReflow(m.tournament_id, rpc('call_match', { p_match_id: m.id, p_station: station }));

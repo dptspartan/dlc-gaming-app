@@ -340,6 +340,7 @@ describe('formatWhen', () => {
     expect(formatWhen('2026-10-27T13:00:00Z', 'Asia/Karachi', now)).toBe('6:00 PM');
     expect(formatWhen('2026-10-28T12:30:00Z', 'Asia/Karachi', now)).toBe('Tomorrow 5:30 PM');
     expect(formatWhen('2026-10-29T12:30:00Z', 'Asia/Karachi', now)).toBe('Thu 29 Oct 5:30 PM');
+    expect(formatWhen('2026-10-26T15:29:00Z', 'Asia/Karachi', now)).toBe('Yesterday 8:29 PM');
     expect(isLaterDay('2026-10-28T12:30:00Z', 'Asia/Karachi', now)).toBe(true);
     expect(isLaterDay('2026-10-27T17:00:00Z', 'Asia/Karachi', now)).toBe(false);
   });

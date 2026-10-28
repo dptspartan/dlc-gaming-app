@@ -105,11 +105,11 @@ export function EndOfDayCard({ data }: { data: TournamentData }) {
   const current = preview();
   if (!current) return null;
   const moving = (p: NonNullable<typeof current>) =>
-    [p.later > 0 && `${plural(p.later)} move to tomorrow`, p.beyond > 0 && `${plural(p.beyond)} have no day left`].filter(Boolean).join(', ') || 'nothing moves on';
+    [p.later > 0 && `${plural(p.later)} ${p.later === 1 ? 'moves' : 'move'} to tomorrow`, p.beyond > 0 && `${plural(p.beyond)} ${p.beyond === 1 ? 'has' : 'have'} no day left`].filter(Boolean).join(', ') || 'nothing moves on';
 
   const apply = (key: string, title: string, end: string | null) => {
     const p = preview(end ? { ...own, end } : null);
-    Alert.alert(title, p ? `${plural(p.today)} play today, ${moving(p)}.` : '', [
+    Alert.alert(title, p ? `${plural(p.today)} ${p.today === 1 ? 'plays' : 'play'} today, ${moving(p)}.` : '', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'OK',
@@ -134,7 +134,7 @@ export function EndOfDayCard({ data }: { data: TournamentData }) {
       <Text style={styles.label}>End of day</Text>
       <Text style={styles.muted}>
         Today plays until {formatTime(day.end, tz)}
-        {own ? ' (changed for today)' : ''}. {current.later + current.beyond === 0 ? 'Everything left fits.' : `${plural(current.today)} still fit, ${moving(current)}.`}
+        {own ? ' (changed for today)' : ''}. {current.later + current.beyond === 0 ? 'Everything left fits.' : `${plural(current.today)} still ${current.today === 1 ? 'fits' : 'fit'}, ${moving(current)}.`}
       </Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Button title="Run 1 hour late" variant="ghost" style={{ flex: 1 }} busy={busy === 'late1'} disabled={!!busy} onPress={() => apply('late1', `Play until ${later(60)}?`, later(60))} />

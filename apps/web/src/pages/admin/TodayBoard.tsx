@@ -140,7 +140,7 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
                 <ul className="flex flex-col">
                   {list.map((m) => (
                     <li key={m.id}>
-                      <Row m={m} label={`${gameName(m)} · ${matchLabel(m, roundsByTg.get(m.tournament_game_id) ?? m.round)}`} players={players(m)} tz={tz} callMinutes={tournament.call_minutes} onOpen={() => setOpenMatch(m.id)} />
+                      <Row m={m} label={`${gameName(m)} · ${m.match_code ? `${m.match_code} · ` : ''}${matchLabel(m, roundsByTg.get(m.tournament_game_id) ?? m.round)}`} players={players(m)} tz={tz} callMinutes={tournament.call_minutes} onOpen={() => setOpenMatch(m.id)} />
                     </li>
                   ))}
                 </ul>
@@ -206,11 +206,11 @@ function Row({
         <span className="text-[10px] font-semibold text-muted">{meridiem}</span>
       </span>
       <span className="min-w-0">
-        <span className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+        <span className="mb-1 flex items-start gap-1.5 text-xs text-muted">
           {m.station && <span className="today-station shrink-0 rounded-sm bg-ink px-1.5 py-px text-[10px] font-bold whitespace-nowrap text-bg">{stationLabel(m).replace('Stations', 'STN').replace('Station', 'STN')}</span>}
-          <span className="truncate">{label}</span>
+          <span className="min-w-0 break-words">{label}</span>
         </span>
-        <span className="block truncate text-sm font-semibold">
+        <span className="block text-sm font-semibold break-words">
           {m.status === 'completed' && winner >= 0 ? (
             <>
               {players[winner]} <span className="font-normal text-muted">beat</span> {players[1 - winner]}

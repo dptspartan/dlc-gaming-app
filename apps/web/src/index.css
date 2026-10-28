@@ -1606,7 +1606,8 @@ input[type="file"]::file-selector-button {
   }
   .timetable tr {
     display: grid;
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    /* Wide enough for "Tomorrow" on a match moved to another day. */
+    grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr) auto;
     column-gap: 0.75rem;
     row-gap: 0.15rem;
     padding: 0.65rem 0.75rem;
@@ -1632,15 +1633,16 @@ input[type="file"]::file-selector-button {
     text-align: right;
   }
   .timetable td:nth-child(6) {
-    grid-column: 2 / 4;
+    grid-column: 1 / 4;
     padding-top: 0.35rem !important;
   }
 }
 
 /* ------------------------------------------------------------------------
-   Credits box: "Powered by", the three names and Claude. A small fixed box in the
-   bottom-right corner on laptops and up; at the end of the page on phones,
-   so it never sits over a score or a name. The live board carries it in the
+   Credits box: "Powered by", the three names and Claude. On public pages a
+   small fixed box in the bottom-right corner on laptops and up, with a gutter
+   kept clear for it; at the end of the page on phones and on admin pages, so
+   it never sits over a score, a name or a control. The live board carries it in the
    rail instead (.credits-inline).
    ------------------------------------------------------------------------ */
 .credits-corner {
@@ -1653,6 +1655,25 @@ input[type="file"]::file-selector-button {
 /* Keep the last row of a page clear of the box. */
 body:has(.credits-corner) {
   padding-bottom: 340px;
+}
+/* Wider than a phone: the page content keeps a gutter on the right for the
+   box, so it never sits over a name, a status or a button while scrolling.
+   The gutter only takes what the page's own side margin doesn't already give. */
+@media (min-width: 641px) {
+  body:has(.credits-corner) main {
+    padding-right: max(1rem, calc(var(--credits-width) + 32px - max(0px, (100vw - 80rem) / 2)));
+  }
+  body:has(.credits-corner) main.max-w-\[1600px\] {
+    padding-right: max(1rem, calc(var(--credits-width) + 32px - max(0px, (100vw - 1600px) / 2)));
+  }
+}
+:root {
+  --credits-width: 190px;
+}
+/* Admin pages: the box closes the page instead of floating over controls. */
+.credits-end {
+  width: max-content;
+  max-width: 100%;
 }
 
 /* One section per person: name and grey employee id, then GitHub and Slack. */
@@ -1744,13 +1765,18 @@ body:has(.credits-corner) {
     margin: 8px 16px 24px;
   }
   /* Phones: one row per person, name on the left and the buttons on the right. */
-  .credits-corner .credits-person {
+  .credits-end {
+    width: 100%;
+  }
+  .credits-corner .credits-person,
+  .credits-end .credits-person {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
-  .credits-corner .credits-links {
+  .credits-corner .credits-links,
+  .credits-end .credits-links {
     margin-top: 0;
   }
 }
@@ -2107,7 +2133,7 @@ body:has(.credits-corner) {
   /* Timetable row: Earlier · Later · Reschedule in three equal columns. */
   .timetable td:nth-child(6) > span {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.35fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
   }
   .timetable td:nth-child(6) button {
     padding-inline: 0.4rem !important;

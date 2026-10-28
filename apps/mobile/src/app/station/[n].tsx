@@ -2,7 +2,7 @@ import { formatWhen, stationBoard, stationLabel, type Match } from '@dlc/core';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
-import { callableAt, describe, laterDay, teamName } from '../../components/station';
+import { callableAt, confirmCall, describe, laterDay, teamName } from '../../components/station';
 import { Button, CallCountdown, colors, Elapsed, ErrorText, Screen, styles } from '../../components/ui';
 import { callMatch, holdMatch, startMatch, uncallMatch } from '../../lib/actions';
 import { useTournament } from '../../lib/useTournament';
@@ -55,7 +55,7 @@ export default function StationScreen() {
       </Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {q.status === 'ready' && q.team_a_id && q.team_b_id ? (
-          <Button title="Call here" style={{ flex: 1 }} disabled={!!m || !!busy} busy={busy === `call-${q.id}`} onPress={() => run(`call-${q.id}`, () => callMatch(q, station))} />
+          <Button title="Call here" style={{ flex: 1 }} disabled={!!m || !!busy} busy={busy === `call-${q.id}`} onPress={() => confirmCall(data, q, () => run(`call-${q.id}`, () => callMatch(q, station)))} />
         ) : (
           <Text style={[styles.muted, { flex: 1, alignSelf: 'center' }]}>Waiting for earlier results</Text>
         )}

@@ -403,12 +403,6 @@ export function feederSides(feeder: FeederMatch, team: (id: string | null) => st
   return `${sideName(feeder, 'a', team(feeder.team_a_id))} or ${sideName(feeder, 'b', team(feeder.team_b_id))}`;
 }
 
-/** A side's name in a list: the player, who can still take it ("Fury or Kilo") while its match is undecided, else TBD. */
-export function sideOrContenders(m: FeederMatch, slot: Slot, matches: Iterable<FeederMatch>, team: (id: string | null) => string | null | undefined): string {
-  const feeder = feederMatch(m, slot, matches);
-  return feeder ? feederSides(feeder, team) : sideName(m, slot, team(slot === 'a' ? m.team_a_id : m.team_b_id));
-}
-
 export interface WinnerLink {
   from: string;
   to: string;

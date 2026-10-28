@@ -112,6 +112,7 @@ export function formatWhen(iso: string | number | Date | null | undefined, timeZ
   const today = zonedDate(now, timeZone);
   if (day === today) return time;
   if (day === addDays(today, 1)) return `Tomorrow ${time}`;
+  if (day === addDays(today, -1)) return `Yesterday ${time}`;
   return `${formatDay(iso, timeZone)} ${time}`;
 }
 
