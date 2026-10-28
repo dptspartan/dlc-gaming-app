@@ -89,3 +89,4 @@ Load both families from Google Fonts so phones, laptops and the venue TV render 
 | 2026-10-25 | Stickers are dlc-labs only, on corners only | They must never leak into classic or cover live data. |
 | 2026-10-26 | Credits box: red "Powered by" tape, one section per person (name, grey employee id, GitHub and Slack buttons), fixed bottom-right on laptops, at the end of the page on phones, in the rail on the live board | The old one-line credit was hard to read and covered content on phones. |
 | 2026-10-27 | Claude (#GOAT5789) back in the credits box, as a last section with no buttons | The old "Powered by Claude" line went away when the box replaced it. |
+| 2026-10-28 | Credits box: public pages keep it fixed bottom-right, with a right gutter on the page content so nothing sits under it; admin pages put it at the end of the page | On laptops the fixed box covered names, statuses and controls. Approved by shoaib. |

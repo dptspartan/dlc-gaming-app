@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   formatDay,
   formatTime,
+  formatWhen,
   MINUTE,
   previewDay,
   rescheduleInTimetable,
@@ -141,7 +142,7 @@ export function RescheduleDialog({
                   const s = preview.result.slots.find((x) => x.id === id)!;
                   return (
                     <li key={id}>
-                      {m ? matchName(m) : 'A match'}: {m?.scheduled_start ? formatTime(m.scheduled_start, tz) : 'TBD'} → {formatTime(s.start, tz)}
+                      {m ? matchName(m) : 'A match'}: {formatWhen(m?.scheduled_start, tz)} → {formatWhen(s.start, tz)}
                     </li>
                   );
                 })}
@@ -210,7 +211,7 @@ export function EndOfDay({ tournament, tgames, matches, catalog }: Common) {
   };
   const lastDay = day.day === tournament.days;
   const plural = (n: number) => `${n} ${n === 1 ? 'match' : 'matches'}`;
-  const moving = (p: typeof current) => [p.later > 0 && `${plural(p.later)} move to tomorrow`, p.beyond > 0 && `${plural(p.beyond)} have no day left`].filter(Boolean).join(', ');
+  const moving = (p: typeof current) => [p.later > 0 && `${plural(p.later)} ${p.later === 1 ? 'moves' : 'move'} to tomorrow`, p.beyond > 0 && `${plural(p.beyond)} ${p.beyond === 1 ? 'has' : 'have'} no day left`].filter(Boolean).join(', ');
 
   return (
     <Panel className="flex flex-col gap-3">
@@ -224,7 +225,7 @@ export function EndOfDay({ tournament, tgames, matches, catalog }: Common) {
       <p className="text-sm text-muted">
         {current.later + current.beyond === 0
           ? `Everything still queued for today fits before ${formatTime(day.end, tz)}.`
-          : `${plural(current.today)} still fit today. ${moving(current)}.`}
+          : `${plural(current.today)} still ${current.today === 1 ? 'fits' : 'fit'} today. ${moving(current)}.`}
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -234,7 +235,7 @@ export function EndOfDay({ tournament, tgames, matches, catalog }: Common) {
         <Button disabled={busy || !until} onClick={() => run(() => setDayHours(tournament, date, { ...own, end: until }), `Today now runs until ${until}. Timetable rebuilt.`)}>
           Play the rest today
         </Button>
-        {late && <span className="text-sm text-muted">Then {plural(late.today)} play today{late.later + late.beyond ? `; ${moving(late)}` : ', nothing moves on'}.</span>}
+        {late && <span className="text-sm text-muted">Then {plural(late.today)} {late.today === 1 ? 'plays' : 'play'} today{late.later + late.beyond ? `; ${moving(late)}` : ', nothing moves on'}.</span>}
       </div>
 
       {stop && (

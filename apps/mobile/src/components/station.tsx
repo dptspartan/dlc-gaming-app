@@ -1,5 +1,5 @@
-import { formatTime, knockoutRounds, matchLabel, stationLabel, type Match, type StationState } from '@dlc/core';
-import { Pressable, Text, View } from 'react-native';
+import { formatWhen, isLaterDay, knockoutRounds, matchLabel, stationLabel, type Match, type StationState } from '@dlc/core';
+import { Alert, Pressable, Text, View } from 'react-native';
 import type { TournamentData } from '../lib/useTournament';
 import { CallCountdown, colors, Elapsed, styles } from './ui';
 
@@ -23,7 +23,27 @@ export function callableAt(data: TournamentData, station: number): Match[] {
       const allowed = data.tgames.find((tg) => tg.id === m.tournament_game_id)?.allowed_stations;
       return !allowed?.length || allowed.includes(station);
     })
-    .sort((a, b) => Number(b.station === station) - Number(a.station === station) || (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9'));
+    // Today's matches first: one moved to a later day only comes up once nothing else is left.
+    .sort(
+      (a, b) =>
+        Number(laterDay(data, a)) - Number(laterDay(data, b)) ||
+        Number(b.station === station) - Number(a.station === station) ||
+        (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9'),
+    );
+}
+
+/** Planned for a later day than today (rescheduled, or left over from the end of a day). */
+export function laterDay(data: TournamentData, m: Match): boolean {
+  return isLaterDay(m.scheduled_start, data.tournament?.timezone ?? 'UTC');
+}
+
+/** Calling a match planned for a later day is allowed, but asks first so it isn't done by mistake. */
+export function confirmCall(data: TournamentData, m: Match, call: () => void) {
+  if (!laterDay(data, m)) return call();
+  Alert.alert('Call it now?', `This match is planned for ${formatWhen(m.scheduled_start, data.tournament?.timezone ?? 'UTC')}.`, [
+    { text: 'Not now', style: 'cancel' },
+    { text: 'Call now', onPress: call },
+  ]);
 }
 
 /** One station at a glance: what is on it and what is next. */
@@ -63,7 +83,7 @@ export function StationCard({ s, data, master, onPress }: { s: StationState<Matc
       )}
       {next && (
         <Text style={[styles.muted, { marginTop: 4 }]}>
-          Next {formatTime(next.scheduled_start, tz)}: {gameName(data, next)}, {teamName(data, next.team_a_id)} v {teamName(data, next.team_b_id)}
+          Next {formatWhen(next.scheduled_start, tz)}: {gameName(data, next)}, {teamName(data, next.team_a_id)} v {teamName(data, next.team_b_id)}
         </Text>
       )}
     </Pressable>

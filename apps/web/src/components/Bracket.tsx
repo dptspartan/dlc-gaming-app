@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { bracketColumns, formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
+import { bracketColumns, feederMatch, feederSides, formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
 
@@ -25,7 +25,7 @@ export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotCli
   // Loser bracket slots nobody can reach are left out.
   const lower = all.filter((m) => m.stage === 'losers' && !(m.is_bye && m.status === 'completed' && !m.team_a_id && !m.team_b_id));
   const total = Math.max(...upper.map((m) => m.round));
-  const shared = { teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot };
+  const shared = { all, teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot };
 
   if (!all.some((m) => m.stage === 'losers')) return <Rounds matches={upper} total={total} {...shared} />;
   return (
@@ -46,6 +46,7 @@ function Rounds({
 }: {
   matches: Match[];
   total: number;
+  all: Match[];
   teams: Map<string, Team>;
   timeZone: string;
   onClick?: (m: Match) => void;
@@ -146,6 +147,7 @@ function useFlowPaths(boardRef: RefObject<HTMLDivElement | null>, matches: Match
 
 function BracketMatch({
   match,
+  all,
   teams,
   timeZone,
   onClick,
@@ -154,6 +156,7 @@ function BracketMatch({
   isLast,
 }: {
   match: Match;
+  all: Match[];
   teams: Map<string, Team>;
   timeZone: string;
   onClick?: (m: Match) => void;
@@ -173,6 +176,9 @@ function BracketMatch({
     const score = slot === 'a' ? match.score_a : match.score_b;
     const pen = slot === 'a' ? match.pen_a : match.pen_b;
     const selected = selectedSlot?.matchId === match.id && selectedSlot.slot === slot;
+    // A side waiting on another match names who can still take it; that match's code is on its own card.
+    const feeder = feederMatch(match, slot, all);
+    const contenders = feeder && feederSides(feeder, (id) => (id ? teams.get(id)?.name : null));
     return (
       <div
         className={`flex items-center gap-2 px-2.5 py-1.5 ${won ? 'bg-[linear-gradient(90deg,rgba(255,201,60,0.18),transparent)]' : ''} ${lost ? 'opacity-45' : ''} ${
@@ -187,9 +193,16 @@ function BracketMatch({
         data-bracket-team-id={team?.id ?? ''}
       >
         <Avatar name={team?.name ?? '?'} url={team?.logo_url} size={22} />
-        <span className={`flex-1 truncate font-semibold ${won ? 'text-gold' : team ? '' : 'text-muted italic'}`}>
-          {sideName(match, slot, team?.name)}
-        </span>
+        {feeder ? (
+          <span className="min-w-0 flex-1 leading-tight" title={`Winner of ${feeder.match_code}: ${contenders}`}>
+            <span className="block font-mono text-[10px] uppercase tracking-wider text-muted">Winner of {feeder.match_code}</span>
+            <span className="block truncate font-semibold text-muted italic">{contenders}</span>
+          </span>
+        ) : (
+          <span className={`flex-1 truncate font-semibold ${won ? 'text-gold' : team ? '' : 'text-muted italic'}`}>
+            {sideName(match, slot, team?.name)}
+          </span>
+        )}
         {score != null && <span className="font-display text-sm">{score}</span>}
         {pen != null && <span className="text-xs text-muted" title="Penalties">({pen})</span>}
         {won && <span className="text-gold glow-gold">◆</span>}
@@ -203,7 +216,8 @@ function BracketMatch({
       onClick={() => onClick?.(match)}
     >
       <div className="flex items-center justify-between gap-2 border-b border-line px-2.5 py-1.5 font-mono text-[11px] text-muted">
-        <span>
+        <span className="min-w-0 leading-tight">
+          {match.match_code && <span className="block font-bold">{match.match_code}</span>}
           {match.is_bye
             ? 'Bye'
             : match.scheduled_start

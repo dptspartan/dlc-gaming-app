@@ -48,11 +48,13 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
   const team = (id: string | null) => (id ? data.teams.get(id)?.name : undefined);
   const players = (m: Match) => [sideName(m, 'a', team(m.team_a_id)), sideName(m, 'b', team(m.team_b_id))];
 
-  // A match belongs to its uploaded day, else the day it is planned or was played, kept within the
-  // event's days (starting a match moves its time to "now", which can fall outside them).
-  // Anything running now is always shown.
+  // A match belongs to the day it was played, or for one still to play the day it is planned
+  // (a reschedule or the end of a day can move it off its uploaded day), else its uploaded day.
+  // Kept within the event's days (starting a match moves its time to "now", which can fall
+  // outside them). Anything running now is always shown.
   const dayOf = (m: Match) => {
-    const d = m.fixture_day ?? (m.scheduled_start ? localDate(m.scheduled_start, tz) : m.ended_at ? localDate(m.ended_at, tz) : days[0]);
+    const at = isDone(m) ? (m.ended_at ?? m.scheduled_start) : m.scheduled_start;
+    const d = at ? localDate(at, tz) : (m.fixture_day ?? days[0]);
     return d < days[0] ? days[0] : d > days[days.length - 1] ? days[days.length - 1] : d;
   };
   const onDay = (m: Match) => isNow(m) || dayOf(m) === day;
@@ -138,7 +140,7 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
                 <ul className="flex flex-col">
                   {list.map((m) => (
                     <li key={m.id}>
-                      <Row m={m} label={`${gameName(m)} · ${matchLabel(m, roundsByTg.get(m.tournament_game_id) ?? m.round)}`} players={players(m)} tz={tz} callMinutes={tournament.call_minutes} onOpen={() => setOpenMatch(m.id)} />
+                      <Row m={m} label={`${gameName(m)} · ${m.match_code ? `${m.match_code} · ` : ''}${matchLabel(m, roundsByTg.get(m.tournament_game_id) ?? m.round)}`} players={players(m)} tz={tz} callMinutes={tournament.call_minutes} onOpen={() => setOpenMatch(m.id)} />
                     </li>
                   ))}
                 </ul>
@@ -151,6 +153,7 @@ export function TodayBoard({ tournament, data }: { tournament: Tournament; data:
         <MatchControl
           match={open}
           teams={data.teams}
+          matches={data.matches}
           totalRounds={roundsByTg.get(open.tournament_game_id) ?? open.round}
           gameName={gameName(open)}
           game={data.games.get(openTg.game_id)}
@@ -203,11 +206,11 @@ function Row({
         <span className="text-[10px] font-semibold text-muted">{meridiem}</span>
       </span>
       <span className="min-w-0">
-        <span className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+        <span className="mb-1 flex items-start gap-1.5 text-xs text-muted">
           {m.station && <span className="today-station shrink-0 rounded-sm bg-ink px-1.5 py-px text-[10px] font-bold whitespace-nowrap text-bg">{stationLabel(m).replace('Stations', 'STN').replace('Station', 'STN')}</span>}
-          <span className="truncate">{label}</span>
+          <span className="min-w-0 break-words">{label}</span>
         </span>
-        <span className="block truncate text-sm font-semibold">
+        <span className="block text-sm font-semibold break-words">
           {m.status === 'completed' && winner >= 0 ? (
             <>
               {players[winner]} <span className="font-normal text-muted">beat</span> {players[1 - winner]}

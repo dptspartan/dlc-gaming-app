@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { addDays, formatClock } from "@dlc/core";
+import { addDays, formatClock, formatDay, zonedToUtc } from "@dlc/core";
 import { Bracket } from "../components/Bracket";
 import { FindMatches } from "../components/FindMatches";
 import { GroupTables } from "../components/GroupTables";
@@ -108,7 +108,7 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
       />
       <div className="event-hero mb-3 flex flex-wrap items-end justify-between gap-4">
         <Heading
-          sub={`${tournament.start_date}${tournament.days > 1 ? ` → ${addDays(tournament.start_date, tournament.days - 1)}` : ""} · daily ${formatClock(tournament.daily_start)}–${formatClock(tournament.daily_end)} (${tournament.timezone})`}
+          sub={`${dayName(tournament.start_date, tournament.timezone)}${tournament.days > 1 ? ` → ${dayName(addDays(tournament.start_date, tournament.days - 1), tournament.timezone)}` : ""} · daily ${formatClock(tournament.daily_start)}–${formatClock(tournament.daily_end)} (${tournament.timezone})`}
         >
           {tournament.name}
         </Heading>
@@ -378,3 +378,6 @@ function PublicTimetable({
     </div>
   );
 }
+
+/** "Mon 26 Oct" for a tournament day. */
+const dayName = (date: string, timeZone: string) => formatDay(zonedToUtc(date, "12:00", timeZone), timeZone);

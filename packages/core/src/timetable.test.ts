@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generateBracket } from './bracket';
 import { generateGroupStage, knockoutFromQualifiers } from './groups';
 import { callSecondsLeft, moveInQueue, previewDay, rescheduleInTimetable, todayOf, scheduleTournament, splitAtClose, stationBoard, type TimetableGame, type TimetableMatch } from './timetable';
-import { tournamentWindows } from './time';
+import { formatWhen, isLaterDay, tournamentWindows } from './time';
 
 const start = Date.UTC(2026, 0, 1, 10);
 const windows = [{ day: 1, start, end: start + 12 * 3600_000 }];
@@ -331,5 +331,17 @@ describe('previewDay (end of day)', () => {
     expect(stop.later).toBe(2);
     expect(stop.beyond).toBe(2);
     expect(todayOf(t, now)?.date).toBe('2026-01-01');
+  });
+});
+
+describe('formatWhen', () => {
+  const now = Date.UTC(2026, 9, 27, 15, 36);
+  it('says the day when a match is not today', () => {
+    expect(formatWhen('2026-10-27T13:00:00Z', 'Asia/Karachi', now)).toBe('6:00 PM');
+    expect(formatWhen('2026-10-28T12:30:00Z', 'Asia/Karachi', now)).toBe('Tomorrow 5:30 PM');
+    expect(formatWhen('2026-10-29T12:30:00Z', 'Asia/Karachi', now)).toBe('Thu 29 Oct 5:30 PM');
+    expect(formatWhen('2026-10-26T15:29:00Z', 'Asia/Karachi', now)).toBe('Yesterday 8:29 PM');
+    expect(isLaterDay('2026-10-28T12:30:00Z', 'Asia/Karachi', now)).toBe(true);
+    expect(isLaterDay('2026-10-27T17:00:00Z', 'Asia/Karachi', now)).toBe(false);
   });
 });

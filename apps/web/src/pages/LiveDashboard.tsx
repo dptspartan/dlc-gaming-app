@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
@@ -6,6 +6,8 @@ import {
   countdown,
   currentLeg,
   formatTime,
+  formatWhen,
+  isLaterDay,
   gridFor,
   isFinal,
   isSeries,
@@ -928,6 +930,12 @@ function GameBadge({
   );
 }
 
+/** Long names shrink so the full name fits in two or three lines instead of being cut off. */
+function nameFit(name: string) {
+  const n = name.length;
+  return n <= 14 ? 1 : n <= 20 ? 0.85 : n <= 28 ? 0.72 : 0.62;
+}
+
 /** One player or team on a live card; `hit` (the time of a point they just scored) bumps the avatar. */
 function Side({
   name,
@@ -969,7 +977,8 @@ function Side({
         />
       </motion.div>
       <span
-        className={`live-name font-display w-full truncate font-bold ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        className={`live-name font-display w-full font-bold leading-tight text-balance [overflow-wrap:anywhere] ${big ? "text-4xl" : compact ? "text-base" : "text-xl"}`}
+        style={{ "--name-fit": nameFit(name) } as CSSProperties}
       >
         {name}
       </span>
@@ -995,7 +1004,7 @@ function RailList({
   kind: "next" | "result";
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="rail-list panel p-4">
       <div className="rail-title hud mb-3 text-xs text-flame glow-flame">
@@ -1030,12 +1039,12 @@ function RailList({
                   <span className="mr-2 text-amber">Stn {m.station}</span>
                 ) : null}
                 {kind === "next"
-                  ? formatTime(m.scheduled_start, tz)
-                  : formatTime(m.ended_at, tz)}
+                  ? formatWhen(m.scheduled_start, tz)
+                  : formatWhen(m.ended_at, tz)}
               </span>
             </div>
             {kind === "result" ? (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 <span className="font-bold text-gold">{name(m.winner_id)}</span>
                 <span className="text-muted">
                   {" "}
@@ -1051,7 +1060,7 @@ function RailList({
                 )}
               </div>
             ) : (
-              <div className="truncate">
+              <div className="[overflow-wrap:anywhere]">
                 {name(m.team_a_id, m.a_from)} <span className="text-muted">vs</span>{" "}
                 {name(m.team_b_id, m.b_from)}
               </div>
@@ -1075,7 +1084,7 @@ function NothingLive({
   gameName?: string;
 }) {
   const name = (id: string | null, from?: string | null) =>
-    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner ${from}` : "TBD";
+    id ? (data.teams.get(id)?.name ?? "?") : from ? `Winner of ${from}` : "TBD";
   return (
     <div className="panel scanlines relative flex h-full min-h-[300px] flex-col items-center justify-center gap-4 text-center">
       <img
@@ -1084,7 +1093,7 @@ function NothingLive({
         alt=""
         aria-hidden="true"
       />
-      <div className="hud text-sm text-muted">// stand by</div>
+      <div className="hud text-sm text-muted">stand by</div>
       {next ? (
         <>
           {gameName && (
@@ -1097,7 +1106,7 @@ function NothingLive({
             {name(next.team_b_id, next.b_from)}
           </div>
           <div className="text-lg text-muted">
-            Next match at {formatTime(next.scheduled_start, tz)}
+            Next match {isLaterDay(next.scheduled_start, tz) ? '' : 'at '}{formatWhen(next.scheduled_start, tz)}
           </div>
         </>
       ) : (
