@@ -11,6 +11,7 @@ import {
   qualifiers,
   tournamentTimetable,
   seriesFor,
+  withRoundLegs,
   timetableOptions,
   ROUND_NUMBER,
   type DayHours,
@@ -68,6 +69,17 @@ export async function applyPlan(tg: TournamentGame, matches: Match[]) {
     .map((m) => ({ id: m.id, ...seriesFor(tg.plan, m, rounds) }));
   if (items.length) await rpc('set_series', { p_items: items });
   await refreshTimetable(tg.tournament_id);
+}
+
+/**
+ * Set how many legs the round `m` is in plays (group matches, semis and the
+ * final change their stage), save it in the game's plan and re-plan the
+ * matches that have not started. Live and finished matches keep their series.
+ */
+export async function setRoundLegs(tg: TournamentGame, matches: Match[], m: Pick<Match, 'stage' | 'round' | 'round_code'>, bestOf: number) {
+  const plan = withRoundLegs(tg.plan, m, knockoutRoundsOf(matches.filter((x) => x.tournament_game_id === tg.id)), bestOf);
+  must(await supabase.from('tournament_games').update({ plan }).eq('id', tg.id));
+  await applyPlan({ ...tg, plan }, matches);
 }
 
 function slotsFor<T extends { id: string }>(rows: T[], result: TimetableResult) {

@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { bracketColumns, feederMatch, feederSides, formatDay, formatTime, isFinal as isFinalMatch, matchLabel, sideName, winnerLinks, type Match, type Slot, type Team } from '@dlc/core';
 import trophySticker from '../assets/dlc/sticker-trophy.png';
 import { Avatar, StatusPill } from './ui';
@@ -16,16 +16,18 @@ interface Props {
   /** Fixture editing: click a slot, then another, to swap them. */
   onSlotClick?: (ref: SlotRef) => void;
   selectedSlot?: SlotRef | null;
+  /** Admin controls under each round's title, given the round's matches. */
+  roundTools?: (round: Match[]) => ReactNode;
 }
 
-export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotClick, selectedSlot }: Props) {
+export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotClick, selectedSlot, roundTools }: Props) {
   // Group matches have their own tables; the bracket is the knockout only.
   const upper = all.filter((m) => m.stage === 'knockout');
   if (upper.length === 0) return null;
   // Loser bracket slots nobody can reach are left out.
   const lower = all.filter((m) => m.stage === 'losers' && !(m.is_bye && m.status === 'completed' && !m.team_a_id && !m.team_b_id));
   const total = Math.max(...upper.map((m) => m.round));
-  const shared = { all, teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot };
+  const shared = { all, teams, timeZone, onClick: onMatchClick, onSlotClick, selectedSlot, roundTools };
 
   if (!all.some((m) => m.stage === 'losers')) return <Rounds matches={upper} total={total} {...shared} />;
   return (
@@ -42,6 +44,7 @@ export function Bracket({ matches: all, teams, timeZone, onMatchClick, onSlotCli
 function Rounds({
   matches,
   total,
+  roundTools,
   ...shared
 }: {
   matches: Match[];
@@ -52,6 +55,7 @@ function Rounds({
   onClick?: (m: Match) => void;
   onSlotClick?: (ref: SlotRef) => void;
   selectedSlot?: SlotRef | null;
+  roundTools?: (round: Match[]) => ReactNode;
 }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const flowPaths = useFlowPaths(boardRef, matches);
@@ -70,6 +74,7 @@ function Rounds({
             className={`bracket-round-column relative flex w-64 flex-col ${i < rounds.length - 1 ? 'bracket-stage-divider' : ''}`}
           >
             <div className="hud bracket-round-title mb-3 text-center text-xs text-flame glow-flame">{matchLabel(list[0], total)}</div>
+            {roundTools && <div className="bracket-round-tools mb-3">{roundTools(list)}</div>}
             <div className="flex flex-1 flex-col justify-around gap-3">
               {list.map((m) => {
                 const isFinal = m.stage === 'knockout' && isFinalMatch(m);

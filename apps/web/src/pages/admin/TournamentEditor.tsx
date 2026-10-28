@@ -11,6 +11,7 @@ import {
   formatWhen,
   isLaterDay,
   matchLabel,
+  matchRule,
   parseFixturesCsv,
   stationBoard,
   stationLabel,
@@ -45,6 +46,7 @@ import {
   moveMatch,
   previewTimetable,
   refreshTimetable,
+  setRoundLegs,
   startMatch,
   swapSlots,
   withdrawPlayer,
@@ -728,6 +730,13 @@ function TournamentGameCard({ tg, stations, data, onChange }: { tg: TournamentGa
         </div>
       </div>
       <PlanEditor plan={plan} onChange={setPlan} groups={format.format === 'groups'} ownGame={tg.game_id} games={[...data.games.values()]} />
+      {JSON.stringify(plan) !== JSON.stringify(tg.plan ?? {}) && (
+        // The plan sits below the settings row; save it where it was changed too.
+        <div className="-mt-3 mb-5 flex flex-wrap items-center gap-3">
+          <Button onClick={saveSettings}>Save game plan</Button>
+          <span className="text-sm text-muted">{hasFixtures ? 'Matches not started yet take the new legs; live and finished ones keep theirs.' : 'Not saved yet.'}</span>
+        </div>
+      )}
       {format.format === 'groups' && (
         <p className="-mt-3 mb-5 text-sm text-muted">{describeGroupSetup(teams.length, format.group_count, format.advance_per_group, format.wildcards)}</p>
       )}
@@ -886,6 +895,9 @@ function WithdrawPlayer({
   );
 }
 
+/** "Lower round 2" for L2, "Round of 64" for R64. */
+const roundKeyName = (key: string) => (key.startsWith('L') ? `Lower round ${key.slice(1)}` : key.startsWith('R') ? `Round of ${key.slice(1)}` : key);
+
 function PlanEditor({
   plan,
   onChange,
@@ -912,6 +924,7 @@ function PlanEditor({
     ['final', 'Final'],
   ];
   const final = plan.final ?? { best_of: 1 };
+  const roundRules = Object.entries(plan.rounds ?? {});
   const legs = Array.from({ length: final.best_of }, (_, i) => final.games?.[i] ?? null);
 
   return (
@@ -945,6 +958,17 @@ function PlanEditor({
           );
         })}
       </div>
+      {roundRules.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+          <span>
+            Rounds with their own legs (set on Fixtures):{' '}
+            {roundRules.map(([key, rule]) => `${ROUND_LABEL[key as keyof typeof ROUND_LABEL] ?? roundKeyName(key)} ${rule.best_of === 1 ? 'one game' : `best of ${rule.best_of}`}`).join(', ')}
+          </span>
+          <button type="button" className="min-h-9 text-xs font-semibold underline hover:text-ink" onClick={() => onChange({ ...plan, rounds: undefined })}>
+            Use the stage legs instead
+          </button>
+        </div>
+      )}
       {double && (
         <div className="mt-2 text-sm text-muted">
           A first knockout loss drops a player into the loser bracket; a second loss knocks them out. The loser bracket winner meets the upper bracket winner in
@@ -1317,6 +1341,13 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
     void act(() => swapSlots(first, ref));
   };
 
+  const changeLegs = (m: Match, bestOf: number) => {
+    if (!tg) return;
+    void act(async () => setRoundLegs(tg, all, m, bestOf));
+  };
+  const legsFor = (round: Match[]) =>
+    tg && <RoundLegs plan={tg.plan} round={round} knockoutRounds={roundsByTg.get(tg.id) ?? 0} busy={busy} onChange={changeLegs} />;
+
   const open = openMatch ? data.matches.get(openMatch) : undefined;
   const gameName = (m: Match) => gameOf(m.tournament_game_id)?.name ?? '';
   const teamName = (id: string) => data.teams.get(id)?.name ?? '?';
@@ -1420,7 +1451,13 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
       {matches.length === 0 ? (
         <Empty>No fixtures yet. Add players, then generate fixtures or upload a fixtures sheet.</Empty>
       ) : shown === 'groups' && tg ? (
-        <GroupTables tg={tg} teams={teams} matches={matches} onMatchClick={(m) => setOpenMatch(m.id)} />
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="field-label text-sm text-muted">Group matches</span>
+            {legsFor(groupMatches)}
+          </div>
+          <GroupTables tg={tg} teams={teams} matches={matches} onMatchClick={(m) => setOpenMatch(m.id)} />
+        </>
       ) : shown === 'bracket' && hasGroups && !knockout.length ? (
         <Empty>The knockout is drawn from the group tables once every group match is played.</Empty>
       ) : shown === 'bracket' ? (
@@ -1431,6 +1468,7 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           onMatchClick={swapMode ? undefined : (m) => setOpenMatch(m.id)}
           onSlotClick={swapMode ? onSlotClick : undefined}
           selectedSlot={selected}
+          roundTools={swapMode ? undefined : legsFor}
         />
       ) : (
         <ScheduleList matches={matches} teams={data.teams} timeZone={tournament.timezone} label={gameName} onMatchClick={(m) => setOpenMatch(m.id)} />
@@ -1450,6 +1488,57 @@ function FixturesPanel({ tournament, data, onChange }: { tournament: Tournament;
           callMinutes={tournament.call_minutes}
           onClose={() => setOpenMatch(null)}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * How many legs a round (or the group stage) plays. A change saves the game's
+ * plan and reaches the matches that have not started; live and finished ones
+ * keep the series they were played as.
+ */
+function RoundLegs({
+  plan,
+  round,
+  knockoutRounds,
+  busy,
+  onChange,
+}: {
+  plan: StagePlan | null;
+  round: Match[];
+  knockoutRounds: number;
+  busy: boolean;
+  onChange: (m: Match, bestOf: number) => void;
+}) {
+  const first = round[0];
+  if (!first) return null;
+  const value = matchRule(plan, first, knockoutRounds).best_of;
+  const real = round.filter((m) => !m.is_bye);
+  const open = real.filter((m) => m.status === 'pending' || m.status === 'ready' || m.status === 'called').length;
+  const playedOther = real.filter((m) => m.status !== 'pending' && m.status !== 'ready' && m.status !== 'called' && (m.best_of ?? 1) !== value).length;
+  return (
+    <div className="round-legs flex flex-col items-center gap-1">
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <span>Legs</span>
+        <select
+          className="min-h-9 py-1 text-sm"
+          value={value}
+          disabled={busy || open === 0}
+          title={open === 0 ? 'Every match in this round has started' : `Applies to the ${open} match${open === 1 ? '' : 'es'} not started yet`}
+          onChange={(e) => onChange(first, Number(e.target.value))}
+        >
+          {BEST_OF.map((n) => (
+            <option key={n} value={n}>
+              {n === 1 ? 'One game' : `Best of ${n}`}
+            </option>
+          ))}
+        </select>
+      </label>
+      {playedOther > 0 && (
+        <span className="text-[11px] text-muted">
+          {playedOther} already started keep{playedOther === 1 ? 's' : ''} {playedOther === 1 ? 'its' : 'their'} legs
+        </span>
       )}
     </div>
   );
