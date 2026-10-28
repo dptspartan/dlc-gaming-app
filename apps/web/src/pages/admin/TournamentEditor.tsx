@@ -12,6 +12,7 @@ import {
   isLaterDay,
   matchLabel,
   parseFixturesCsv,
+  scoringLabel,
   stationBoard,
   stationLabel,
   ROUND_LABEL,
@@ -968,7 +969,7 @@ function PlanEditor({
                 >
                   {legOptions.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} ({o.scoring === 'none' ? 'winner only' : o.scoring === 'goals' ? 'goals' : `best of ${o.best_of} rounds`})
+                      {o.name} ({scoringLabel(o).toLowerCase()})
                     </option>
                   ))}
                 </select>

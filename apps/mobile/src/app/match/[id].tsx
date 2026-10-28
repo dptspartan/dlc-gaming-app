@@ -1,4 +1,4 @@
-import { currentLeg, isSeries, knockoutRounds, legGameId, matchLabel, roundsToWin, scoringLabel, stationLabel } from '@dlc/core';
+import { currentLeg, isSeries, knockoutRounds, leader, legGameId, matchLabel, roundsToWin, scoreSteps, scoreUnit, scoringLabel, stationLabel } from '@dlc/core';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ export default function MatchControl() {
   const [winner, setWinner] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [amount, setAmount] = useState<Record<'a' | 'b', string>>({ a: '', b: '' });
 
   useEffect(() => {
     if (match?.winner_id) setWinner(match.winner_id);
@@ -37,6 +38,7 @@ export default function MatchControl() {
   const sa = match.score_a ?? 0;
   const sb = match.score_b ?? 0;
   const need = scoring === 'rounds' && game?.best_of ? roundsToWin(game.best_of) : 0;
+  const ahead = game ? leader(game, sa, sb) : null;
 
   const run = async (label: string, fn: () => Promise<unknown>, after?: () => void) => {
     setBusy(label);
@@ -68,12 +70,22 @@ export default function MatchControl() {
     });
   };
 
-  const point = (side: 'a' | 'b', delta: 1 | -1) =>
+  const point = (side: 'a' | 'b', delta: number) =>
     run(`point-${side}${delta}`, () => scorePoint(match, side, delta));
+  // A typed amount for one side (+50 kills); "Undo" takes it off instead of one.
+  const typed = (side: 'a' | 'b') => {
+    const n = Number(amount[side]);
+    return amount[side].trim() !== '' && Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null;
+  };
+  const addTyped = (side: 'a' | 'b', sign: 1 | -1) => {
+    const n = typed(side) ?? 1;
+    setAmount((v) => ({ ...v, [side]: '' }));
+    return point(side, sign * n);
+  };
 
   const confirmEnd = () => {
-    const w = scoring === 'none' ? (winner === match.team_a_id ? a : b) : sa > sb ? a : b;
-    const score = scoring === 'none' ? '' : ` ${Math.max(sa, sb)}–${Math.min(sa, sb)}`;
+    const w = scoring === 'none' ? (winner === match.team_a_id ? a : b) : ahead === 'a' ? a : b;
+    const score = scoring === 'none' ? '' : ` ${ahead === 'a' ? sa : sb}–${ahead === 'a' ? sb : sa}`;
     const what = series ? `leg ${leg + 1}` : 'match';
     Alert.alert(`End ${what}?`, `${w?.name} wins${score}.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -153,7 +165,7 @@ export default function MatchControl() {
           <Text style={[styles.label, { marginBottom: 0 }]}>
             {scoringLabel(game)}
             {need ? ` · first to ${need}, ends by itself` : ''}
-            {scoring === 'goals' ? ' · higher score wins' : ''}
+            {scoring === 'goals' && !game.score_target && !game.low_wins ? ' · higher score wins' : ''}
           </Text>
         )}
 
@@ -164,22 +176,51 @@ export default function MatchControl() {
             </Text>
             {canEnd && (
               <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
-                {(['a', 'b'] as const).map((sd) => (
-                  <View key={sd} style={{ flex: 1, gap: 8 }}>
-                    <Button
-                      title={scoring === 'rounds' ? `+ Round ${(sd === 'a' ? a : b)?.name ?? ''}` : `+ Goal ${(sd === 'a' ? a : b)?.name ?? ''}`}
-                      busy={busy === `point-${sd}1`}
-                      disabled={!!busy}
-                      onPress={() => point(sd, 1)}
-                    />
-                    <Button
-                      title="Undo"
-                      variant="ghost"
-                      disabled={!!busy || match.status !== 'live' || (sd === 'a' ? sa : sb) === 0}
-                      onPress={() => point(sd, -1)}
-                    />
-                  </View>
-                ))}
+                {(['a', 'b'] as const).map((sd) => {
+                  const name = (sd === 'a' ? a : b)?.name ?? '';
+                  const value = sd === 'a' ? sa : sb;
+                  if (scoring === 'rounds' || !game) {
+                    return (
+                      <View key={sd} style={{ flex: 1, gap: 8 }}>
+                        <Button title={`+ ${game ? scoreUnit(game, 1) : 'Round'} ${name}`} busy={busy === `point-${sd}1`} disabled={!!busy} onPress={() => point(sd, 1)} />
+                        <Button title="Undo" variant="ghost" disabled={!!busy || match.status !== 'live' || value === 0} onPress={() => point(sd, -1)} />
+                      </View>
+                    );
+                  }
+                  const steps = scoreSteps(game);
+                  const n = typed(sd);
+                  return (
+                    <View key={sd} style={{ flex: 1, gap: 8 }}>
+                      <Button title={`+${steps[0]} ${scoreUnit(game, steps[0])} ${name}`} busy={busy === `point-${sd}${steps[0]}`} disabled={!!busy} onPress={() => point(sd, steps[0])} />
+                      {steps.length > 1 && (
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          {steps.slice(1).map((step) => (
+                            <Button key={step} title={`+${step}`} style={{ flex: 1 }} busy={busy === `point-${sd}${step}`} disabled={!!busy} onPress={() => point(sd, step)} />
+                          ))}
+                        </View>
+                      )}
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TextInput
+                          value={amount[sd]}
+                          onChangeText={(t) => setAmount((v) => ({ ...v, [sd]: t.replace(/[^0-9]/g, '') }))}
+                          placeholder="Amount"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="number-pad"
+                          returnKeyType="done"
+                          onSubmitEditing={() => n && addTyped(sd, 1)}
+                          style={[styles.input, { flex: 1, minWidth: 0, paddingHorizontal: 10 }]}
+                        />
+                        <Button title="Add" variant="ghost" disabled={!!busy || !n} onPress={() => addTyped(sd, 1)} />
+                      </View>
+                      <Button
+                        title={n ? `Take off ${n}` : 'Undo 1'}
+                        variant="ghost"
+                        disabled={!!busy || match.status !== 'live' || value === 0 || (n != null && n > value)}
+                        onPress={() => addTyped(sd, -1)}
+                      />
+                    </View>
+                  );
+                })}
               </View>
             )}
           </View>
@@ -210,9 +251,9 @@ export default function MatchControl() {
         )}
         {canEnd && scoring === 'goals' && (
           <Button
-            title={sa === sb ? 'Level, add the deciding goal' : series ? `End leg ${leg + 1}` : 'End match'}
+            title={!ahead ? `Level, add the deciding ${game ? scoreUnit(game, 1).toLowerCase() : 'point'}` : series ? `End leg ${leg + 1}` : 'End match'}
             variant="success"
-            disabled={sa === sb}
+            disabled={!ahead}
             busy={busy === 'end'}
             onPress={confirmEnd}
           />

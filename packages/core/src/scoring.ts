@@ -9,10 +9,42 @@ export function hasLiveScore(game: Pick<Game, 'scoring'> | undefined): boolean {
   return !!game && game.scoring !== 'none';
 }
 
-/** Short label for a game's scoring, e.g. "Best of 5", "Goals", "Winner only". */
-export function scoringLabel(game: Pick<Game, 'scoring' | 'best_of'>): string {
-  if (game.scoring === 'rounds') return `Best of ${game.best_of}`;
-  if (game.scoring === 'goals') return 'Live score';
+type ScoreRules = Pick<Game, 'scoring' | 'best_of'> & Partial<Pick<Game, 'score_label' | 'score_steps' | 'score_target' | 'low_wins' | 'penalties'>>;
+
+/**
+ * What one point of a game is called: "Goals", "Kills", "Rounds"... With `n`
+ * of 1 it is singular ("Kill"), for "+1 Kill".
+ */
+export function scoreUnit(game: ScoreRules, n?: number): string {
+  const label = game.score_label?.trim() || (game.scoring === 'rounds' ? 'Rounds' : 'Goals');
+  return n === 1 && /[^s]s$/i.test(label) ? label.slice(0, -1) : label;
+}
+
+/** The amounts one tap adds, smallest first. A rounds game is always one round at a time. */
+export function scoreSteps(game: ScoreRules): number[] {
+  if (game.scoring !== 'goals') return [1];
+  const steps = [...new Set((game.score_steps ?? []).filter((n) => Number.isInteger(n) && n > 0))].sort((x, y) => x - y);
+  return steps.length ? steps : [1];
+}
+
+/** Whether a level score of this game can be settled on penalties. */
+export function allowsPenalties(game: ScoreRules | undefined): boolean {
+  return !!game && game.scoring === 'goals' && game.penalties !== false;
+}
+
+/** The side a score puts ahead (the lower one when lower wins), or null when level. */
+export function leader(game: ScoreRules, a: number, b: number): 'a' | 'b' | null {
+  if (a === b) return null;
+  return (a > b) !== !!game.low_wins ? 'a' : 'b';
+}
+
+/** Short label for a game's scoring, e.g. "Best of 5", "Kills · first to 100", "Winner only". */
+export function scoringLabel(game: ScoreRules): string {
+  if (game.scoring === 'rounds') return `Best of ${game.best_of}${game.score_label?.trim() ? ` ${scoreUnit(game).toLowerCase()}` : ''}`;
+  if (game.scoring === 'goals') {
+    const extra = game.low_wins ? ' · lowest wins' : game.score_target ? ` · first to ${game.score_target}` : '';
+    return scoreUnit(game) + extra;
+  }
   return 'Winner only';
 }
 
