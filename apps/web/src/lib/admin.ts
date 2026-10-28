@@ -9,7 +9,7 @@ import {
   knockoutFromQualifiers,
   moveInQueue,
   qualifiers,
-  scheduleTournament,
+  tournamentTimetable,
   seriesFor,
   timetableOptions,
   ROUND_NUMBER,
@@ -112,7 +112,7 @@ export async function generateFixtures(
     drafts = knockoutFor(entrants, { double: tg.plan?.double_elim });
   }
   const rows = queued(tg, drafts);
-  const result = scheduleTournament([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable([...others, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_groups: groups ?? null });
   await saveSlots(result, new Set(others.map((m) => m.id)));
   return result;
@@ -165,7 +165,7 @@ export async function buildKnockout(
   if (through.length < 2) throw new Error('At least two teams need to go through to play a knockout');
   const rows = queued(tg, knockoutFromQualifiers(through, { double: tg.plan?.double_elim }));
   const keep = allMatches.filter((m) => m.tournament_game_id !== tg.id || m.stage === 'group');
-  const result = scheduleTournament([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable([...keep, ...rows], timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await rpc('replace_bracket', { p_tournament_game_id: tg.id, p_matches: slotsFor(rows, result), p_stage: 'knockout' });
   await saveSlots(result, new Set(keep.map((m) => m.id)));
   return result;
@@ -173,7 +173,7 @@ export async function buildKnockout(
 
 /** Rebuild the whole timetable from now: every queued match gets a station and a time. */
 export async function reflowTournament(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): Promise<TimetableResult> {
-  const result = scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
+  const result = tournamentTimetable(matches, timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
   await saveSlots(result);
   return result;
 }
@@ -232,7 +232,7 @@ function stuckMessage(stuck: StuckReason, direction: 'earlier' | 'later', teamNa
 
 /** How the queued matches fit, without saving anything. */
 export function previewTimetable(tournament: Tournament, tgames: TournamentGame[], matches: TimetableMatch[], catalog?: Iterable<Game>): TimetableResult {
-  return scheduleTournament(matches, timetableOptions(tournament, tgames, Date.now(), catalog));
+  return tournamentTimetable(matches, timetableOptions(tournament, tgames, Date.now(), catalog), tournament.auto_times);
 }
 
 /** Run a match action, then rebuild the timetable so the queue moves on. */

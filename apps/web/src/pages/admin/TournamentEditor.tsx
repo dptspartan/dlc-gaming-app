@@ -365,7 +365,7 @@ function Stat({ label, value, tone = 'text-ink' }: { label: string; value: numbe
 
 function StationsPanel({ tournament, data, onSaved }: { tournament: Tournament; data: LiveData; onSaved: () => void }) {
   const { admins, masters, assign, error: loadError } = useStationMasters(tournament.id);
-  const [form, setForm] = useState({ stations: tournament.stations, call_minutes: tournament.call_minutes });
+  const [form, setForm] = useState({ stations: tournament.stations, call_minutes: tournament.call_minutes, auto_times: tournament.auto_times !== false });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const tgames = [...data.tgames.values()];
@@ -396,6 +396,12 @@ function StationsPanel({ tournament, data, onSaved }: { tournament: Tournament; 
           </Field>
           <Field label="Minutes to reach a station" hint="The countdown after players are called">
             <input type="number" min={1} max={60} className="w-32" value={form.call_minutes} onChange={(e) => (setSaved(false), setForm({ ...form, call_minutes: Number(e.target.value) }))} />
+          </Field>
+          <Field label="Match times" hint={form.auto_times ? 'Queued matches move later when matches run late' : 'Every match keeps its planned time and station'}>
+            <select value={form.auto_times ? 'auto' : 'planned'} onChange={(e) => (setSaved(false), setForm({ ...form, auto_times: e.target.value === 'auto' }))}>
+              <option value="auto">Move automatically</option>
+              <option value="planned">Keep planned times</option>
+            </select>
           </Field>
           <Button>Save</Button>
           {saved && <span className="text-gold">Saved, timetable rebuilt</span>}

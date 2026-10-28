@@ -318,6 +318,33 @@ export function scheduleTournament(matches: TimetableMatch[], options: Timetable
   return { slots, fits: !slots.some((s) => s.overflow) && unplaced.length === 0, overflowMinutes, finishesAt, unplaced };
 }
 
+/**
+ * The timetable with automatic time changes off: a queued match with a
+ * planned time and station keeps them, however late the matches before it
+ * run. Only matches without a plan get their place from scheduleTournament.
+ */
+export function plannedTimetable(matches: TimetableMatch[], options: TimetableOptions): TimetableResult {
+  const auto = scheduleTournament(matches, options);
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const minutes = (m: TimetableMatch) => options.minutes?.(m) ?? options.games.get(m.tournament_game_id)?.matchMinutes ?? 20;
+  const lastClose = options.windows[options.windows.length - 1].end;
+  const slots = auto.slots.map((s) => {
+    const m = byId.get(s.id);
+    const start = ms(m?.not_before);
+    const stations = m ? matchStations(m) : [];
+    if (!m || m.is_bye || (m.status !== 'pending' && m.status !== 'ready') || start == null || !stations.length) return s;
+    const end = start + minutes(m) * MINUTE;
+    return { id: s.id, station: stations[0], stations, start, end, overflow: end > lastClose };
+  });
+  const finishesAt = slots.length ? Math.max(...slots.map((s) => s.end)) : null;
+  const overflowMinutes = finishesAt != null && finishesAt > lastClose ? Math.ceil((finishesAt - lastClose) / MINUTE) : 0;
+  return { slots, fits: !slots.some((s) => s.overflow) && auto.unplaced.length === 0, overflowMinutes, finishesAt, unplaced: auto.unplaced };
+}
+
+/** The tournament's timetable, moving times automatically unless the organiser turned that off. */
+export const tournamentTimetable = (matches: TimetableMatch[], options: TimetableOptions, autoTimes = true): TimetableResult =>
+  autoTimes ? scheduleTournament(matches, options) : plannedTimetable(matches, options);
+
 function rank(m: TimetableMatch, games: Map<string, TimetableGame>): number {
   // Smaller is earlier: group stage, then round, then game, then position.
   return (m.stage === 'group' ? 0 : 1) * 1e9 + m.round * 1e6 + (games.get(m.tournament_game_id)?.order ?? 0) * 1e3 + m.position;

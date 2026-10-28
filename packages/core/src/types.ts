@@ -44,6 +44,8 @@ export interface Tournament {
   call_minutes: number;
   /** Days whose hours differ from daily_start / daily_end, by YYYY-MM-DD (a day ended early, or run late). */
   day_hours: Record<string, DayHours>;
+  /** Whether queued matches move later on their own when matches run late. Off keeps every planned time. */
+  auto_times: boolean;
   created_at: string;
 }
 
