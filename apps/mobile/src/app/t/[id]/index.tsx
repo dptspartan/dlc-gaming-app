@@ -1,12 +1,12 @@
-import { formatWhen, knockoutRounds, matchLabel, stationBoard, type Match } from '@dlc/core';
+import { formatDay, formatWhen, knockoutRounds, matchLabel, stationBoard, zonedDate, type Match } from '@dlc/core';
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, SectionList, Text, View } from 'react-native';
-import { EndOfDayCard } from '../../components/reschedule';
-import { StationCard } from '../../components/station';
-import { Avatar, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../components/ui';
-import { useAuth } from '../../lib/auth';
-import { useTournament, type TournamentData } from '../../lib/useTournament';
+import { Pressable, RefreshControl, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
+import { EndOfDayCard } from '../../../components/reschedule';
+import { StationCard } from '../../../components/station';
+import { Avatar, CallCountdown, colors, Elapsed, ErrorText, Pill, Screen, styles } from '../../../components/ui';
+import { useAuth } from '../../../lib/auth';
+import { useTournament, type TournamentData } from '../../../lib/useTournament';
 
 type View_ = 'mine' | 'stations' | 'matches';
 
@@ -28,7 +28,16 @@ export default function TournamentHub() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: data.tournament?.name ?? 'Tournament' }} />
+      <Stack.Screen
+        options={{
+          title: data.tournament?.name ?? 'Tournament',
+          headerRight: () => (
+            <Pressable hitSlop={12} onPress={() => router.push({ pathname: '/t/[id]/setup', params: { id } })}>
+              <Text style={{ color: colors.ember, fontWeight: '800', fontSize: 16 }}>Setup</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <View style={{ flexDirection: 'row', gap: 6, padding: 12, paddingBottom: 4 }}>
         {tabs.map(([k, label]) => (
           <Pressable
@@ -57,7 +66,7 @@ export default function TournamentHub() {
           refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.ember} />}
         >
           {view === 'mine' && mine.length === 0 && (
-            <Text style={[styles.muted, { padding: 4 }]}>No station is assigned to you yet. An admin assigns game masters under Stations & staff on the web. Pick any station from All stations meanwhile.</Text>
+            <Text style={[styles.muted, { padding: 4 }]}>No station is assigned to you yet. Assign game masters under Setup, Station staff. Pick any station from All stations meanwhile.</Text>
           )}
           {board
             .filter((s) => view === 'stations' || mine.includes(s.station))
@@ -82,12 +91,27 @@ export default function TournamentHub() {
 
 function MatchList({ id, data, loading, reload }: { id: string; data: TournamentData; loading: boolean; reload: () => void }) {
   const [gameFilter, setGameFilter] = useState<string | null>(null);
+  const [day, setDay] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const tz = data.tournament?.timezone ?? 'UTC';
+  // Days with matches, for the day chips (only shown when there is more than one).
+  const days = useMemo(
+    () => [...new Set(data.matches.filter((m) => m.scheduled_start && !m.is_bye).map((m) => zonedDate(m.scheduled_start!, tz)))].sort(),
+    [data.matches, tz],
+  );
 
   const rounds = useMemo(() => knockoutRounds(data.matches), [data.matches]);
 
   const sections = useMemo(() => {
-    const list = data.matches.filter((m) => !m.is_bye && (!gameFilter || m.tournament_game_id === gameFilter));
+    const q = query.trim().toLowerCase();
+    // A player's name or a match ID (QF1, M12...).
+    const hit = (m: Match) =>
+      !q ||
+      (m.match_code ?? '').toLowerCase().includes(q) ||
+      [m.team_a_id, m.team_b_id].some((t) => t && (data.teams.get(t)?.name ?? '').toLowerCase().includes(q));
+    const list = data.matches.filter(
+      (m) => !m.is_bye && (!gameFilter || m.tournament_game_id === gameFilter) && (!day || (m.scheduled_start && zonedDate(m.scheduled_start, tz) === day)) && hit(m),
+    );
     const byTime = (a: Match, b: Match) => (a.scheduled_start ?? '9').localeCompare(b.scheduled_start ?? '9');
     return [
       { title: 'Live now', data: list.filter((m) => m.status === 'live').sort(byTime) },
@@ -99,7 +123,7 @@ function MatchList({ id, data, loading, reload }: { id: string; data: Tournament
         data: list.filter((m) => m.status === 'completed').sort((a, b) => (b.ended_at ?? '').localeCompare(a.ended_at ?? '')),
       },
     ].filter((s) => s.data.length > 0);
-  }, [data.matches, gameFilter]);
+  }, [data.matches, data.teams, gameFilter, day, query, tz]);
 
   const gameName = (tgId: string) => {
     const tg = data.tgames.find((x) => x.id === tgId);
@@ -110,6 +134,28 @@ function MatchList({ id, data, loading, reload }: { id: string; data: Tournament
   return (
     <>
       <View>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Find a player or match ID"
+          placeholderTextColor={colors.muted}
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          style={[styles.input, { marginHorizontal: 12, marginTop: 8 }]}
+        />
+        {days.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 10, gap: 8 }}>
+            {[null, ...days].map((d) => (
+              <Pressable
+                key={d ?? 'all'}
+                onPress={() => setDay(d)}
+                style={[styles.pill, { paddingHorizontal: 12, paddingVertical: 8, borderColor: day === d ? colors.ember : colors.border }]}
+              >
+                <Text style={{ color: day === d ? colors.ember : colors.muted, fontWeight: '800' }}>{d ? formatDay(`${d}T12:00:00Z`, 'UTC') : 'All days'}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8 }}>
           {[{ id: null as string | null, label: 'All games' }, ...data.tgames.map((tg) => ({ id: tg.id as string | null, label: data.games.get(tg.game_id)?.name ?? '' }))].map(
             (chip) => (
@@ -130,7 +176,11 @@ function MatchList({ id, data, loading, reload }: { id: string; data: Tournament
         refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.ember} />}
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}
         stickySectionHeadersEnabled={false}
-        ListEmptyComponent={!loading ? <Text style={[styles.muted, { padding: 12 }]}>No fixtures yet. Generate them on the web admin.</Text> : null}
+        ListEmptyComponent={
+          !loading ? (
+            <Text style={[styles.muted, { padding: 12 }]}>{data.matches.length ? 'No match matches the search.' : 'No fixtures yet. Generate them under Setup, Fixtures.'}</Text>
+          ) : null
+        }
         renderSectionHeader={({ section }) => (
           <Text style={[styles.label, { color: section.title === 'Live now' ? colors.flame : section.title === 'Players called' ? colors.gold : colors.text, marginTop: 16 }]}>
             {section.title}

@@ -18,7 +18,12 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: 'DLC Gaming Club Admin' }} />
         <Stack.Screen name="login" options={{ title: 'Sign in', headerBackVisible: false }} />
-        <Stack.Screen name="t/[id]" options={{ title: 'Tournament' }} />
+        <Stack.Screen name="t/[id]/index" options={{ title: 'Tournament' }} />
+        <Stack.Screen name="t/[id]/setup" options={{ title: 'Setup' }} />
+        <Stack.Screen name="new" options={{ title: 'New tournament' }} />
+        <Stack.Screen name="catalog/index" options={{ title: 'Game catalog' }} />
+        <Stack.Screen name="catalog/[id]" options={{ title: 'Game' }} />
+        <Stack.Screen name="admins" options={{ title: 'Admins' }} />
         <Stack.Screen name="station/[n]" options={{ title: 'Station' }} />
         <Stack.Screen name="match/[id]" options={{ title: 'Match', presentation: 'modal' }} />
       </Stack>

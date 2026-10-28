@@ -1,7 +1,7 @@
 import { countdown, elapsed, statusColor, statusLabel, theme } from '@dlc/core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 
 /** Brighter secondary text than the web board: this app is read at arm's length in a noisy venue. */
 export const colors = { ...theme, muted: '#c9bcbe' };
@@ -135,7 +135,72 @@ export function ErrorText({ message }: { message: string | null }) {
   return <Text style={styles.error}>{message}</Text>;
 }
 
+/** A labelled text input; `hint` sits under it. */
+export function Field({ label, hint, style, ...input }: { label: string; hint?: string; style?: StyleProp<ViewStyle> } & TextInputProps) {
+  return (
+    <View style={style}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput placeholderTextColor={colors.muted} style={[styles.input, input.multiline && { minHeight: 120 }]} {...input} />
+      {hint ? <Text style={[styles.muted, { fontSize: 13, marginTop: 4 }]}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+/** Pick one of a few options: a row of chips that wraps (the phone's stand-in for a select). */
+export function Choices<T extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+  hint,
+  disabled,
+}: {
+  label?: string;
+  value: T;
+  options: [T, string][];
+  onChange: (v: T) => void;
+  hint?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <View>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {options.map(([v, text]) => {
+          const on = v === value;
+          return (
+            <Pressable
+              key={String(v)}
+              disabled={disabled}
+              onPress={() => onChange(v)}
+              style={[styles.chip, on && styles.chipOn, disabled && { opacity: 0.5 }]}
+            >
+              <Text style={{ color: on ? colors.text : colors.muted, fontWeight: '800', fontSize: 15 }}>{text}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {hint ? <Text style={[styles.muted, { fontSize: 13, marginTop: 4 }]}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+/** A row that opens another screen. */
+export function MenuRow({ title, sub, onPress }: { title: string; sub?: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, opacity: pressed ? 0.85 : 1 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.text, { fontWeight: '800', fontSize: 18 }]}>{title}</Text>
+        {sub ? <Text style={[styles.muted, { marginTop: 2 }]}>{sub}</Text> : null}
+      </View>
+      <Text style={{ color: colors.ember, fontSize: 24, fontWeight: '800' }}>›</Text>
+    </Pressable>
+  );
+}
+
 export const styles = StyleSheet.create({
+  chip: { minHeight: 44, minWidth: 44, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: theme.glassEdge, backgroundColor: theme.glass },
+  chipOn: { borderColor: theme.ember, backgroundColor: 'rgba(255,42,74,0.18)' },
   button: { paddingVertical: 15, paddingHorizontal: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, overflow: 'visible' },
   buttonText: { fontWeight: '800', letterSpacing: 0.2, fontSize: 16 },
   pill: { borderWidth: 1, paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', borderRadius: 999 },
