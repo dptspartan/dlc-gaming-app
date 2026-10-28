@@ -107,6 +107,11 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
         onDone={overlay.shift}
       />
       <div className="event-hero mb-3 flex flex-wrap items-end justify-between gap-4">
+        <Heading
+          sub={`${dayName(tournament.start_date, tournament.timezone)}${tournament.days > 1 ? ` → ${dayName(addDays(tournament.start_date, tournament.days - 1), tournament.timezone)}` : ""} · daily ${formatClock(tournament.daily_start)}–${formatClock(tournament.daily_end)} (${tournament.timezone})`}
+        >
+          {tournament.name}
+        </Heading>
         <div className="event-collage" aria-hidden="true">
           <img className="event-sticker event-sticker-mascot" src={mascotBeanbag} alt="" />
           <img className="event-sticker event-sticker-mascot-controller" src={mascotController} alt="" />
@@ -118,11 +123,6 @@ function TournamentView({ id, timetable }: { id: string; timetable: boolean }) {
           <img className="event-sticker event-sticker-headphones" src={stickerHeadphones} alt="" />
           <img className="event-sticker event-sticker-bolt" src={stickerBolt} alt="" />
         </div>
-        <Heading
-          sub={`${dayName(tournament.start_date, tournament.timezone)}${tournament.days > 1 ? ` → ${dayName(addDays(tournament.start_date, tournament.days - 1), tournament.timezone)}` : ""} · daily ${formatClock(tournament.daily_start)}–${formatClock(tournament.daily_end)} (${tournament.timezone})`}
-        >
-          {tournament.name}
-        </Heading>
         <Link
           to={`/t/${tournament.slug}/live`}
           className="font-display flex items-center gap-2 rounded-xl border border-flame/70 bg-flame/10 px-4 py-2 text-xs font-bold tracking-widest text-flame uppercase shadow-[0_0_20px_rgba(255,30,45,0.35)] backdrop-blur hover:bg-flame hover:text-bg"
