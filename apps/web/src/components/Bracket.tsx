@@ -235,6 +235,9 @@ function BracketMatch({
       {row('a')}
       <div className="h-px bg-line/60" />
       {row('b')}
+      {match.note && (
+        <div className="border-t border-line px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted">{match.note}</div>
+      )}
     </div>
   );
 }

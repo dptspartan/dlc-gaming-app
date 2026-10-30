@@ -146,6 +146,8 @@ export interface Match {
   /** Match code whose winner takes side A / B ("Winner of FC-PI-03"). */
   a_from: string | null;
   b_from: string | null;
+  /** A short line shown on the match card, e.g. why the teams are in it. */
+  note?: string | null;
   /** When the players were called to the station. */
   called_at: string | null;
   /** Held back in the queue until this time (skipped or delayed). */
